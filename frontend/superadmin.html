@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superadmin Dashboard - QR Digital Menu</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom styles including font imports -->
+    <link rel="stylesheet" href="./css/dist.css">
+</head>
+<body class="bg-gray-50 font-sans leading-normal tracking-normal flex flex-col lg:flex-row min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-full lg:w-64 bg-gray-800 text-white p-4 space-y-6 flex flex-col lg:flex-shrink-0">
+        <h1 class="text-3xl font-extrabold mb-6 text-center lg:text-left">Superadmin Panel</h1>
+        <nav class="flex-grow">
+            <ul class="space-y-2">
+                <li><a href="#" class="block py-2.5 px-4 rounded-lg transition duration-200 hover:bg-gray-700 active:bg-gray-700 font-medium">Manage Admins</a></li>
+                <!-- Add other superadmin links as needed -->
+            </ul>
+        </nav>
+        <button id="logoutBtn" class="w-full text-left py-2.5 px-4 rounded-lg transition duration-200 hover:bg-red-700 bg-red-600 font-bold">Logout</button>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-10">
+        <h2 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-8">Manage Admins</h2>
+
+        <!-- Create Admin Form -->
+        <section class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-gray-200">
+            <h3 class="text-2xl font-semibold text-gray-700 mb-6">Create New Admin</h3>
+            <form id="createAdminForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="adminName" class="block text-gray-700 text-sm font-semibold mb-2">Name:</label>
+                    <input type="text" id="adminName" name="name" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="Admin Name">
+                </div>
+                <div>
+                    <label for="adminEmail" class="block text-gray-700 text-sm font-semibold mb-2">Email:</label>
+                    <input type="email" id="adminEmail" name="email" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="admin@example.com">
+                </div>
+                <div>
+                    <label for="adminPassword" class="block text-gray-700 text-sm font-semibold mb-2">Password:</label>
+                    <input type="password" id="adminPassword" name="password" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="••••••••">
+                </div>
+                <div>
+                    <label for="confirmAdminPassword" class="block text-gray-700 text-sm font-semibold mb-2">Confirm Password:</label>
+                    <input type="password" id="confirmAdminPassword" name="confirmPassword" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="••••••••">
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full md:w-auto transition duration-300 transform hover:scale-105">
+                        Create Admin
+                    </button>
+                </div>
+                <p id="createAdminMessage" class="md:col-span-2 text-sm mt-2 hidden"></p>
+            </form>
+        </section>
+
+        <!-- Admin List -->
+        <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h3 class="text-2xl font-semibold text-gray-700 mb-6">Existing Admins</h3>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-6 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+                            <th class="py-3 px-6 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
+                            <th class="py-3 px-6 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminList" class="bg-white divide-y divide-gray-200">
+                        <!-- Admin rows will be loaded here by JavaScript -->
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-gray-500">Loading admins...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Edit Admin Modal (Hidden by default) -->
+        <div id="editAdminModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border border-gray-200">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Edit Admin</h3>
+                <form id="editAdminForm" class="space-y-5">
+                    <input type="hidden" id="editAdminId">
+                    <div>
+                        <label for="editAdminName" class="block text-gray-700 text-sm font-semibold mb-2">Name:</label>
+                        <input type="text" id="editAdminName" name="name" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                    </div>
+                    <div>
+                        <label for="editAdminEmail" class="block text-gray-700 text-sm font-semibold mb-2">Email:</label>
+                        <input type="email" id="editAdminEmail" name="email" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
+                    </div>
+                    <div>
+                        <label for="editAdminPassword" class="block text-gray-700 text-sm font-semibold mb-2">New Password (optional):</label>
+                        <input type="password" id="editAdminPassword" name="password" class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="Leave blank to keep current password">
+                    </div>
+                    <div class="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
+                        <button type="button" id="cancelEditBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105">
+                            Save Changes
+                        </button>
+                    </div>
+                    <p id="editAdminMessage" class="text-center text-sm mt-4 hidden"></p>
+                </form>
+            </div>
+        </div>
+
+    </main>
+    <!-- Corrected order: api.js BEFORE auth.js and superadmin.js -->
+    <script src="./js/api.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/superadmin.js"></script>
+</body>
+</html>

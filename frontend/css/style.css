@@ -1,0 +1,140 @@
+/* qr-digital-menu-system/frontend/css/style.css */
+
+/* --- Google Fonts Imports --- */
+/* For English (Inter) professional font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* REMOVED: @import for any Khmer fonts */
+
+/* --- Tailwind CSS Directives --- */
+/* These lines are essential for Tailwind to work */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- Custom Global Styles --- */
+/* This is where you put your custom CSS, which Tailwind will process */
+
+/* Custom scrollbar for better aesthetics */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Product card image aspect ratio - square (used in grid view) */
+.product-image-container {
+    position: relative;
+    width: 100%;
+    padding-top: 100%; /* Square aspect ratio */
+    overflow: hidden;
+    border-radius: 0.5rem; /* rounded-lg */
+}
+.product-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Custom styles for list view */
+.product-list-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0; /* py-3 */
+    border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
+    cursor: pointer;
+}
+.product-list-item:last-child {
+    border-bottom: none;
+}
+.product-list-item .list-image-container {
+    position: relative;
+    width: 60px; /* Adjust size for list view */
+    height: 60px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 0.5rem; /* rounded-lg */
+    margin-right: 1rem; /* mr-4 */
+    border: 1px solid #e5e7eb; /* Subtle border for list view image */
+}
+.product-list-item .list-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.product-list-item .list-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.product-list-item .list-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+}
+.product-list-item .list-content p {
+    font-size: 0.75rem;
+    color: #6b7280;
+    line-height: 1.3;
+}
+.product-list-item .list-price {
+    flex-shrink: 0;
+    margin-left: 1rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ea580c;
+}
+
+/* Apply Inter font as primary for all text, with generic sans-serif fallbacks */
+html {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", serif !important;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: normal;
+    font-variant-ligatures: normal;
+    font-language-override: normal;
+    direction: ltr;
+    /* Removed font-weight from html to apply more specifically */
+}
+
+/* Explicitly apply font-weight to common text elements */
+body, h1, h2, h3, h4, h5, h6, p, a, span, div, input, select, textarea, button {
+    font-weight: 600; /* Apply semibold to all common text elements */
+}
+
+/* Override for specific elements if needed, e.g., for descriptions */
+.product-card-description,
+.list-content p,
+#modalStoreDescription,
+#loginMessage,
+#createAdminMessage,
+#editAdminMessage,
+#storeMessage,
+#categoryMessage,
+#editCategoryMessage,
+#productMessage,
+#editProductMessage,
+#noMenuMessage,
+#noSearchResultsMessage,
+#loadingMessage {
+    font-weight: 400; /* Regular weight for descriptions and messages */
+}
+
+/* Ensure font-weight for specific bold elements remains strong */
+.font-bold {
+    font-weight: 700 !important; /* Ensure Tailwind's font-bold is respected */
+}
+.font-semibold {
+    font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
+}
