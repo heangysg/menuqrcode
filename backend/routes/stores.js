@@ -70,10 +70,10 @@ router.put('/my-store', protect, authorizeRoles('admin'), upload.single('logo'),
                 const publicId = store.logo.split('/').pop().split('.')[0]; // Extract public ID from URL
                 await cloudinary.uploader.destroy(publicId);
             }
-            const uploadRes = await cloudinary.uploader.upload(
+         const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                 {
-                    folder: 'qr_digital_menu_logos', // Optional: specific folder in Cloudinary
+                    folder: 'ysgstore/logos', // <--- CHANGED THIS LINE
                     resource_type: 'image',
                     quality: 'auto',
                     fetch_format: 'auto'

@@ -58,13 +58,13 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
         let imageUrl = '';
         if (req.file) {
             // Upload image to Cloudinary with optimization settings
-            const uploadRes = await cloudinary.uploader.upload(
+             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                 {
-                    folder: 'qr_digital_menu_products', // Specific folder for products
+                    folder: 'ysgstore/products', // <--- CHANGED THIS LINE
                     resource_type: 'image',
-                    quality: 'auto', // Automatically optimize image quality
-                    fetch_format: 'auto' // Automatically convert to optimal format (e.g., WebP)
+                    quality: 'auto',
+                    fetch_format: 'auto'
                 }
             );
             imageUrl = uploadRes.secure_url;
@@ -199,10 +199,10 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
                 await cloudinary.uploader.destroy(publicId);
             }
             // Upload new image with optimization settings
-            const uploadRes = await cloudinary.uploader.upload(
+        const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                 {
-                    folder: 'qr_digital_menu_products',
+                    folder: 'ysgstore/products', // <--- CHANGED THIS LINE
                     resource_type: 'image',
                     quality: 'auto',
                     fetch_format: 'auto'
