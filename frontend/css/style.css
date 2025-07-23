@@ -4,6 +4,8 @@
 /* For English (Inter) professional font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* REMOVED: @import for any Khmer fonts */
+
 /* --- Tailwind CSS Directives --- */
 /* These lines are essential for Tailwind to work */
 @tailwind base;
@@ -12,14 +14,6 @@
 
 /* --- Custom Global Styles --- */
 /* This is where you put your custom CSS, which Tailwind will process */
-
-/* FORCE OVERFLOW VISIBLE ON HTML AND BODY FOR STICKY TO WORK RELIABLY */
-/* This is often the missing piece. It ensures the main document is the scroll container. */
-html, body {
-    overflow-x: visible !important; /* Allow horizontal scroll if needed */
-    overflow-y: visible !important; /* Allow vertical scroll */
-    overflow: visible !important;   /* Shorthand to ensure both are visible */
-}
 
 /* Custom scrollbar for better aesthetics */
 .scrollbar-hide::-webkit-scrollbar {
@@ -111,6 +105,7 @@ html {
     font-variant-ligatures: normal;
     font-language-override: normal;
     direction: ltr;
+    /* Removed font-weight from html to apply more specifically */
 }
 
 /* Explicitly apply font-weight to common text elements */
