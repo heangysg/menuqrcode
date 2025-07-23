@@ -5,7 +5,7 @@
 <<<<<<< HEAD
 const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
 =======
-const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
+// const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
 >>>>>>> 3278fb84e50dc3c1becf27d69083638d66329137
 // const API_BASE_URL = 'http://localhost:5000/api'; 
 
