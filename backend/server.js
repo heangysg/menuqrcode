@@ -71,7 +71,7 @@ app.use(helmet({
             imgSrc: [
                 "'self'",
                 "data:",                        // Allow data URIs for images
-                "https://res.cloudinary.com",   // Cloudinary images
+                "https://res.cloudinary.com",   // Cloudinary images (for logos, banners, products)
                 "https://placehold.co"          // Placeholder images
             ],
             connectSrc: [

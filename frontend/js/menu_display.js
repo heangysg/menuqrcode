@@ -37,12 +37,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gridViewBtn = document.getElementById('gridViewBtn');
     const listViewBtn = document.getElementById('listViewBtn');
 
+    // MODIFIED: Banner elements for slider
+    const storeBannerContainer = document.getElementById('storeBannerContainer');
+    const sliderDotsContainer = document.getElementById('sliderDots');
+
     let allProducts = []; // Keep this to store *all* products for search functionality
     let currentFilteredProducts = []; // Stores products currently displayed based on active category or search
     let allCategories = [];
     let currentStoreData = null;
     let currentView = 'grid'; // Default view
     let activeCategoryId = 'all-items'; // Track active category for re-rendering on view change
+
+    let currentBannerIndex = 0;
+    let bannerInterval; // To hold the interval for automatic sliding
 
     if (!publicSlug) {
         menuTitle.textContent = 'Menu Not Found';
@@ -126,6 +133,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             storeLogoImg.src = '';
             storeLogoImg.style.display = 'none';
         }
+
+        // MODIFIED: Handle multiple banners for slider
+        // Ensure currentStoreData.banner is an array before checking length
+        if (Array.isArray(currentStoreData.banner) && currentStoreData.banner.length > 0) {
+            storeBannerContainer.classList.remove('hidden');
+            renderBanners(currentStoreData.banner);
+            startBannerSlider();
+        } else {
+            storeBannerContainer.classList.add('hidden');
+            stopBannerSlider();
+        }
+
 
         // Fetch categories (always all categories for the store)
         allCategories = await apiRequest(`/categories/store/${currentStoreData._id}`, 'GET', null, false);
@@ -538,6 +557,96 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // MODIFIED: Banner Slider Functions
+        function renderBanners(bannerUrls) {
+            storeBannerContainer.innerHTML = ''; // Clear existing banners and dots
+            sliderDotsContainer.innerHTML = '';
+
+            if (!bannerUrls || bannerUrls.length === 0) {
+                storeBannerContainer.classList.add('hidden');
+                return;
+            }
+
+            storeBannerContainer.classList.remove('hidden');
+
+            bannerUrls.forEach((url, index) => {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = `Store Banner ${index + 1}`;
+                img.classList.add('store-banner-slide');
+                if (index === 0) {
+                    img.classList.add('active'); // First banner is active initially
+                }
+                storeBannerContainer.appendChild(img);
+
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+                if (index === 0) {
+                    dot.classList.add('active');
+                }
+                dot.addEventListener('click', () => {
+                    showBanner(index);
+                    resetBannerSlider(); // Reset timer on manual navigation
+                });
+                sliderDotsContainer.appendChild(dot);
+            });
+
+            // Append dots container to the banner container
+            storeBannerContainer.appendChild(sliderDotsContainer);
+        }
+
+        function showBanner(index) {
+            const slides = storeBannerContainer.querySelectorAll('.store-banner-slide');
+            const dots = sliderDotsContainer.querySelectorAll('.dot');
+
+            if (slides.length === 0) return;
+
+            // Loop back to start if index is out of bounds
+            if (index >= slides.length) {
+                currentBannerIndex = 0;
+            } else if (index < 0) {
+                currentBannerIndex = slides.length - 1;
+            } else {
+                currentBannerIndex = index;
+            }
+
+            slides.forEach((slide, i) => {
+                slide.classList.remove('active');
+                if (i === currentBannerIndex) {
+                    slide.classList.add('active');
+                }
+            });
+
+            dots.forEach((dot, i) => {
+                dot.classList.remove('active');
+                if (i === currentBannerIndex) {
+                    dot.classList.add('active');
+                }
+            });
+        }
+
+        function nextBanner() {
+            showBanner(currentBannerIndex + 1);
+        }
+
+        function startBannerSlider() {
+            stopBannerSlider(); // Clear any existing interval
+            if (currentStoreData && Array.isArray(currentStoreData.banner) && currentStoreData.banner.length > 1) {
+                bannerInterval = setInterval(nextBanner, 5000); // Change banner every 5 seconds
+            }
+        }
+
+        function stopBannerSlider() {
+            if (bannerInterval) {
+                clearInterval(bannerInterval);
+            }
+        }
+
+        function resetBannerSlider() {
+            stopBannerSlider();
+            startBannerSlider();
+        }
+
         // Initial render
         renderCategoryTabs(allCategories, 'all-items'); // Set 'All' as active initially
         await fetchAndRenderProducts('all-items'); // Initial fetch of all products
@@ -561,5 +670,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         menuTitle.textContent = 'Menu Load Error';
         storeNameElem.textContent = 'Error loading menu details.';
         storeLogoImg.style.display = 'none';
+        storeBannerContainer.classList.add('hidden'); // Hide banner container on error
+        stopBannerSlider(); // Stop slider on error
     }
 });

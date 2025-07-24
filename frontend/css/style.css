@@ -138,3 +138,219 @@ body, h1, h2, h3, h4, h5, h6, p, a, span, div, input, select, textarea, button {
 .font-semibold {
     font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
 }
+
+/* Specifically target category tabs to ensure they are bold */
+#categoryTabs a {
+    font-weight: 700 !important; /* Make category tab links bold */
+}
+
+/* Custom styling for the banner image on menu_display.html */
+.store-banner-container {
+    position: relative;
+    width: 100%;
+    height: 80px; /* Further reduced default height for mobile */
+    overflow: hidden;
+    margin-bottom: 0.25rem; /* Further reduced margin-bottom to make it closer */
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+.store-banner-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+}
+
+.store-banner-slide.active {
+    opacity: 1;
+}
+
+.slider-dots {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10; /* Ensure dots are above banners */
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.dot.active {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+/* Responsive adjustments for the banner */
+@media (min-width: 640px) { /* sm breakpoint */
+    .store-banner-container {
+        height: 120px; /* Adjusted for small tablets/larger phones */
+    }
+}
+
+@media (min-width: 768px) { /* md breakpoint */
+    .store-banner-container {
+        height: 160px; /* Adjusted for tablets */
+    }
+}
+@media (min-width: 1024px) { /* lg breakpoint */
+    .store-banner-container {
+        height: 250px; /* Adjusted for desktops */
+    }
+}
+
+/* NEW: Further adjustments for header, search bar, and category tabs to reduce overall height */
+
+/* Header (Logo, Store Name, View Toggles) */
+header.bg-white {
+    padding-top: 0.25rem; /* py-1 */
+    padding-bottom: 0.25rem; /* py-1 */
+}
+
+header .container.mx-auto.px-4 {
+    padding-left: 0.5rem; /* px-2 */
+    padding-right: 0.5rem; /* px-2 */
+}
+
+header #storeLogo {
+    height: 36px; /* Even smaller logo */
+    width: 36px; /* Even smaller logo */
+}
+
+header #storeName {
+    font-size: 1rem; /* text-base */
+}
+
+.flex.items-center.space-x-3 {
+    gap: 0.5rem; /* Reduced gap between icons */
+}
+
+.flex.items-center.space-x-3 button {
+    font-size: 0.75rem; /* text-xs */
+    padding: 0.25rem; /* Reduced padding for icons */
+}
+
+/* Search Bar */
+.bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 {
+    padding-top: 0.25rem; /* py-1 */
+    padding-bottom: 0.25rem; /* py-1 */
+}
+
+.bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 .container.mx-auto {
+    padding-left: 0.5rem; /* px-2 */
+    padding-right: 0.5rem; /* px-2 */
+}
+
+.bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 input {
+    padding-top: 0.375rem; /* py-1.5 */
+    padding-bottom: 0.375rem; /* py-1.5 */
+    padding-left: 2rem; /* pl-8 (to accommodate icon) */
+    font-size: 0.875rem; /* text-sm */
+}
+
+.bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 svg {
+    left: 0.5rem; /* Adjusted icon position */
+    width: 1.125rem; /* Slightly smaller icon */
+    height: 1.125rem; /* Slightly smaller icon */
+}
+
+
+/* Category Tabs */
+.bg-white.shadow-sm.border-b.border-gray-200 {
+    padding-top: 0.125rem; /* py-0.5 */
+    padding-bottom: 0.125rem; /* py-0.5 */
+}
+
+.bg-white.shadow-sm.border-b.border-gray-200 .container.mx-auto.px-4 {
+    padding-left: 0.5rem; /* px-2 */
+    padding-right: 0.5rem; /* px-2 */
+}
+
+#categoryTabs {
+    padding-top: 0.25rem; /* py-1 */
+    padding-bottom: 0.25rem; /* py-1 */
+    gap: 0.75rem; /* Reduced gap between tabs */
+}
+
+#categoryTabs a {
+    padding-top: 0.125rem; /* py-0.5 */
+    padding-bottom: 0.125rem; /* py-0.5 */
+    padding-left: 0.5rem; /* px-2 */
+    padding-right: 0.5rem; /* px-2 */
+    font-size: 0.8rem; /* Even smaller font size for tabs */
+}
+
+/* Adjustments for larger screens to maintain good spacing (resetting to previous larger values) */
+@media (min-width: 768px) {
+    header.bg-white {
+        padding-top: 1rem; /* py-4 */
+        padding-bottom: 1rem; /* py-4 */
+    }
+
+    header #storeLogo {
+        height: 48px; /* Original size */
+        width: 48px; /* Original size */
+    }
+
+    header #storeName {
+        font-size: 1.5rem; /* Original size */
+    }
+
+    .flex.items-center.space-x-3 {
+        gap: 0.75rem; /* Original gap */
+    }
+
+    .flex.items-center.space-x-3 button {
+        font-size: 1.25rem; /* Original size */
+        padding: 0.5rem; /* Original padding */
+    }
+
+    .bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 {
+        padding-top: 0.75rem; /* py-3 */
+        padding-bottom: 0.75rem; /* py-3 */
+    }
+
+    .bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 input {
+        padding-top: 0.5rem; /* py-2 */
+        padding-bottom: 0.5rem; /* py-2 */
+        padding-left: 2.5rem; /* pl-10 */
+        font-size: 1rem; /* text-base */
+    }
+
+    .bg-white.py-3.px-4.shadow-sm.border-b.border-gray-200 svg {
+        left: 0.75rem; /* Original icon position */
+        width: 1.25rem; /* Original icon size */
+        height: 1.25rem; /* Original icon size */
+    }
+
+    .bg-white.shadow-sm.border-b.border-gray-200 {
+        padding-top: 0.5rem; /* py-2 */
+        padding-bottom: 0.5rem; /* py-2 */
+    }
+
+    #categoryTabs {
+        padding-top: 0.5rem; /* py-2 */
+        padding-bottom: 0.5rem; /* py-2 */
+        gap: 1rem; /* Original gap */
+    }
+
+    #categoryTabs a {
+        padding-top: 0.5rem; /* py-2 */
+        padding-bottom: 0.5rem; /* py-2 */
+        padding-left: 1rem; /* px-4 */
+        padding-right: 1rem; /* px-4 */
+        font-size: 1rem; /* Original size */
+    }
+}

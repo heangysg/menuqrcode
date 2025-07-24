@@ -209,6 +209,67 @@
         #categoryTabs a {
             font-weight: 700 !important; /* Make category tab links bold */
         }
+
+        /* Custom styling for the banner image */
+        .store-banner-container {
+            position: relative;
+            width: 100%;
+            height: 200px; /* Default height for mobile */
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+
+        .store-banner-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        .store-banner-slide.active {
+            opacity: 1;
+        }
+
+        .slider-dots {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 10; /* Ensure dots are above banners */
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Responsive adjustments for the banner */
+        @media (min-width: 768px) { /* md breakpoint */
+            .store-banner-container {
+                height: 300px; /* Taller on tablets */
+            }
+        }
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .store-banner-container {
+                height: 400px; /* Even taller on desktops */
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 leading-normal tracking-normal flex flex-col min-h-screen">
@@ -255,6 +316,12 @@
     </div> <!-- End of Sticky Navbar Wrapper -->
 
     <main class="container mx-auto px-4 py-6 flex-grow">
+        <!-- MODIFIED: Store Banner Slider Container -->
+        <div id="storeBannerContainer" class="store-banner-container hidden">
+            <!-- Banner images will be loaded here by JavaScript -->
+            <div id="sliderDots" class="slider-dots"></div>
+        </div>
+        
         <div id="menuContent">
             <!-- Menu items will be loaded here by JavaScript, grouped by category -->
             <p id="loadingMessage" class="text-center text-gray-500 text-lg mt-12">Loading menu...</p>

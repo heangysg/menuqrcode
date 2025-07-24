@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Mobile Menu
     const mobileMenuButton = document.getElementById('mobileMenuButton');
     const sidebar = document.getElementById('sidebar');
+    const mainContentArea = document.querySelector('main'); // Reference to the main content area for scrolling
 
     // Main Content Sections (NEW: Added IDs to sections)
     const dashboardOverviewSection = document.getElementById('dashboard-overview-section');
@@ -37,6 +38,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentLogoImg = document.getElementById('currentLogo');
     const removeLogoContainer = document.getElementById('removeLogoContainer');
     const removeStoreLogoCheckbox = document.getElementById('removeStoreLogo');
+    // MODIFIED: Banner elements for multiple images
+    const storeBannerInput = document.getElementById('storeBanner');
+    const currentBannersPreview = document.getElementById('currentBannersPreview'); // Container for multiple banner previews
+    const removeBannerContainer = document.getElementById('removeBannerContainer');
+    const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+
     const qrCodeContainer = document.getElementById('qrCodeContainer');
     const downloadQrBtn = document.getElementById('downloadQrBtn');
     const publicMenuLinkInput = document.getElementById('publicMenuLink');
@@ -75,6 +82,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentProductImageImg = document.getElementById('currentProductImage');
     const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
     const yourProductsListSection = document.getElementById('your-products-list-section'); // New reference for scrolling
+    // NEW: Reference to the "Add New Product" section for scrolling
+    const addProductSection = document.getElementById('add-product-section');
+
 
     // Product Image Popup Modal (for admin page)
     const productImagePopupModal = document.getElementById('productImagePopupModal');
@@ -196,18 +206,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.remove('hidden');
-            // Scroll to the top of the main content area after showing a section
-            document.querySelector('main').scrollTop = 0; 
-
-            // If a specific element ID is provided, scroll to it after a short delay
-            if (scrollToElementId) {
-                setTimeout(() => {
-                    const elementToScrollTo = document.getElementById(scrollToElementId);
-                    if (elementToScrollTo) {
-                        elementToScrollTo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }, 100); // Small delay to allow section to become visible
-            }
+            
+            // Use a slight delay to ensure the section is rendered before scrolling
+            setTimeout(() => {
+                // If a specific element ID is provided, scroll to that element.
+                // Otherwise, scroll the targetSection itself into view (which will be its top).
+                const elementToScrollTo = scrollToElementId ? document.getElementById(scrollToElementId) : targetSection;
+                if (elementToScrollTo) {
+                    elementToScrollTo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 50); // Small delay, adjust if needed
         }
     }
 
@@ -304,6 +312,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 removeStoreLogoCheckbox.checked = false;
             }
 
+            // MODIFIED: Handle multiple banner display
+            currentBannersPreview.innerHTML = ''; // Clear previous previews
+            // Ensure currentStore.banner is an array before iterating
+            if (Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
+                currentStore.banner.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Store Banner';
+                    img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
+                    currentBannersPreview.appendChild(img);
+                });
+                removeBannerContainer.style.display = 'block';
+                removeStoreBannerCheckbox.checked = false;
+            } else {
+                currentBannersPreview.innerHTML = ''; // Ensure empty if no banners
+                removeBannerContainer.style.display = 'none';
+                removeStoreBannerCheckbox.checked = false;
+            }
+
+
             // Generate QR code and display public link using the slug
             if (currentStore.slug) {
                 const publicMenuUrl = `${window.location.origin}/menu_display.html?slug=${currentStore.slug}`;
@@ -333,6 +361,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentLogoImg.src = '';
             currentLogoImg.style.display = 'none';
             removeLogoContainer.style.display = 'none';
+            currentBannersPreview.innerHTML = ''; // Clear banners on error too
+            removeBannerContainer.style.display = 'none';
             qrCodeContainer.innerHTML = '<p class="text-gray-500">Failed to load QR code.</p>';
             downloadQrBtn.style.display = 'none';
             publicMenuLinkInput.value = 'Failed to load menu link.';
@@ -354,21 +384,90 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('tiktokUrl', storeTikTokInput.value);
             formData.append('websiteUrl', storeWebsiteInput.value);
 
+            // Handle logo file and removal flag
             if (storeLogoInput.files[0]) {
                 formData.append('logo', storeLogoInput.files[0]);
             } else if (removeStoreLogoCheckbox.checked) {
-                formData.append('logo', '');
+                formData.append('removeLogo', 'true'); // Send a flag to backend to indicate removal
             }
+
+            // MODIFIED: Handle multiple banner files and removal flag
+            if (storeBannerInput.files.length > 0) {
+                // Append each selected banner file
+                for (let i = 0; i < storeBannerInput.files.length; i++) {
+                    formData.append('banner', storeBannerInput.files[i]);
+                }
+            } else if (removeStoreBannerCheckbox.checked) {
+                formData.append('removeBanner', 'true'); // Send a flag to backend to indicate removal of all banners
+            }
+
 
             try {
                 const updatedStore = await apiRequest('/stores/my-store', 'PUT', formData, true, true);
                 showMessageModal('Success', 'Store details updated successfully!', false);
-                await fetchStoreDetails();
+                await fetchStoreDetails(); // Re-fetch to update UI with new data (including new logo/banner URLs)
             } catch (error) {
                 showMessageModal('Error', `Error updating store: ${error.message}`, true);
             }
         });
     }
+
+    // MODIFIED: Preview for Multiple Banner Images
+    if (storeBannerInput) {
+        storeBannerInput.addEventListener('change', (event) => {
+            currentBannersPreview.innerHTML = ''; // Clear previous previews
+            const files = event.target.files;
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.alt = `New Banner ${i + 1}`;
+                        img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
+                        currentBannersPreview.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                }
+                removeBannerContainer.style.display = 'block'; // Show remove checkbox when new images are selected
+                removeStoreBannerCheckbox.checked = false; // Uncheck remove checkbox
+            } else {
+                // If no files selected, revert to current stored banners or hide
+                if (currentStore && Array.isArray(currentStore.banner) && currentStore.banner.length > 0 && !removeStoreBannerCheckbox.checked) {
+                    currentStore.banner.forEach(url => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = 'Store Banner';
+                        img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
+                        currentBannersPreview.appendChild(img);
+                    });
+                }
+            }
+        });
+    }
+
+    // MODIFIED: Handle remove all banners checkbox state
+    if (removeStoreBannerCheckbox) {
+        removeStoreBannerCheckbox.addEventListener('change', () => {
+            if (removeStoreBannerCheckbox.checked) {
+                currentBannersPreview.innerHTML = ''; // Clear all previews
+                storeBannerInput.value = ''; // Clear file input if removing
+            } else {
+                // If unchecked, and there were previous banners, show them
+                if (currentStore && Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
+                    currentStore.banner.forEach(url => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = 'Store Banner';
+                        img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
+                        currentBannersPreview.appendChild(img);
+                    });
+                }
+            }
+        });
+    }
+
 
     // Copy Menu Link functionality
     if (copyMenuLinkBtn) {
@@ -732,7 +831,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 formData.append('image', editProductImageInput.files[0]);
             } else if (currentProductImageImg.style.display === 'none' && currentProductImageImg.src === '') {
                 // This condition handles explicit removal if an image was previously present
-                formData.append('image', '');
+                // This logic is flawed. The backend expects 'image' field to be empty string for removal.
+                // It should be handled by a checkbox or explicit flag, not by checking current image state.
+                // For now, if no new file is selected, we don't send 'image' field, which means no change.
+                // If a removal is needed, a separate checkbox would be required.
             }
 
             try {

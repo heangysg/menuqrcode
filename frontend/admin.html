@@ -107,55 +107,6 @@
             color: #ea580c;
         }
 
-        /* Apply Inter font as primary for all text, with generic sans-serif fallbacks */
-        html {
-            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", serif !important;
-            text-rendering: optimizeLegibility;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            font-feature-settings: normal;
-            font-variant-ligatures: normal;
-            font-language-override: normal;
-            direction: ltr;
-            /* Removed font-weight from html to apply more specifically */
-        }
-
-        /* Explicitly apply font-weight to common text elements */
-        body, h1, h2, h3, h4, h5, h6, p, a, span, div, input, select, textarea, button {
-            font-weight: 600; /* Apply semibold to all common text elements */
-        }
-
-        /* Override for specific elements if needed, e.g., for descriptions */
-        .product-card-description,
-        .list-content p,
-        #modalStoreDescription,
-        #loginMessage,
-        #createAdminMessage,
-        #editAdminMessage,
-        #storeMessage,
-        #categoryMessage,
-        #editCategoryMessage,
-        #productMessage,
-        #editProductMessage,
-        #noMenuMessage,
-        #noSearchResultsMessage,
-        #loadingMessage {
-            font-weight: 400; /* Regular weight for descriptions and messages */
-        }
-
-        /* Ensure font-weight for specific bold elements remains strong */
-        .font-bold {
-            font-weight: 700 !important; /* Ensure Tailwind's font-bold is respected */
-        }
-        .font-semibold {
-            font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
-        }
-
-        /* Specific font application for Khmer characters */
-        body, input, select, textarea, button, h1, h2, h3, h4, p, a, th, td, li {
-            font-family: "Battambang", "Inter", sans-serif !important; /* Prioritize Battambang for Khmer, Inter for English */
-        }
-
         /* Modal specific adjustments for better responsiveness and appearance */
         .modal-overlay {
             position: fixed;
@@ -330,6 +281,38 @@
                 display: flex !important; /* Ensure flex on desktop */
             }
         }
+
+        /* Apply Battambang font as primary for all text, with Inter as fallback, then generic sans-serif */
+        body, h1, h2, h3, h4, p, a, span, div, input, select, textarea, button, th, td, li {
+            font-family: 'Battambang', 'Inter', sans-serif !important;
+            font-weight: 700; /* Apply bold weight to all text elements by default */
+        }
+
+        /* Override for specific elements if needed to be less bold */
+        .product-card-description,
+        .list-content p,
+        #modalStoreDescription,
+        #loginMessage,
+        #createAdminMessage,
+        #editAdminMessage,
+        #storeMessage,
+        #categoryMessage,
+        #editCategoryMessage,
+        #productMessage,
+        #editProductMessage,
+        #noMenuMessage,
+        #noSearchResultsMessage,
+        #loadingMessage {
+            font-weight: 400; /* Regular weight for descriptions and messages */
+        }
+
+        /* Ensure font-weight for specific bold elements remains strong */
+        .font-bold {
+            font-weight: 700 !important; /* Ensure Tailwind's font-bold is respected */
+        }
+        .font-semibold {
+            font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans leading-normal tracking-normal flex flex-col lg:flex-row min-h-screen text-gray-800">
@@ -337,7 +320,7 @@
         <h1 class="text-2xl font-extrabold text-blue-400">Admin Panel</h1>
         <button id="mobileMenuButton" class="text-white focus:outline-none">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-        </button>
+            </button>
     </header>
 
     <aside id="sidebar" class="bg-gray-900 text-white p-6 space-y-8 flex-col lg:flex-shrink-0 shadow-lg lg:shadow-xl lg:sticky lg:top-0 lg:h-screen hidden lg:flex">
@@ -460,14 +443,27 @@
                             class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
                     </div>
                 </div>
-                <div>
+                <div class="space-y-4">
                     <label for="storeLogo" class="block text-gray-700 text-base font-semibold mb-2">Store Logo (PNG, JPG):</label>
                     <input type="file" id="storeLogo" name="logo" accept="image/*"
                         class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                    <img id="currentLogo" class="mt-6 max-h-48 object-contain rounded-lg shadow-md border border-gray-200 p-2" src="" alt="Current Store Logo" style="display: none;">
-                    <div class="mt-4" id="removeLogoContainer" style="display: none;">
+                    <img id="currentLogo" class="mt-4 max-h-32 object-contain rounded-lg shadow-md border border-gray-200 p-2" src="" alt="Current Store Logo" style="display: none;">
+                    <div class="mt-2" id="removeLogoContainer" style="display: none;">
                         <input type="checkbox" id="removeStoreLogo" class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                         <label for="removeStoreLogo" class="text-base text-gray-700">Remove current logo</label>
+                    </div>
+                </div>
+                <!-- MODIFIED: Store Banner Upload to accept multiple files -->
+                <div class="space-y-4">
+                    <label for="storeBanner" class="block text-gray-700 text-base font-semibold mb-2">Store Banners (Optional, Max 3, PNG, JPG):</label>
+                    <input type="file" id="storeBanner" name="banner" accept="image/*" multiple
+                        class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                    <div id="currentBannersPreview" class="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Current banners will be displayed here by JS -->
+                    </div>
+                    <div class="mt-2" id="removeBannerContainer" style="display: none;">
+                        <input type="checkbox" id="removeStoreBanner" class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="removeStoreBanner" class="text-base text-gray-700">Remove all current banners</label>
                     </div>
                 </div>
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline w-full sm:w-auto transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg">
@@ -476,7 +472,7 @@
                 <p id="storeMessage" class="text-center text-sm mt-4 hidden"></p>
             </form>
 
-            <div class="mt-12 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+            <div class="mt-8 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Your Store QR Code:</h4>
                 <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8">
                     <div id="qrCodeContainer" class="p-5 bg-white border border-gray-200 rounded-xl inline-block shadow-lg flex-shrink-0">
@@ -489,7 +485,7 @@
                 <p class="text-base text-gray-600 mt-6">Share this QR code with your customers to display your menu.</p>
             </div>
 
-            <div class="mt-12 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+            <div class="mt-8 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 text-center">Direct Menu Link:</h4>
                 <div class="flex flex-col sm:flex-row items-center gap-4">
                     <input type="text" id="publicMenuLink" readonly value="Link will appear here after saving store info." class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight bg-gray-100 cursor-copy text-base">
@@ -553,7 +549,7 @@
         <section id="product-management-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200 hidden">
             <h3 class="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 sm:mb-8 border-b border-gray-200 pb-4">Manage Products</h3>
 
-            <div class="mb-10 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+            <div id="add-product-section" class="mb-10 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Add New Product</h4>
                 <form id="productForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     <div>

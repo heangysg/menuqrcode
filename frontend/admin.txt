@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - QR Digital Menu</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Google Fonts Import for Battambang (Khmer) and Inter (English Professional) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -242,7 +239,6 @@
             color: #4b5563;
             line-height: 1.4;
         }
-
         /* Custom Message/Confirmation Modal Styling */
         #customMessageModal .modal-content {
             max-width: 450px;
@@ -337,42 +333,47 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans leading-normal tracking-normal flex flex-col lg:flex-row min-h-screen text-gray-800">
-    <!-- Header for Mobile (Hamburger Icon) -->
     <header class="lg:hidden bg-gray-900 text-white p-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
         <h1 class="text-2xl font-extrabold text-blue-400">Admin Panel</h1>
         <button id="mobileMenuButton" class="text-white focus:outline-none">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-        </button>
+            </button>
     </header>
 
-    <!-- Sidebar -->
     <aside id="sidebar" class="bg-gray-900 text-white p-6 space-y-8 flex-col lg:flex-shrink-0 shadow-lg lg:shadow-xl lg:sticky lg:top-0 lg:h-screen hidden lg:flex">
         <h1 class="text-4xl font-extrabold mb-8 text-center lg:text-left text-blue-400">Admin Panel</h1>
         <nav class="flex-grow">
             <ul class="space-y-3">
                 <li>
-                    <a href="#dashboard-overview" class="flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 active:bg-gray-700 font-medium text-lg">
+                    <a href="#dashboard-overview" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 active:bg-gray-700 font-medium text-lg" data-target="dashboard-overview-section">
                         <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m0 0l-7 7m7-7v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                         Dashboard Overview
                     </a>
                 </li>
                 <li>
-                    <a href="#store-management" class="flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg">
+                    <a href="#store-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="store-management-section">
                         <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                         Store Info & QR
                     </a>
                 </li>
                 <li>
-                    <a href="#category-management" class="flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg">
+                    <a href="#category-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="category-management-section">
                         <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                         Categories
                     </a>
                 </li>
                 <li>
-                    <a href="#product-management" class="flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg">
+                    <a href="#product-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="product-management-section">
                         <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                         Products
                     </a>
+                    <ul class="ml-8 mt-2 space-y-2">
+                        <li>
+                            <a href="#your-products-list-section" class="sidebar-link flex items-center py-2 px-3 rounded-lg transition duration-300 hover:bg-gray-800 hover:text-blue-300 text-sm font-normal" data-target="product-management-section" data-scroll-to="your-products-list-section">
+                                <i class="fas fa-list-alt text-sm mr-2 opacity-75"></i> Your Products
+                            </a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
         </nav>
@@ -382,18 +383,15 @@
         </button>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 lg:p-12">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 border-b-2 border-blue-500 pb-4">
             <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 sm:mb-0">Admin Dashboard</h2>
             <img id="mainHeaderStoreLogo" src="" alt="Store Logo" class="h-12 w-12 object-contain rounded-full border border-gray-300 p-1 bg-white shadow-sm" style="display: none;">
         </div>
 
-        <!-- Dashboard Overview Section -->
-        <section id="dashboard-overview" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200">
+        <section id="dashboard-overview-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200">
             <h3 class="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 sm:mb-8 border-b border-gray-200 pb-4">Dashboard Overview</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Adjusted grid for better responsiveness -->
                 <div class="bg-blue-500 text-white p-6 rounded-xl shadow-md flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-bold" id="totalProductsCount">0</p>
@@ -408,23 +406,18 @@
                     </div>
                     <i class="fas fa-folder-open text-4xl opacity-50"></i>
                 </div>
-                <!-- Container for Category Product Counts -->
-                <!-- Removed sm:col-span-2 to allow it to flow naturally or stack -->
                 <div id="categoryProductCountsContainer" class="bg-purple-500 text-white p-6 rounded-xl shadow-md overflow-y-auto max-h-48"> 
                     <h4 class="text-xl font-semibold mb-3">Products per Category:</h4>
                     <ul id="categoryProductCountsList" class="space-y-2 text-lg">
-                        <!-- Counts will be dynamically loaded here by JavaScript -->
                         <li class="text-gray-200">Loading...</li>
                     </ul>
                 </div>
             </div>
         </section>
 
-        <!-- Store Info & QR Management -->
-        <section id="store-management" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200">
+        <section id="store-management-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200 hidden">
             <h3 class="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 sm:mb-8 border-b border-gray-200 pb-4">Store Information & QR Code</h3>
             <form id="storeForm" class="space-y-4 sm:space-y-6">
-                <!-- Adjusted spacing for responsiveness -->
                 <div>
                     <label for="storeName" class="block text-gray-700 text-base font-semibold mb-2">Store Name:</label>
                     <input type="text" id="storeName" name="name" required placeholder="Your Store Name"
@@ -445,9 +438,7 @@
                     <textarea id="storeDescription" name="description" rows="4" placeholder="A brief description of your store..."
                         class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base"></textarea>
                 </div>
-                <!-- Social Media Inputs -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                    <!-- Adjusted gap for responsiveness -->
                     <div>
                         <label for="storeFacebook" class="block text-gray-700 text-base font-semibold mb-2">Facebook URL (Optional):</label>
                         <input type="url" id="storeFacebook" name="facebookUrl" placeholder="https://facebook.com/yourstore"
@@ -479,6 +470,19 @@
                         <label for="removeStoreLogo" class="text-base text-gray-700">Remove current logo</label>
                     </div>
                 </div>
+                <!-- MODIFIED: Store Banner Upload to accept multiple files -->
+                <div>
+                    <label for="storeBanner" class="block text-gray-700 text-base font-semibold mb-2">Store Banners (Optional, Max 3, PNG, JPG):</label>
+                    <input type="file" id="storeBanner" name="banner" accept="image/*" multiple
+                        class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                    <div id="currentBannersPreview" class="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Current banners will be displayed here by JS -->
+                    </div>
+                    <div class="mt-4" id="removeBannerContainer" style="display: none;">
+                        <input type="checkbox" id="removeStoreBanner" class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="removeStoreBanner" class="text-base text-gray-700">Remove all current banners</label>
+                    </div>
+                </div>
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline w-full sm:w-auto transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg">
                     Save Store Info
                 </button>
@@ -489,7 +493,6 @@
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Your Store QR Code:</h4>
                 <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8">
                     <div id="qrCodeContainer" class="p-5 bg-white border border-gray-200 rounded-xl inline-block shadow-lg flex-shrink-0">
-                        <!-- QR code will be generated here -->
                         <p class="text-gray-500 text-base">Generate QR code after saving store info.</p>
                     </div>
                     <button id="downloadQrBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg" style="display: none;">
@@ -499,7 +502,6 @@
                 <p class="text-base text-gray-600 mt-6">Share this QR code with your customers to display your menu.</p>
             </div>
 
-            <!-- Public Menu Link Section -->
             <div class="mt-12 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 text-center">Direct Menu Link:</h4>
                 <div class="flex flex-col sm:flex-row items-center gap-4">
@@ -512,8 +514,7 @@
             </div>
         </section>
 
-        <!-- Category Management -->
-        <section id="category-management" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200">
+        <section id="category-management-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200 hidden">
             <h3 class="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 sm:mb-8 border-b border-gray-200 pb-4">Manage Categories</h3>
             <form id="categoryForm" class="flex flex-col sm:flex-row gap-4 mb-8">
                 <input type="text" id="categoryName" placeholder="New Category Name" required class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
@@ -532,7 +533,6 @@
                         </tr>
                     </thead>
                     <tbody id="categoryList" class="bg-white divide-y divide-gray-200">
-                        <!-- Categories will be loaded here by JavaScript -->
                         <tr>
                             <td colspan="2" class="text-center py-6 text-gray-500 text-base">No categories added yet.</td>
                         </tr>
@@ -540,7 +540,6 @@
                 </table>
             </div>
 
-            <!-- Edit Category Modal -->
             <div id="editCategoryModal" class="modal-overlay hidden">
                 <div class="modal-content">
                     <h3 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 text-center">Edit Category</h3>
@@ -564,15 +563,12 @@
             </div>
         </section>
 
-        <!-- Product Management -->
-        <section id="product-management" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200">
+        <section id="product-management-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200 hidden">
             <h3 class="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 sm:mb-8 border-b border-gray-200 pb-4">Manage Products</h3>
 
-            <!-- Create Product Form -->
             <div class="mb-10 p-6 sm:p-8 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Add New Product</h4>
                 <form id="productForm" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                    <!-- Adjusted gap for responsiveness -->
                     <div>
                         <label for="productName" class="block text-gray-700 text-base font-semibold mb-2">Product Name:</label>
                         <input type="text" id="productName" name="title" required placeholder="Delicious Dish" class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
@@ -581,8 +577,7 @@
                         <label for="productCategory" class="block text-gray-700 text-base font-semibold mb-2">Category:</label>
                         <select id="productCategory" name="category" required class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
                             <option value="">Select a Category</option>
-                            <!-- Categories will be populated here by JS -->
-                        </select>
+                            </select>
                     </div>
                     <div class="md:col-span-2">
                         <label for="productDescription" class="block text-gray-700 text-base font-semibold mb-2">Description:</label>
@@ -596,7 +591,6 @@
                         <label for="productImage" class="block text-gray-700 text-base font-semibold mb-2">Product Image (PNG, JPG):</label>
                         <input type="file" id="productImage" name="image" accept="image/*"
                             class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                        <!-- New: Image preview for new product -->
                         <img id="newProductImagePreview" class="mt-4 max-h-48 object-contain rounded-lg shadow-md border border-gray-200 p-2 hidden" src="" alt="New Product Image Preview">
                     </div>
                     <div class="md:col-span-2 flex justify-start">
@@ -608,22 +602,18 @@
                 </form>
             </div>
 
-            <!-- Product List -->
-            <div>
+            <div id="your-products-list-section"> <!-- Added ID for scrolling -->
                 <h4 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Your Products</h4>
                 <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                    <!-- Search Input -->
                     <div class="relative flex-grow">
                         <input type="text" id="productSearchInput" placeholder="Search products..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
                         <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
-                    <!-- Filter by Category Dropdown -->
                     <div class="flex-shrink-0 w-full sm:w-1/2 md:w-1/3">
                         <label for="productFilterCategory" class="sr-only">Filter by Category:</label>
                         <select id="productFilterCategory" class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
                             <option value="all">All Categories</option>
-                            <!-- Categories will be populated here by JS -->
-                        </select>
+                            </select>
                     </div>
                 </div>
                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-md">
@@ -646,7 +636,6 @@
                 </div>
             </div>
 
-            <!-- Edit Product Modal -->
             <div id="editProductModal" class="modal-overlay hidden">
                 <div class="modal-content">
                     <h3 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 text-center">Edit Product</h3>
@@ -659,8 +648,7 @@
                         <div>
                             <label for="editProductCategory" class="block text-gray-700 text-base font-semibold mb-2">Category:</label>
                             <select id="editProductCategory" name="category" required class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
-                                <!-- Categories will be populated here by JS -->
-                            </select>
+                                </select>
                         </div>
                         <div>
                             <label for="editProductDescription" class="block text-gray-700 text-base font-semibold mb-2">Description:</label>
@@ -691,7 +679,6 @@
         </section>
     </main>
 
-    <!-- Product Image Popup Modal Structure (for admin page) -->
     <div id="productImagePopupModal" class="modal-overlay hidden">
         <div class="modal-content-wrapper">
             <button id="closeProductImagePopupBtn" class="absolute top-3 right-3 text-white bg-gray-800 rounded-full p-2 hover:bg-gray-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-white z-10">
@@ -706,14 +693,12 @@
         </div>
     </div>
 
-    <!-- Custom Message/Confirmation Modal Structure -->
     <div id="customMessageModal" class="modal-overlay hidden">
         <div class="modal-content">
             <h3 id="customMessageTitle" class="modal-title"></h3>
             <p id="customMessageBody" class="modal-body"></p>
             <div id="customMessageButtons" class="modal-buttons">
-                <!-- Buttons will be injected by JavaScript -->
-            </div>
+                </div>
         </div>
     </div>
 
