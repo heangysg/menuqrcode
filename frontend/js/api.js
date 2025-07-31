@@ -7,6 +7,7 @@ const API_BASE_URL = 'https://menuqrcode.onrender.com/api';
 
 
 
+
 /**
  * Helper function to make authenticated API requests.
  * @param {string} endpoint - The API endpoint (e.g., '/auth/login', '/users', '/products').
