@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const storeDescriptionInput = document.getElementById('storeDescription');
     const storeFacebookInput = document.getElementById('storeFacebook');
     const storeTelegramInput = document.getElementById('storeTelegram');
-    const storeTikTokInput = document.getElementById('storeTikTok');
+    const storeTikTokInput = document = document.getElementById('storeTikTok');
     const storeWebsiteInput = document.getElementById('storeWebsite');
     const storeLogoInput = document.getElementById('storeLogo');
     const currentLogoImg = document.getElementById('currentLogo');
@@ -66,7 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const productCategorySelect = document.getElementById('productCategory');
     const productDescriptionInput = document.getElementById('productDescription');
     const productPriceInput = document.getElementById('productPrice');
-    const productImageInput = document.getElementById('productImage');
+    const productImageUrlInput = document.getElementById('productImageUrl'); // NEW: Image URL input for ADD form
+    const productImageInput = document.getElementById('productImage'); // File input for ADD form
     const newProductImagePreview = document.getElementById('newProductImagePreview');
     const productListTableBody = document.getElementById('productListTableBody');
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
@@ -78,8 +79,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editProductCategorySelect = document.getElementById('editProductCategory');
     const editProductDescriptionInput = document.getElementById('editProductDescription');
     const editProductPriceInput = document.getElementById('editProductPrice');
-    const editProductImageInput = document.getElementById('editProductImage');
+    const editProductImageUrlInput = document.getElementById('editProductImageUrl'); // NEW: Image URL input for EDIT form
+    const editProductImageInput = document.getElementById('editProductImage'); // File input for EDIT form
     const currentProductImageImg = document.getElementById('currentProductImage');
+    const removeProductImageContainer = document.getElementById('removeProductImageContainer'); // NEW: Container for remove checkbox
+    const removeProductImageCheckbox = document.getElementById('removeProductImage'); // NEW: Checkbox to remove product image
     const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
     const yourProductsListSection = document.getElementById('your-products-list-section'); // New reference for scrolling
     // NEW: Reference to the "Add New Product" section for scrolling
@@ -104,6 +108,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentStore = null;
 
     // --- Utility Functions ---
+
+    // Function to prepend CORS proxy if the URL is external and not already proxied
+    function getProxiedImageUrl(url) {
+        if (!url) return '';
+        // Check if the URL is already using the proxy
+        if (url.startsWith('https://corsproxy.io/?')) {
+            return url;
+        }
+        // Check if the URL is from the same origin or cloudinary (which is already allowed by CSP)
+        const isCloudinary = url.includes('res.cloudinary.com');
+        const isPlaceholder = url.includes('placehold.co');
+        const isSameOrigin = url.startsWith(window.location.origin);
+
+        if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
+            return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        }
+        return url;
+    }
+
 
     /**
      * Displays a custom message modal.
@@ -687,12 +710,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             products.forEach(product => {
                 const row = productListTableBody.insertRow();
-                const defaultImage = `https://placehold.co/50x50/e2e8f0/64748b?text=No+Img`;
+                // Prioritize imageUrl, then image (Cloudinary), then placeholder
+                // Apply CORS proxy to imageUrl if it's an external URL
+                const displayImage = getProxiedImageUrl(product.imageUrl) || product.image || `https://placehold.co/50x50/e2e8f0/64748b?text=No+Img`;
 
                 row.innerHTML = `
                     <td class="py-2 px-4 border-b border-gray-200">
-                        <div class="product-list-image-container cursor-pointer" data-image="${product.image || defaultImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
-                            <img src="${product.image || defaultImage}" alt="${product.title}" class="product-list-image">
+                        <div class="product-list-image-container cursor-pointer" data-image="${displayImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
+                            <img src="${displayImage}" alt="${product.title}" class="product-list-image">
                         </div>
                     </td>
                     <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
@@ -751,6 +776,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('category', productCategorySelect.value);
             formData.append('description', productDescriptionInput.value);
             formData.append('price', productPriceInput.value);
+            formData.append('imageUrl', productImageUrlInput.value); // NEW: Add imageUrl to formData
 
             if (productImageInput.files[0]) {
                 formData.append('image', productImageInput.files[0]);
@@ -772,6 +798,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Handle preview for file input (for add product form)
     if (productImageInput) {
         productImageInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -782,6 +809,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     newProductImagePreview.classList.remove('hidden');
                 };
                 reader.readAsDataURL(file);
+                // Clear URL input if a file is selected
+                productImageUrlInput.value = '';
+                // Clear onerror for new file
+                newProductImagePreview.onerror = null;
             } else {
                 newProductImagePreview.src = '';
                 newProductImagePreview.classList.add('hidden');
@@ -796,15 +827,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         editProductCategorySelect.value = product.category ? product.category._id : '';
         editProductDescriptionInput.value = product.description || '';
         editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
+        editProductImageUrlInput.value = product.imageUrl || ''; // NEW: Populate imageUrl field
 
-        if (product.image) {
-            currentProductImageImg.src = product.image;
+        // Display current image (prioritize imageUrl if present)
+        // Apply CORS proxy here too for the initial load of the edit modal image
+        const displayImage = getProxiedImageUrl(product.imageUrl) || product.image;
+        if (displayImage) {
+            currentProductImageImg.src = displayImage;
             currentProductImageImg.style.display = 'block';
+            removeProductImageContainer.style.display = 'block'; // Show remove checkbox
         } else {
             currentProductImageImg.src = '';
             currentProductImageImg.style.display = 'none';
+            removeProductImageContainer.style.display = 'none'; // Hide remove checkbox if no image
         }
-        editProductImageInput.value = '';
+        editProductImageInput.value = ''; // Clear file input
+        removeProductImageCheckbox.checked = false; // Uncheck remove checkbox by default
 
         editProductModal.classList.remove('hidden');
         document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
@@ -826,16 +864,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('category', editProductCategorySelect.value);
             formData.append('description', editProductDescriptionInput.value);
             formData.append('price', editProductPriceInput.value);
+            formData.append('isAvailable', editProductAvailabilityCheckbox.checked); // Add isAvailable to form data
 
-            if (editProductImageInput.files[0]) {
+            // Determine what to send for image:
+            if (editProductImageUrlInput.value.trim() !== '') {
+                // If a URL is entered, send it as `imageUrl`
+                formData.append('imageUrl', editProductImageUrlInput.value.trim());
+                // No need to send 'image' file or 'removeImage' flag in this case,
+                // backend will handle clearing Cloudinary image if imageUrl is provided.
+            } else if (editProductImageInput.files[0]) {
+                // If a file is selected and no URL is entered, send the file
                 formData.append('image', editProductImageInput.files[0]);
-            } else if (currentProductImageImg.style.display === 'none' && currentProductImageImg.src === '') {
-                // This condition handles explicit removal if an image was previously present
-                // This logic is flawed. The backend expects 'image' field to be empty string for removal.
-                // It should be handled by a checkbox or explicit flag, not by checking current image state.
-                // For now, if no new file is selected, we don't send 'image' field, which means no change.
-                // If a removal is needed, a separate checkbox would be required.
+                formData.append('imageUrl', ''); // Explicitly clear imageUrl if file is uploaded
+            } else if (removeProductImageCheckbox.checked) {
+                // If "Remove current image" is checked and no new file/URL
+                formData.append('removeImage', 'true'); // Flag to remove existing image
+                formData.append('imageUrl', ''); // Explicitly clear imageUrl
+            } else {
+                // If no new file, no new URL, and not explicitly removing,
+                // ensure imageUrl is sent as its current value to maintain it.
+                // If product.imageUrl was empty, it will remain empty.
+                // If product.image was present, it will remain present (unless imageUrl was provided).
+                // This scenario means no change to image fields.
+                // We don't need to append anything for image/imageUrl if no change is intended
+                // and no file/url/remove flag is set.
             }
+
 
             try {
                 await apiRequest(`/products/${editProductIdInput.value}`, 'PUT', formData, true, true);
@@ -851,6 +905,110 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Handle preview for file input (for edit product form)
+    if (editProductImageInput) {
+        editProductImageInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentProductImageImg.src = e.target.result;
+                    currentProductImageImg.classList.remove('hidden');
+                    currentProductImageImg.style.display = 'block';
+                    removeProductImageCheckbox.checked = false; // Uncheck remove if new file selected
+                    removeProductImageContainer.style.display = 'block'; // Ensure it's visible
+                };
+                reader.readAsDataURL(file);
+                // Clear URL input if a file is selected
+                editProductImageUrlInput.value = '';
+                // Clear onerror for new file
+                currentProductImageImg.onerror = null;
+            } else {
+                // If no file selected, revert to the product's original image or hide
+                // This part is tricky if you want to revert to the *original* image if the user
+                // selects a file and then cancels it. For simplicity, if no file is selected,
+                // and no URL is present, the image preview will just hide.
+                if (editProductImageUrlInput.value.trim() === '') {
+                    currentProductImageImg.src = '';
+                    currentProductImageImg.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // Handle remove product image checkbox
+    if (removeProductImageCheckbox) {
+        removeProductImageCheckbox.addEventListener('change', () => {
+            if (removeProductImageCheckbox.checked) {
+                currentProductImageImg.src = '';
+                currentProductImageImg.style.display = 'none';
+                editProductImageInput.value = ''; // Clear file input
+                editProductImageUrlInput.value = ''; // Clear URL input
+                // Clear onerror when removing
+                currentProductImageImg.onerror = null;
+            } else {
+                // If unchecked, and there was an original image, display it again
+                // This requires storing the original product data or re-fetching it.
+                // For now, it will just remain hidden if it was hidden.
+            }
+        });
+    }
+
+    // NEW: Live preview for Product Image URL input (Add Product Form)
+    if (productImageUrlInput) {
+        productImageUrlInput.addEventListener('input', () => {
+            const url = productImageUrlInput.value.trim();
+            if (url) {
+                // Use CORS proxy for preview
+                const proxiedUrl = getProxiedImageUrl(url);
+                newProductImagePreview.src = proxiedUrl;
+                newProductImagePreview.classList.remove('hidden');
+                // Clear file input if a URL is entered
+                productImageInput.value = '';
+                // Add onerror handler for the preview image
+                newProductImagePreview.onerror = () => {
+                    newProductImagePreview.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=Image+Load+Error'; // Placeholder for error
+                    console.error('Failed to load image from URL:', url);
+                };
+            } else {
+                newProductImagePreview.src = '';
+                newProductImagePreview.classList.add('hidden');
+                newProductImagePreview.onerror = null; // Remove handler if URL is cleared
+            }
+        });
+    }
+
+    // NEW: Live preview for Product Image URL input (Edit Product Form)
+    if (editProductImageUrlInput) {
+        editProductImageUrlInput.addEventListener('input', () => {
+            const url = editProductImageUrlInput.value.trim();
+            if (url) {
+                // Use CORS proxy for preview
+                const proxiedUrl = getProxiedImageUrl(url);
+                currentProductImageImg.src = proxiedUrl;
+                currentProductImageImg.style.display = 'block';
+                // Clear file input and uncheck remove checkbox if a URL is entered
+                editProductImageInput.value = '';
+                removeProductImageCheckbox.checked = false;
+                removeProductImageContainer.style.display = 'block'; // Ensure it's visible
+                // Add onerror handler for the preview image
+                currentProductImageImg.onerror = () => {
+                    currentProductImageImg.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=Image+Load+Error'; // Placeholder for error
+                    console.error('Failed to load image from URL:', url);
+                };
+            } else {
+                currentProductImageImg.src = '';
+                currentProductImageImg.style.display = 'none';
+                // If URL is cleared, and no file is selected, hide remove checkbox
+                if (!editProductImageInput.files[0]) {
+                    removeProductImageContainer.style.display = 'none';
+                }
+                currentProductImageImg.onerror = null; // Remove handler if URL is cleared
+            }
+        });
+    }
+
+
     async function deleteProduct(id) {
         try {
             await apiRequest(`/products/${id}`, 'DELETE');
@@ -865,7 +1023,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Product Image Popup Functions (for admin page) ---
     function openProductImagePopup(imageUrl, title, description, price) {
-        popupProductImage.src = imageUrl;
+        // Apply CORS proxy here for the popup image
+        const displayImageUrl = getProxiedImageUrl(imageUrl);
+        popupProductImage.src = displayImageUrl;
         popupProductTitle.textContent = title;
         popupProductDescriptionDetail.textContent = description || 'No description available.';
 

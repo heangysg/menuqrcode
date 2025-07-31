@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Digital Menu - Welcome</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons (hamburger, etc.) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Google Fonts Import for Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Apply Inter font as primary for all text */
+        body {
+            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom styles for the mobile menu transition */
+        .mobile-menu {
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+        }
+        .mobile-menu.hidden {
+            max-height: 0;
+        }
+        .mobile-menu:not(.hidden) {
+            max-height: 200px; /* Adjust based on content height */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white shadow-lg py-4">
+        <nav class="container mx-auto px-4 flex justify-between items-center">
+            <!-- Logo/Site Title -->
+            <a href="index.html" class="text-2xl font-extrabold text-orange-600 hover:text-orange-700 transition duration-300">QR Digital Menu</a>
+            
+            <!-- Hamburger Icon for Mobile -->
+            <div class="lg:hidden">
+                <button id="mobileMenuButton" class="text-gray-600 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-md p-2">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Desktop Navigation Links -->
+            <div class="hidden lg:flex items-center space-x-6">
+                <a href="index.html" class="text-gray-700 hover:text-orange-600 px-3 py-2 rounded-md font-medium transition duration-300">Home</a>
+                <a href="login.html" class="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105">
+                    Login
+                </a>
+            </div>
+        </nav>
+
+        <!-- Mobile Menu (hidden by default) -->
+        <div id="mobileMenu" class="mobile-menu hidden lg:hidden bg-white shadow-inner pt-2 pb-4">
+            <div class="container mx-auto px-4 flex flex-col space-y-2">
+                <a href="index.html" class="block text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md font-medium transition duration-300">Home</a>
+                <a href="login.html" class="block bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 rounded-lg text-center transition duration-300">
+                    Login
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Section -->
+    <main class="flex-grow flex items-center justify-center p-4 md:p-8">
+        <div class="bg-white p-8 md:p-12 rounded-2xl shadow-xl text-center max-w-2xl w-full border border-gray-100 transform transition-all duration-300 hover:shadow-2xl">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
+                Revolutionize Your Menu with <span class="text-orange-600">QR Digital Menu</span>
+            </h1>
+            <p class="text-lg md:text-xl text-gray-700 mb-8 max-w-prose mx-auto">
+                Effortlessly manage your restaurant's menu with dynamic QR codes. Update dishes, prices, and descriptions in real-time, providing a seamless and modern dining experience for your customers.
+            </p>
+            <div class="space-y-4 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row justify-center">
+                <a href="login.html" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg">
+                    Get Started (Login)
+                </a>
+                <a href="#" class="bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg">
+                    Learn More
+                </a>
+            </div>
+            <p class="text-sm text-gray-500 mt-8">Scan a QR code to view a menu directly!</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm">
+            &copy; 2025 QR Digital Menu. All rights reserved.
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mobileMenuButton = document.getElementById('mobileMenuButton');
+            const mobileMenu = document.getElementById('mobileMenu');
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                });
+
+                // Optional: Close mobile menu when a link is clicked (for single-page navigation or if desired)
+                mobileMenu.querySelectorAll('a').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (!mobileMenu.classList.contains('hidden')) {
+                            mobileMenu.classList.add('hidden');
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

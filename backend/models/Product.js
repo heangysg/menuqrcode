@@ -21,7 +21,13 @@ const productSchema = mongoose.Schema(
             default: '', // Default to empty string instead of 0
         },
         image: {
-            type: String, // URL from Cloudinary
+            type: String, // URL from Cloudinary (or public_id if you prefer)
+            default: '',
+        },
+        // NEW: Field to store direct image URL
+        imageUrl: {
+            type: String,
+            trim: true,
             default: '',
         },
         category: {

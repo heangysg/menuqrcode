@@ -3,120 +3,322 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Digital Menu - Welcome</title>
+    <title>YEUNG SHI GROUP - Your Partner in Cambodia</title>
+    <!-- Favicon link: Assumes favicon.ico is in frontend/public/img/ -->
+    <link rel="icon" href="/public/img/favicon.ico" type="image/x-icon">
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome for icons (hamburger, etc.) -->
+    
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Google Fonts Import for Inter -->
+
+    <!-- Google Fonts: Inter (for general text) and maybe something for headings if desired, but Inter is good for professional -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* Apply Inter font as primary for all text */
         body {
-            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-            text-rendering: optimizeLegibility;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth; /* Smooth scrolling for anchor links */
         }
-        /* Custom styles for the mobile menu transition */
-        .mobile-menu {
-            transition: max-height 0.3s ease-out;
+        /* Custom styles for subtle hover effects on cards */
+        .card-hover-effect {
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        .card-hover-effect:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Mobile menu specific styles */
+        #mobile-menu {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%); /* Start off-screen to the right */
+        }
+        #mobile-menu.open {
+            transform: translateX(0); /* Slide in */
+        }
+
+        /* Responsive map aspect ratio */
+        .map-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%; /* Default to square for mobile */
+            height: 0;
             overflow: hidden;
         }
-        .mobile-menu.hidden {
-            max-height: 0;
+
+        .map-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
-        .mobile-menu:not(.hidden) {
-            max-height: 200px; /* Adjust based on content height */
+
+        @media (min-width: 768px) { /* md breakpoint */
+            .map-container {
+                padding-bottom: 56.25%; /* 16:9 aspect ratio for larger screens */
+            }
         }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
 
     <!-- Header -->
-    <header class="bg-white shadow-lg py-4">
-        <nav class="container mx-auto px-4 flex justify-between items-center">
-            <!-- Logo/Site Title -->
-            <a href="index.html" class="text-2xl font-extrabold text-orange-600 hover:text-orange-700 transition duration-300">QR Digital Menu</a>
+    <header class="bg-white shadow-lg py-4 sticky top-0 z-50">
+        <div class="container mx-auto px-6 flex items-center justify-between">
+            <a href="/" class="flex items-center space-x-3">
+                <img src="/public/img/YYG.png" alt="YEUNG SHI GROUP Logo" class="h-14 w-auto object-contain"> <!-- Removed rounded-full and p-1 -->
+                <!-- Removed company name text: <span class="text-2xl font-extrabold text-orange-700 hidden sm:block">YEUNG SHI GROUP</span> -->
+            </a>
             
+            <!-- Desktop Navigation -->
+            <nav class="hidden md:block">
+                <ul class="flex space-x-6 items-center"> <!-- Added items-center for vertical alignment -->
+                    <li><a href="#about-us" class="text-gray-700 hover:text-orange-600 font-semibold transition duration-300">About Us</a></li>
+                    <li><a href="#our-products" class="text-gray-700 hover:text-orange-600 font-semibold transition duration-300">Products</a></li>
+                    <li><a href="#contact-us" class="text-gray-700 hover:text-orange-600 font-semibold transition duration-300">Contact</a></li>
+                    <li><a href="/login.html" class="bg-orange-600 text-white px-4 py-2 rounded-full hover:bg-orange-700 transition duration-300 shadow-md">Login</a></li>
+                    <!-- Removed Register Button -->
+                </ul>
+            </nav>
+
             <!-- Hamburger Icon for Mobile -->
-            <div class="lg:hidden">
-                <button id="mobileMenuButton" class="text-gray-600 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-md p-2">
-                    <i class="fas fa-bars text-xl"></i>
-                </button>
-            </div>
-
-            <!-- Desktop Navigation Links -->
-            <div class="hidden lg:flex items-center space-x-6">
-                <a href="index.html" class="text-gray-700 hover:text-orange-600 px-3 py-2 rounded-md font-medium transition duration-300">Home</a>
-                <a href="login.html" class="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105">
-                    Login
-                </a>
-            </div>
-        </nav>
-
-        <!-- Mobile Menu (hidden by default) -->
-        <div id="mobileMenu" class="mobile-menu hidden lg:hidden bg-white shadow-inner pt-2 pb-4">
-            <div class="container mx-auto px-4 flex flex-col space-y-2">
-                <a href="index.html" class="block text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md font-medium transition duration-300">Home</a>
-                <a href="login.html" class="block bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-3 rounded-lg text-center transition duration-300">
-                    Login
-                </a>
-            </div>
+            <button id="hamburger-menu-button" class="md:hidden text-gray-700 hover:text-orange-600 focus:outline-none text-2xl">
+                <i class="fas fa-bars"></i>
+            </button>
         </div>
     </header>
 
-    <!-- Main Content Section -->
-    <main class="flex-grow flex items-center justify-center p-4 md:p-8">
-        <div class="bg-white p-8 md:p-12 rounded-2xl shadow-xl text-center max-w-2xl w-full border border-gray-100 transform transition-all duration-300 hover:shadow-2xl">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
-                Revolutionize Your Menu with <span class="text-orange-600">QR Digital Menu</span>
-            </h1>
-            <p class="text-lg md:text-xl text-gray-700 mb-8 max-w-prose mx-auto">
-                Effortlessly manage your restaurant's menu with dynamic QR codes. Update dishes, prices, and descriptions in real-time, providing a seamless and modern dining experience for your customers.
-            </p>
-            <div class="space-y-4 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row justify-center">
-                <a href="login.html" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg">
-                    Get Started (Login)
-                </a>
-                <a href="#" class="bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold py-3 px-8 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105 shadow-md hover:shadow-lg">
-                    Learn More
+    <!-- Mobile Menu (Off-canvas) -->
+    <div id="mobile-menu" class="fixed top-0 right-0 h-full w-64 bg-white shadow-xl z-50 p-6 flex flex-col items-center pt-20 hidden">
+        <button id="close-mobile-menu-button" class="absolute top-4 right-4 text-gray-700 hover:text-orange-600 focus:outline-none text-2xl">
+            <i class="fas fa-times"></i>
+        </button>
+        <nav class="flex flex-col space-y-6 text-xl w-full text-center"> <!-- Added text-center here -->
+            <a href="#about-us" class="text-gray-700 hover:text-orange-600 font-semibold transition duration-300" data-close-menu>About Us</a>
+            <a href="#our-products" class="text-gray-700 hover:text-orange-600 font-semibold transition duration-300" data-close-menu>Products</a>
+            <a href="#contact-us" class="text-gray-700 hover:text-orange-600 font-semibold transition duration-300" data-close-menu>Contact</a>
+            <!-- Adjusted mobile button sizes -->
+            <a href="/login.html" class="bg-orange-600 text-white px-4 py-2 rounded-full hover:bg-orange-700 transition duration-300 shadow-md text-center text-lg w-full">Login</a>
+            <!-- Removed Register Button -->
+        </nav>
+    </div>
+
+    <main class="flex-grow">
+        <!-- Hero Section -->
+        <section class="bg-gradient-to-r from-orange-500 to-orange-700 text-white py-20 px-6 text-center shadow-inner">
+            <div class="container mx-auto">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 leading-tight">
+                    Innovating for Cambodia's Future
+                </h1>
+                <p class="text-lg md:text-xl lg:text-2xl font-light mb-8 max-w-3xl mx-auto">
+                    YEUNG SHI GROUP: Bringing cutting-edge machinery, exquisite flavors, and essential trade goods since 2005.
+                </p>
+                <a href="#our-products" class="bg-white text-orange-700 font-bold py-3 px-8 rounded-full text-lg shadow-lg hover:bg-gray-100 transform hover:scale-105 transition duration-300">
+                    Explore Our Offerings <i class="fas fa-arrow-right ml-2"></i>
                 </a>
             </div>
-            <p class="text-sm text-gray-500 mt-8">Scan a QR code to view a menu directly!</p>
-        </div>
+        </section>
+
+        <!-- About Us Section -->
+        <section id="about-us" class="py-16 px-6 bg-gray-100">
+            <div class="container mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                <h2 class="text-3xl md:text-4xl font-bold text-orange-700 mb-6 text-center">About YEUNG SHI GROUP</h2>
+                <p class="text-base md:text-lg text-gray-700 leading-relaxed text-center max-w-4xl mx-auto">
+                    Established in Guangzhou, China, in the 1990s, YEUNG SHI GROUP proudly commenced its operations in Cambodia in 2005. 
+                    Our unwavering commitment is to meticulously identify and passionately serve the dynamic target market in Cambodia, 
+                    delivering unparalleled quality products and exceptional services that foster growth and innovation.
+                </p>
+            </div>
+        </section>
+
+        <!-- Our Products & Services Section -->
+        <section id="our-products" class="py-16 px-6">
+            <div class="container mx-auto">
+                <h2 class="text-3xl md:text-4xl font-bold text-orange-700 mb-10 text-center">Our Diverse Offerings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
+                    <!-- Machine Category Card -->
+                    <div class="bg-white p-8 rounded-xl shadow-lg border border-orange-100 card-hover-effect">
+                        <div class="text-orange-600 text-5xl mb-4 text-center">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h3 class="text-xl md:text-2xl font-bold text-orange-800 mb-4 text-center">Machine</h3>
+                        <ul class="list-disc list-inside text-gray-700 space-y-2 text-base md:text-lg">
+                            <li>MDF Bending R6A</li>
+                            <li>Automatic Gear-Puncture Machines</li>
+                            <li>Wood Carving Machines</li>
+                            <li>Steel Cutting Machines</li>
+                            <li>UV Printing Machines</li>
+                            <li>Water Filter Systems</li>
+                            <li>Kitchen Appliances (Gas Stoves, Griddles)</li>
+                        </ul>
+                    </div>
+                    <!-- Flavours Category Card -->
+                    <div class="bg-white p-8 rounded-xl shadow-lg border border-orange-100 card-hover-effect">
+                        <div class="text-orange-600 text-5xl mb-4 text-center">
+                            <i class="fas fa-blender-phone"></i>
+                        </div>
+                        <h3 class="text-xl md:text-2xl font-bold text-orange-800 mb-4 text-center">Flavours</h3>
+                        <ul class="list-disc list-inside text-gray-700 space-y-2 text-base md:text-lg">
+                            <li>Shaker</li>
+                            <li>Choroney Jelly</li>
+                            <li>Various Fruit-Flavored Mix Powders</li>
+                            <li>Milk Powder</li>
+                            <li>Natural Cacao Powder</li>
+                            <li>Citric Acid</li>
+                            <li>Various Flavorings (e.g., Fish Sauce, Soy Sauce)</li>
+                        </ul>
+                    </div>
+                    <!-- Trade Category Card -->
+                    <div class="bg-white p-8 rounded-xl shadow-lg border border-orange-100 card-hover-effect">
+                        <div class="text-orange-600 text-5xl mb-4 text-center">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <h3 class="text-xl md:text-2xl font-bold text-orange-800 mb-4 text-center">Trade</h3>
+                        <ul class="list-disc list-inside text-gray-700 space-y-2 text-base md:text-lg">
+                            <li>Glass Bottles</li>
+                            <li>Peanuts</li>
+                            <li>Green Beans</li>
+                            <li>Desiccants (Silica Gel, Calcium Chloride)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Us Section -->
+        <section id="contact-us" class="py-16 px-6 bg-white">
+            <div class="container mx-auto p-8 rounded-xl shadow-lg border border-gray-200 text-center">
+                <h2 class="text-3xl md:text-4xl font-bold text-orange-700 mb-8">Connect With Us</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                    <!-- Contact Information Cards -->
+                    <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                        <i class="fas fa-map-marker-alt text-orange-600 text-3xl mb-3"></i>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Our Location</h3>
+                        <p class="text-gray-700 text-base">Phnom Penh, Cambodia</p>
+                    </div>
+                    <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                        <i class="fas fa-phone-alt text-orange-600 text-3xl mb-3"></i>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Call Us</h3>
+                        <p class="text-gray-700 text-base">010 / 011 / 012 / 070 : 309 302</p>
+                    </div>
+                    <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                        <i class="fas fa-envelope text-orange-600 text-3xl mb-3"></i>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Email Us</h3>
+                        <a href="mailto:yeungshigroup123@gmail.com" class="text-orange-600 hover:underline text-base">yeungshigroup123@gmail.com</a>
+                    </div>
+                    <div class="flex flex-col items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                        <i class="fas fa-clock text-orange-600 text-3xl mb-3"></i>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">Business Hours</h3>
+                        <p class="text-gray-700 text-base">Mon - Sat: 8:00 am - 5:30 pm</p>
+                    </div>
+                </div>
+
+                <!-- Email Input Section -->
+                <div class="max-w-xl mx-auto mb-12 p-6 bg-orange-50 rounded-xl shadow-md border border-orange-100">
+                    <h3 class="text-2xl font-bold text-orange-700 mb-6">Send Us a Message</h3>
+                    <form class="space-y-4">
+                        <div>
+                            <input type="text" placeholder="Your Name" class="w-full p-3 rounded-lg border border-orange-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200">
+                        </div>
+                        <div>
+                            <input type="email" placeholder="Your Email" class="w-full p-3 rounded-lg border border-orange-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200">
+                        </div>
+                        <div>
+                            <textarea placeholder="Your Message" rows="4" class="w-full p-3 rounded-lg border border-orange-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200"></textarea>
+                        </div>
+                        <button type="submit" class="bg-orange-600 text-white font-bold py-3 px-8 rounded-full hover:bg-orange-700 transition duration-300 shadow-lg">
+                            Send Message <i class="fas fa-paper-plane ml-2"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Map Location Section -->
+                <div class="mb-8">
+                    <h3 class="text-2xl font-bold text-orange-700 mb-6">Find Us on the Map</h3>
+                    <div class="map-container w-full rounded-xl overflow-hidden shadow-lg border border-gray-200">
+                        <!-- Google Maps Embed - Replace with your actual embed code if you have one -->
+                        <!-- This is a placeholder. You would typically get an iframe embed code from Google Maps. -->
+                        <!-- Example: Go to Google Maps, search "Yeung Shi Group", click Share -> Embed a map, copy iframe src -->
+                        <iframe
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3909.020586906263!2d104.9080766749363!3d11.554035688629091!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31095133614051a3%3A0x6d36e7681f9a1b6a!2sYeung%20Shi%20Group%20(YSG)!5e0!3m2!1sen!2skh!4v1700000000000!5m2!1sen!2skh" 
+                            width="100%" 
+                            height="450" 
+                            style="border:0;" 
+                            allowfullscreen="" 
+                            loading="lazy" 
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                    </div>
+                </div>
+                
+                <!-- Social Media Links -->
+                <h3 class="text-2xl font-bold text-orange-700 mb-6 mt-8">Follow Us</h3>
+                <div class="flex justify-center space-x-6 text-3xl text-gray-600">
+                    <a href="#" class="hover:text-orange-600 transition duration-300"><i class="fab fa-facebook"></i></a>
+                    <a href="#" class="hover:text-orange-600 transition duration-300"><i class="fab fa-telegram"></i></a>
+                    <a href="#" class="hover:text-orange-600 transition duration-300"><i class="fab fa-tiktok"></i></a>
+                    <a href="#" class="hover:text-orange-600 transition duration-300"><i class="fas fa-globe"></i></a>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-900 text-white py-6 mt-auto">
-        <div class="container mx-auto px-4 text-center text-sm">
-            &copy; 2025 QR Digital Menu. All rights reserved.
+    <footer class="bg-orange-800 text-white py-6">
+        <div class="container mx-auto px-6 text-center text-sm">
+            <p>&copy; 2025 YEUNG SHI GROUP. All rights reserved.</p>
+            <p class="mt-2 text-orange-200">Designed with passion in Cambodia.</p>
         </div>
     </footer>
 
+    <!-- Your JavaScript files -->
+    <script src="./js/api.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const mobileMenuButton = document.getElementById('mobileMenuButton');
-            const mobileMenu = document.getElementById('mobileMenu');
+        // JavaScript for Mobile Menu Toggle
+        const hamburgerButton = document.getElementById('hamburger-menu-button');
+        const closeMobileMenuButton = document.getElementById('close-mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuLinks = mobileMenu.querySelectorAll('a[data-close-menu]'); // Select links that should close the menu
 
-            if (mobileMenuButton && mobileMenu) {
-                mobileMenuButton.addEventListener('click', () => {
-                    mobileMenu.classList.toggle('hidden');
-                });
+        function toggleMobileMenu() {
+            mobileMenu.classList.toggle('hidden');
+            mobileMenu.classList.toggle('open');
+            // Prevent body scrolling when menu is open
+            if (mobileMenu.classList.contains('open')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        }
 
-                // Optional: Close mobile menu when a link is clicked (for single-page navigation or if desired)
-                mobileMenu.querySelectorAll('a').forEach(link => {
-                    link.addEventListener('click', () => {
-                        if (!mobileMenu.classList.contains('hidden')) {
-                            mobileMenu.classList.add('hidden');
-                        }
-                    });
-                });
+        hamburgerButton.addEventListener('click', toggleMobileMenu);
+        closeMobileMenuButton.addEventListener('click', toggleMobileMenu);
+
+        mobileMenuLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                // Only close if it's an internal anchor link
+                if (link.hash) {
+                    toggleMobileMenu();
+                }
+                // For external links or login/register, let default behavior handle it
+            });
+        });
+
+        // Close mobile menu if window is resized to desktop size
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) { // Tailwind's 'md' breakpoint
+                mobileMenu.classList.add('hidden');
+                mobileMenu.classList.remove('open');
+                document.body.style.overflow = '';
             }
         });
+
     </script>
 </body>
 </html>

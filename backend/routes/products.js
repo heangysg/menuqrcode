@@ -42,7 +42,8 @@ const getAdminStoreId = async (req, res, next) => {
 // @route   POST /api/products
 // @access  Private (Admin only)
 router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.single('image'), async (req, res) => {
-    const { title, description, price, category } = req.body;
+    // Destructure new 'imageUrl' field from body
+    const { title, description, price, category, imageUrl } = req.body;
 
     if (!title || !category) {
         return res.status(400).json({ message: 'Please add product title and select a category' });
@@ -55,26 +56,32 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
             return res.status(400).json({ message: 'Invalid category or category does not belong to your store.' });
         }
 
-        let imageUrl = '';
+        let finalImageUrl = imageUrl || ''; // Use provided imageUrl if it exists
+
+        // If a file is uploaded AND no imageUrl was provided, upload the file
+        // If imageUrl is provided, it takes precedence over file upload for the `imageUrl` field
+        // The `image` field will still be used for Cloudinary uploads if you want to keep that.
+        let cloudinaryImage = '';
         if (req.file) {
             // Upload image to Cloudinary with optimization settings
              const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                 {
-                    folder: 'ysgstore/products', // <--- CHANGED THIS LINE
+                    folder: 'ysgstore/products',
                     resource_type: 'image',
                     quality: 'auto',
                     fetch_format: 'auto'
                 }
             );
-            imageUrl = uploadRes.secure_url;
+            cloudinaryImage = uploadRes.secure_url;
         }
 
         const product = await Product.create({
             title,
             description,
             price: price,
-            image: imageUrl,
+            image: cloudinaryImage, // This is for Cloudinary uploaded images
+            imageUrl: finalImageUrl, // This is for direct URL input
             category: existingCategory._id,
             store: req.storeId,
         });
@@ -170,7 +177,8 @@ router.get('/public-store/slug/:slug', async (req, res) => {
 // @route   PUT /api/products/:id
 // @access  Private (Admin only)
 router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.single('image'), async (req, res) => {
-    const { title, description, price, category } = req.body;
+    // Destructure new 'imageUrl' field from body
+    const { title, description, price, category, imageUrl } = req.body;
 
     try {
         const product = await Product.findOne({ _id: req.params.id, store: req.storeId });
@@ -191,31 +199,47 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
         product.title = title || product.title;
         product.description = description !== undefined ? description : product.description;
         product.price = price;
+        product.isAvailable = req.body.isAvailable !== undefined ? req.body.isAvailable : product.isAvailable; // Ensure isAvailable is updated
 
-        if (req.file) {
-            // Delete old image from Cloudinary if it exists
+        // Logic for image handling:
+        // 1. If imageUrl is provided (even if empty string), use it for product.imageUrl
+        if (imageUrl !== undefined) {
+            product.imageUrl = imageUrl;
+            // If a direct URL is provided, and there was a Cloudinary image, delete the Cloudinary image
+            if (product.image) {
+                const publicId = product.image.split('/').pop().split('.')[0];
+                await cloudinary.uploader.destroy(publicId);
+                product.image = ''; // Clear the Cloudinary image field
+            }
+        } else if (req.file) {
+            // 2. If a file is uploaded and no imageUrl was provided (or imageUrl was explicitly removed/empty)
+            // Delete old Cloudinary image if it exists
             if (product.image) {
                 const publicId = product.image.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(publicId);
             }
             // Upload new image with optimization settings
-        const uploadRes = await cloudinary.uploader.upload(
+            const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                 {
-                    folder: 'ysgstore/products', // <--- CHANGED THIS LINE
+                    folder: 'ysgstore/products',
                     resource_type: 'image',
                     quality: 'auto',
                     fetch_format: 'auto'
                 }
             );
             product.image = uploadRes.secure_url;
-        } else if (req.body.image === '') { // Allow frontend to send empty string to remove image
+            product.imageUrl = ''; // Clear imageUrl if a file is uploaded
+        } else if (req.body.removeImage === 'true') { // Assuming a checkbox or flag for explicit removal
+            // 3. If a flag to remove image is sent and no new file/URL
             if (product.image) {
                 const publicId = product.image.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(publicId);
             }
             product.image = '';
+            product.imageUrl = '';
         }
+
 
         const updatedProduct = await product.save();
         res.json(updatedProduct);
@@ -236,7 +260,7 @@ router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (
             return res.status(404).json({ message: 'Product not found or you do not own this product.' });
         }
 
-        // Delete image from Cloudinary if it exists
+        // Delete image from Cloudinary if it exists (assuming 'image' field stores Cloudinary URL)
         if (product.image) {
             const publicId = product.image.split('/').pop().split('.')[0];
             await cloudinary.uploader.destroy(publicId);

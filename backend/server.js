@@ -66,13 +66,14 @@ app.use(helmet({
                 "'self'",
                 "https://fonts.gstatic.com",    // Google Fonts actual font files
                 "https://cdnjs.cloudflare.com", // Font Awesome webfonts (woff2, ttf etc.)
-                "data:"                         // Allow data URIs (e.g., for some inline SVG/base64 icons)
+                "data:"                      // Allow data URIs (e.g., for some inline SVG/base64 icons)
             ],
             imgSrc: [
                 "'self'",
-                "data:",                        // Allow data URIs for images
-                "https://res.cloudinary.com",   // Cloudinary images (for logos, banners, products)
-                "https://placehold.co"          // Placeholder images
+                "data:",                     // Allow data URIs for images
+                "https://res.cloudinary.com",  // Cloudinary images (for logos, banners, products)
+                "https://placehold.co",      // Placeholder images
+                "https://corsproxy.io"       // ADD THIS DOMAIN for external image proxy
             ],
             connectSrc: [
                 "'self'",

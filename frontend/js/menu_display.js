@@ -51,6 +51,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentBannerIndex = 0;
     let bannerInterval; // To hold the interval for automatic sliding
 
+    // Function to prepend CORS proxy if the URL is external and not already proxied
+    function getProxiedImageUrl(url) {
+        if (!url) return '';
+        // Check if the URL is already using the proxy
+        if (url.startsWith('https://corsproxy.io/?')) {
+            return url;
+        }
+        // Check if the URL is from the same origin or cloudinary (which is already allowed by CSP)
+        const isCloudinary = url.includes('res.cloudinary.com');
+        const isPlaceholder = url.includes('placehold.co');
+        const isSameOrigin = url.startsWith(window.location.origin);
+
+        if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
+            return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        }
+        return url;
+    }
+
+
     if (!publicSlug) {
         menuTitle.textContent = 'Menu Not Found';
         storeNameElem.textContent = 'Error: No Store ID provided.';
@@ -98,8 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // Determine how to render: grouped by category or as a single list
-            // Render as a single list if 'All' tab is active OR if searching
+            // Determine how to render: grouped by category or as a single list ("All Items" or "Search Results")
             const renderAsSingleList = (activeCategoryId === 'all-items' && !searchTerm) || searchTerm;
 
             if (renderAsSingleList) {
@@ -127,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         storeNameElem.textContent = currentStoreData.name;
 
         if (currentStoreData.logo) {
-            storeLogoImg.src = currentStoreData.logo;
+            storeLogoImg.src = getProxiedImageUrl(currentStoreData.logo); // Apply proxy to store logo
             storeLogoImg.style.display = 'block';
         } else {
             storeLogoImg.src = '';
@@ -329,19 +347,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const imgContainer = document.createElement('div');
             imgContainer.classList.add('product-image-container');
             const defaultImage = `https://placehold.co/400x400/e2e8f0/64748b?text=No+Image`;
-            if (product.image) {
-                const img = document.createElement('img');
-                img.src = product.image;
-                img.alt = product.title;
-                img.classList.add('product-image');
-                imgContainer.appendChild(img);
-            } else {
-                const placeholderImg = document.createElement('img');
-                placeholderImg.src = defaultImage;
-                placeholderImg.alt = 'No Image Available';
-                placeholderImg.classList.add('product-image');
-                imgContainer.appendChild(placeholderImg);
-            }
+            
+            // Prioritize imageUrl, then image (Cloudinary), then image (from backend, if not imageUrl), then placeholder
+            const displayImage = getProxiedImageUrl(product.imageUrl || product.image) || defaultImage;
+
+            const img = document.createElement('img');
+            img.src = displayImage;
+            img.alt = product.title;
+            img.classList.add('product-image');
+            imgContainer.appendChild(img);
             productCard.appendChild(imgContainer);
 
             const cardContent = document.createElement('div');
@@ -370,7 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             productCard.addEventListener('click', () => {
                 // Pass product.price to openImagePopup
-                openImagePopup(product.image || defaultImage, product.title, product.description, product.price);
+                openImagePopup(displayImage, product.title, product.description, product.price);
             });
             return productCard;
         }
@@ -381,22 +395,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             listItem.classList.add('product-list-item');
 
             const defaultImage = `https://placehold.co/60x60/e2e8f0/64748b?text=No+Img`;
+            // Prioritize imageUrl, then image (Cloudinary), then image (from backend, if not imageUrl), then placeholder
+            const displayImage = getProxiedImageUrl(product.imageUrl || product.image) || defaultImage;
 
             const imgContainer = document.createElement('div');
             imgContainer.classList.add('list-image-container');
-            if (product.image) {
-                const img = document.createElement('img');
-                img.src = product.image;
-                img.alt = product.title;
-                img.classList.add('list-image');
-                imgContainer.appendChild(img);
-            } else {
-                const placeholderImg = document.createElement('img');
-                placeholderImg.src = defaultImage;
-                placeholderImg.alt = 'No Image Available';
-                placeholderImg.classList.add('list-image');
-                imgContainer.appendChild(placeholderImg);
-            }
+            const img = document.createElement('img');
+            img.src = displayImage;
+            img.alt = product.title;
+            img.classList.add('list-image');
+            imgContainer.appendChild(img);
             listItem.appendChild(imgContainer);
 
             const listContent = document.createElement('div');
@@ -422,7 +430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             listItem.addEventListener('click', () => {
                 // Pass product.price to openImagePopup
-                openImagePopup(product.image || defaultImage, product.title, product.description, product.price);
+                openImagePopup(displayImage, product.title, product.description, product.price);
             });
             return listItem;
         }
@@ -463,7 +471,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!currentStoreData) return;
 
             if (currentStoreData.logo) {
-                modalStoreLogo.src = currentStoreData.logo;
+                modalStoreLogo.src = getProxiedImageUrl(currentStoreData.logo); // Apply proxy to modal logo
                 modalStoreLogo.style.display = 'block';
             } else {
                 modalStoreLogo.src = '';
@@ -571,7 +579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             bannerUrls.forEach((url, index) => {
                 const img = document.createElement('img');
-                img.src = url;
+                img.src = getProxiedImageUrl(url); // Apply proxy here
                 img.alt = `Store Banner ${index + 1}`;
                 img.classList.add('store-banner-slide');
                 if (index === 0) {
