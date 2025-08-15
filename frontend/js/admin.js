@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editProductCategorySelect = document.getElementById('editProductCategory');
     const editProductDescriptionInput = document.getElementById('editProductDescription');
     const editProductPriceInput = document.getElementById('editProductPrice');
+    const editProductAvailabilityCheckbox = document.getElementById('editProductAvailabilityCheckbox');
     const editProductImageUrlInput = document.getElementById('editProductImageUrl'); // NEW: Image URL input for EDIT form
     const editProductImageInput = document.getElementById('editProductImage'); // File input for EDIT form
     const currentProductImageImg = document.getElementById('currentProductImage');
