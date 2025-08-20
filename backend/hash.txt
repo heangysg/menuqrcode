@@ -1,12 +1,17 @@
- const bcrypt = require('bcrypt');
+# hashpw
+# // const bcrypt = require('bcrypt');
 
- const plaintextPassword = '-----'; // Change to your actual password
- const saltRounds = 10;
+# // const plaintextPassword = '__________'; 
+# // const saltRounds = 10;
 
- bcrypt.hash(plaintextPassword, saltRounds, (err, hash) => {
-   if (err) {
-     console.error('Error hashing password:', err);
-   } else {
-     console.log('Hashed password:', hash);
-   }
- });
+# // bcrypt.hash(plaintextPassword, saltRounds, (err, hash) => {
+# //   if (err) {
+# //     console.error('Error hashing password:', err);
+# //   } else {
+# //     console.log('Hashed password:', hash);
+# //   }
+# // });
+
+# then run 
+# node hash.js
+# and paste hashpw in mongodb
