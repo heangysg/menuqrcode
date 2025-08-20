@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const noMenuMessage = document.getElementById('noMenuMessage');
     const searchMenuInput = document.getElementById('searchMenuInput');
     const noSearchResultsMessage = document.getElementById('noSearchResultsMessage');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
 
     const imagePopupModal = document.getElementById('imagePopupModal');
     const popupImage = document.getElementById('popupImage');
@@ -668,7 +669,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             await fetchAndRenderProducts(null, searchTerm); // Pass null for category, searchTerm for search
         });
+// --- Search functionality with clear button toggle ---
+searchMenuInput.addEventListener('input', async (e) => {
+    const searchTerm = e.target.value.toLowerCase();
 
+    if (searchTerm.length > 0) {
+        clearSearchBtn.classList.remove('hidden'); // show clear button
+    } else {
+        clearSearchBtn.classList.add('hidden'); // hide clear button
+    }
+
+    activeCategoryId = 'all-items';
+    setActiveCategoryTab('all-items');
+    await fetchAndRenderProducts(null, searchTerm);
+});
+
+clearSearchBtn.addEventListener('click', async () => {
+    searchMenuInput.value = '';
+    clearSearchBtn.classList.add('hidden'); // hide again
+    activeCategoryId = 'all-items';
+    setActiveCategoryTab('all-items');
+    await fetchAndRenderProducts('all-items');
+});
 
     } catch (error) {
         console.error('Error fetching menu:', error.message);
