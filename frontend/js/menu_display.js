@@ -198,7 +198,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 searchMenuInput.value = ''; // Clear search when "All" is clicked
                 await fetchAndRenderProducts('all-items'); // Fetch all products from backend (no category filter)
                 try {
-                    document.querySelector('#all-items-section').scrollIntoView({ behavior: 'smooth' });
+                    const targetSection = document.querySelector('#all-items-section');
+                if (targetSection) {
+                    const headerOffset = document.querySelector('.sticky')?.offsetHeight || 120;
+                    const y = targetSection.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+                    window.scrollTo({ top: y, behavior: 'smooth' });
+                }
                 } catch (error) {
                     console.warn("Element #all-items-section not found for scrolling.", error);
                 }
@@ -220,7 +225,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     searchMenuInput.value = ''; // Clear search when category is clicked
                     await fetchAndRenderProducts(category._id); // Fetch products for this category from backend
                     try {
-                        document.querySelector(a.hash).scrollIntoView({ behavior: 'smooth' });
+                        const targetSection = document.querySelector(a.hash);
+                    if (targetSection) {
+                        const headerOffset = document.querySelector('.sticky')?.offsetHeight || 120;
+                        const y = targetSection.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                    }
                     } catch (error) {
                         console.warn(`Element ${a.hash} not found for scrolling.`, error);
                     }
