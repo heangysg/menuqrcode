@@ -1,12 +1,12 @@
 // qr-digital-menu-system/backend/server.js
 
 const express = require('express');
-const dotenv = require('dotenv').config(); // Load environment variables from .env file
-const cors = require('cors'); // For handling Cross-Origin Resource Sharing
-const connectDB = require('./config/db'); // MongoDB connection
-const connectCloudinary = require('./config/cloudinary'); // Cloudinary connection
-const path = require('path'); // Node.js built-in module for path manipulation
-const helmet = require('helmet'); // For setting security-related HTTP headers
+const dotenv = require('dotenv').config();
+const cors = require('cors');
+const connectDB = require('./config/db');
+const connectCloudinary = require('./config/cloudinary');
+const path = require('path');
+const helmet = require('helmet');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -15,103 +15,94 @@ const storeRoutes = require('./routes/stores');
 const categoryRoutes = require('./routes/categories');
 const productRoutes = require('./routes/products');
 
-// Connect to database
+// Connect to database & Cloudinary
 connectDB();
-
-// Connect to Cloudinary
 connectCloudinary();
 
 const app = express();
 
 // --- Middleware ---
-
-// NEW: Global request logger - This will log every incoming request to the console
 app.use((req, res, next) => {
     console.log(`Incoming Request: ${req.method} ${req.originalUrl}`);
     next();
 });
 
-// Configure CORS for specific origins and methods
 const corsOptions = {
     origin: [
-        'http://localhost:5000', // Your local development frontend
-        'https://menu-qr-61oz.onrender.com', // Your deployed Render frontend URL
-        // Add any other domains that need to access your API
+        'http://localhost:5000',
+        'https://menuqrcode.onrender.com',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true, // Allow cookies to be sent
+    credentials: true,
     optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
 
-// Implement Helmet for comprehensive security headers, especially CSP
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ["'self'"], // Only allow resources from the same origin by default
-            scriptSrc: [
-                "'self'",
-                "'unsafe-inline'", // Required for inline scripts (e.g., Tailwind CDN's JIT mode)
-                "https://cdn.tailwindcss.com", // Tailwind CSS CDN
-                "https://cdn.jsdelivr.net",    // QRious library CDN
-                "https://cdnjs.cloudflare.com" // Font Awesome JS (if you ever use it directly)
-            ],
-            styleSrc: [
-                "'self'",
-                "'unsafe-inline'", // Required for inline styles
-                "https://fonts.googleapis.com", // Google Fonts CSS
-                "https://cdnjs.cloudflare.com"  // Font Awesome CSS
-            ],
-            fontSrc: [
-                "'self'",
-                "https://fonts.gstatic.com",    // Google Fonts actual font files
-                "https://cdnjs.cloudflare.com", // Font Awesome webfonts (woff2, ttf etc.)
-                "data:"                      // Allow data URIs (e.g., for some inline SVG/base64 icons)
-            ],
-            imgSrc: [
-                "'self'",
-                "data:",                     // Allow data URIs for images
-                "https://res.cloudinary.com",  // Cloudinary images (for logos, banners, products)
-                "https://placehold.co",      // Placeholder images
-                "https://corsproxy.io"       // ADD THIS DOMAIN for external image proxy
-            ],
-            connectSrc: [
-                "'self'",
-                "https://generativelanguage.googleapis.com", // Gemini API calls
-                "https://menu-qr-61oz.onrender.com", // Explicitly allow connections to your own backend domain
-                "http://localhost:5000" // NEW: Allow frontend to connect to local backend
-            ],
-            objectSrc: ["'none'"], // Disallow <object>, <embed>, <applet>
-            mediaSrc: ["'self'"], // Allow media from same origin
-            // IMPORTANT: Allow iframes from Google Maps for the embedded map
-            frameSrc: ["'self'", "https://www.google.com"], 
-            workerSrc: ["'self'"], // Allow web workers from same origin
-            // upgradeInsecureRequests: [], // Automatically convert HTTP to HTTPS - keep this if you want
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
+            imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://placehold.co", "https://corsproxy.io"],
+            connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "https://menuqrcode.onrender.com", "http://localhost:5000"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'self'", "https://www.google.com"],
+            workerSrc: ["'self'"],
         },
     },
-    // You can disable specific headers if they cause issues, e.g.:
-    // crossOriginEmbedderPolicy: false,
-    // crossOriginOpenerPolicy: false,
-    // crossOriginResourcePolicy: false,
 }));
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-app.use(express.json()); // Body parser for raw JSON
-app.use(express.urlencoded({ extended: false })); // Body parser for URL-encoded data
+// Serve static assets early so they aren't intercepted by routes
+app.use(express.static(path.join(__dirname, '../frontend')));
+app.use('/menu', express.static(path.join(__dirname, '../frontend')));
 
-// API Routes - These should be placed before static file serving
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 
-// --- Serve Frontend Static Files ---
-// This middleware will serve all your HTML, CSS, JS, and other static assets
-// It should come AFTER your API routes to ensure API calls are not intercepted by static files
+// ---- CLEAN URL HANDLING ----
+
+// Redirect requests ending with .html to clean URLs
+app.use((req, res, next) => {
+    if (req.path.endsWith('.html')) {
+        const newPath = req.path.slice(0, -5); // remove ".html"
+        return res.redirect(301, newPath + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
+    }
+    next();
+});
+
+// Pretty URL for menu with slug
+app.get('/menu/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/menu.html'));
+});
+
+// Serve root (index.html)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+// Serve HTML pages without extension
+app.get('/:page', (req, res, next) => {
+    const filePath = path.join(__dirname, '../frontend', `${req.params.page}.html`);
+    res.sendFile(filePath, (err) => {
+        if (err) next();
+    });
+});
+
+// Serve static assets (css, js, images, etc.)
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-
+// ---- START SERVER ----
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

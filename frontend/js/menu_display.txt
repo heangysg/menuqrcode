@@ -1,14 +1,3 @@
-
-// Optimize Cloudinary images for delivery (600px)
-function getOptimizedImageUrl(url) {
-    if (!url) return url;
-    if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/")
-    }
-    return url;
-}
-
-
 // Extract slug from path (/menu/ysg)
 const pathParts = window.location.pathname.split("/");
 const slug = pathParts[pathParts.length - 1];
@@ -94,18 +83,6 @@ if (!slug) {
         return url;
     }
 
-// Optimize Cloudinary images for delivery (safe version)
-function getOptimizedImageUrl(url) {
-    if (!url) return url;
-    // Only optimize Cloudinary images with /upload/
-    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
-        return url.replace('/upload/', '/upload/f_auto,q_auto,w_800/');
-    }
-    // Leave external URLs or previews untouched
-    return url;
-}
-
-
 
     if (!slug) {
         menuTitle.textContent = 'Menu Not Found';
@@ -183,7 +160,7 @@ function getOptimizedImageUrl(url) {
         storeNameElem.textContent = currentStoreData.name;
 
         if (currentStoreData.logo) {
-            storeLogoImg.src = getOptimizedImageUrl(getProxiedImageUrl(currentStoreData.logo)); // Apply proxy to store logo
+            storeLogoImg.src = getProxiedImageUrl(currentStoreData.logo); // Apply proxy to store logo
             storeLogoImg.style.display = 'block';
         } else {
             storeLogoImg.src = '';
@@ -390,7 +367,7 @@ function getOptimizedImageUrl(url) {
             const defaultImage = `https://placehold.co/400x400/e2e8f0/64748b?text=No+Image`;
             
             // Prioritize imageUrl, then image (Cloudinary), then image (from backend, if not imageUrl), then placeholder
-            const displayImage = getOptimizedImageUrl(getProxiedImageUrl(product.imageUrl || product.image)) || defaultImage;
+            const displayImage = getProxiedImageUrl(product.imageUrl || product.image) || defaultImage;
 
             const img = document.createElement('img');
             img.src = displayImage;
@@ -438,7 +415,7 @@ function getOptimizedImageUrl(url) {
 
             const defaultImage = `https://placehold.co/60x60/e2e8f0/64748b?text=No+Img`;
             // Prioritize imageUrl, then image (Cloudinary), then image (from backend, if not imageUrl), then placeholder
-            const displayImage = getOptimizedImageUrl(getProxiedImageUrl(product.imageUrl || product.image)) || defaultImage;
+            const displayImage = getProxiedImageUrl(product.imageUrl || product.image) || defaultImage;
 
             const imgContainer = document.createElement('div');
             imgContainer.classList.add('list-image-container');
@@ -514,7 +491,7 @@ function getOptimizedImageUrl(url) {
             if (!currentStoreData) return;
 
             if (currentStoreData.logo) {
-                modalStoreLogo.src = getOptimizedImageUrl(getProxiedImageUrl(currentStoreData.logo)); // Apply proxy to modal logo
+                modalStoreLogo.src = getProxiedImageUrl(currentStoreData.logo); // Apply proxy to modal logo
                 modalStoreLogo.style.display = 'block';
             } else {
                 modalStoreLogo.src = '';
@@ -674,7 +651,7 @@ function getOptimizedImageUrl(url) {
 
             bannerUrls.forEach((url, index) => {
                 const img = document.createElement('img');
-                img.src = getOptimizedImageUrl(getProxiedImageUrl(url)); // Apply proxy here
+                img.src = getProxiedImageUrl(url); // Apply proxy here
                 img.alt = `Store Banner ${index + 1}`;
                 img.classList.add('store-banner-slide');
                 if (index === 0) {

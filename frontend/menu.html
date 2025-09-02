@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="km">
+  <base href=\"/\">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="menuTitle">Menu Page</title>
+    <!-- Font Awesome for social media icons and view toggles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Custom CSS (compiled from style.css by Tailwind) -->
+    <link rel="stylesheet" href="/css/dist.css">
+    <!-- Google Fonts for Kantumruy Pro (Khmer) and Inter (English) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="icon" href="/public/img/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom scrollbar for category tabs */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Product card image aspect ratio - square */
+        .product-image-container {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* Square aspect ratio */
+            overflow: hidden;
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .product-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Custom styles for list view */
+        .product-list-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0; /* py-3 */
+            border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
+            cursor: pointer;
+        }
+        .product-list-item:last-child {
+            border-bottom: none;
+        }
+        .product-list-item .list-image-container {
+            position: relative;
+            width: 60px; /* Adjust size for list view */
+            height: 60px;
+            flex-shrink: 0;
+            overflow: hidden;
+            border-radius: 0.5rem; /* rounded-lg */
+            margin-right: 1rem; /* mr-4 */
+            border: 1px solid #e5e7eb; /* Subtle border for list view image */
+        }
+        .product-list-item .list-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .product-list-item .list-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .product-list-item .list-content h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+        .product-list-item .list-content p {
+            font-size: 0.75rem;
+            color: #6b7280;
+            line-height: 1.3;
+        }
+        .product-list-item .list-price {
+            flex-shrink: 0;
+            margin-left: 1rem;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #ea580c;
+        }
+        
+        /* New rule to ensure product descriptions are bold in both grid and list views */
+        .product-card-description, /* Changed this to target the new class */
+        .product-list-item p {
+            font-weight: 700 !important;
+        }
+
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+        }
+        .modal-content-wrapper {
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            padding: 1.5rem;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 9999px;
+            padding: 0.5rem;
+            transition: background-color 200ms;
+            z-index: 10;
+        }
+        .modal-close-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        /* Specific styling for the store info modal content */
+        #storeInfoModal .modal-content-wrapper {
+            max-width: 450px;
+            padding: 2rem;
+        }
+        #storeInfoModal .modal-content-wrapper h2 {
+            font-size: 1.75rem;
+            line-height: 2.25rem;
+        }
+        #storeInfoModal .modal-content-wrapper p {
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        #storeInfoModal .modal-content-wrapper .text-lg {
+            font-size: 1.125rem;
+        }
+
+        /* Styling for product image popup content */
+        #imagePopupModal .modal-content-wrapper {
+            max-width: 600px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #imagePopupModal .modal-content-wrapper img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            margin-bottom: 1rem;
+        }
+        #imagePopupModal .product-info-container {
+            padding: 0 1rem;
+            text-align: left;
+        }
+        /* MODIFIED: Reduce font size for product name in popup */
+        #popupProductName {
+            font-size: 1.25rem !important; /* Smaller than previous 1.5rem */
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        /* MODIFIED: Reduce font size for product description in popup */
+        #popupProductDescription {
+            font-size: 0.875rem !important; /* Keep original small text for description */
+            color: #6b7280;
+            line-height: 1.4;
+            font-weight: 700 !important; /* Still ensure bold */
+        }
+        /* MODIFIED: Reduce font size for product price in popup */
+        #popupProductPrice {
+            color: #ea580c !important; /* Force orange color */
+            font-size: 1.25rem !important; /* Smaller than previous 1.5rem */
+            font-weight: 700 !important;
+        }
+
+
+        /* Apply Kantumruy Pro for Khmer text, Inter for English, with bold weight */
+        body, h1, h2, h3, h4, p, a, span, div, input, select, textarea, button, th, td, li {
+            font-family: 'Kantumruy Pro', 'Inter', sans-serif !important;
+            font-weight: 700; /* Apply bold weight to all text elements */
+        }
+        /* Override for specific elements if needed to be less bold */
+        .text-sm, .text-base, .text-gray-600 { /* Adjust as needed for descriptions/smaller text */
+            font-weight: 400; /* Regular weight for descriptions and messages */
+        }
+        .font-bold {
+            font-weight: 700 !important; /* Ensure Tailwind's font-bold is respected */
+        }
+        .font-semibold {
+            font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
+        }
+
+        /* Specifically target category tabs to ensure they are bold */
+        #categoryTabs a {
+            font-weight: 700 !important; /* Make category tab links bold */
+            font-size: 1rem; /* Increased font size for better readability */
+        }
+        
+        /* Category titles in the main content area */
+        .category-title {
+            font-size: 1.25rem; /* Smaller font size for category titles */
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #fdba74; /* orange-300 */
+        }
+
+
+        /* Custom styling for the banner image */
+        .store-banner-container {
+            position: relative;
+            width: 100%;
+            height: 200px; /* Default height for mobile */
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+
+        .store-banner-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        .store-banner-slide.active {
+            opacity: 1;
+        }
+
+        .slider-dots {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 10; /* Ensure dots are above banners */
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .dot.active {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Responsive adjustments for the banner */
+        @media (min-width: 768px) { /* md breakpoint */
+            .store-banner-container {
+                height: 300px; /* Taller on tablets */
+            }
+        }
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .store-banner-container {
+                height: 400px; /* Even taller on desktops */
+            }
+        }
+    
+        /* --- Mobile App Feel Tweaks --- */
+        body { background: #fafafa; }
+        main { padding-bottom: 5.5rem; } /* space for bottom nav */
+        
+        /* Pill-style category chips */
+        #categoryTabs { gap: 0.5rem; }
+        #categoryTabs a {
+            border: 1px solid #fed7aa; /* orange-200 */
+            background: #fff7ed;      /* orange-50 */
+            color: #9a3412;           /* orange-800 */
+            padding: 0.5rem 0.85rem;
+            border-radius: 999px;
+            font-weight: 700 !important;
+            font-size: 0.93rem; /* Increased font size for better readability */
+            transition: transform 120ms ease, background-color 200ms ease;
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            white-space: nowrap;
+        }
+        #categoryTabs a:hover { transform: translateY(-1px); }
+        #categoryTabs a.active-chip {
+            background: #ffedd5;      /* orange-100 */
+            border-color: #fb923c;    /* orange-400 */
+            color: #c2410c;           /* orange-700 */
+        }
+        
+        /* Make tabs nicely scrollable with snapping feel */
+        .tabs-scroll {
+            scroll-snap-type: x mandatory;
+        }
+        #categoryTabs > li { scroll-snap-align: start; }
+        
+        /* Bottom navigation bar - UPDATED */
+        .bottom-nav {
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            background: #ea580c; /* Changed to orange */
+            border-top: 1px solid #c2410c; /* Darker orange border */
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+            z-index: 40;
+        }
+        .bottom-nav .nav-wrap {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: .5rem;
+            padding: .35rem .75rem .5rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .bottom-nav button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: .35rem 0;
+            gap: .15rem;
+            font-size: .7rem;
+            color: #fff; /* Changed to white */
+        }
+        .bottom-nav button.active { color: #fed7aa; } /* Changed to a lighter orange */
+        
+        /* Floating "scroll to top" button (FAB) */
+        .fab-top {
+            position: fixed;
+            right: 1rem;
+            bottom: 4.5rem; /* above bottom nav */
+            width: 3.25rem; height: 3.25rem;
+            border-radius: 9999px;
+            display: flex; align-items: center; justify-content: center;
+            background: #ea580c;
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(234,88,12,.35);
+            z-index: 45;
+            border: none;
+        }
+        .fab-top.hidden { display: none; }
+        
+        /* Bottom-sheet style for the image popup (mobile drawer) */
+        #imagePopupModal.modal-overlay {
+            align-items: flex-end; /* push to bottom like a sheet */
+        }
+        #imagePopupModal .modal-content-wrapper {
+            width: 100%;
+            max-width: 640px;
+            border-top-left-radius: 1.25rem;
+            border-top-right-radius: 1.25rem;
+            border-bottom-left-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+            transform: translateY(8px);
+            animation: slideUp 220ms ease-out forwards;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(24px); opacity: .98; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        /* Reduce the store name font size for smaller screens */
+        #storeName {
+            font-size: 1.25rem; /* text-xl */
+        }
+
+        /* Adjust for larger screens */
+        @media (min-width: 640px) { /* sm breakpoint */
+            #storeName {
+                font-size: 1.5rem; /* text-2xl */
+            }
+        }
+        /* MODIFIED: Category selection modal styling */
+        #categorySelectionModal .modal-content-wrapper {
+            max-width: 500px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        #categorySelectionModal h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        #categorySelectionModal .category-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background-color: #fff7ed; /* orange-50 */
+            border: 1px solid #fed7aa; /* orange-200 */
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        #categorySelectionModal .category-list-item:hover {
+            background-color: #ffedd5; /* orange-100 */
+            transform: translateY(-1px);
+        }
+        #categorySelectionModal .category-list-item.active {
+            background-color: #ffedd5; /* orange-100 */
+            border-color: #fb923c; /* orange-400 */
+            font-weight: 700;
+            color: #c2410c; /* orange-700 */
+        }
+        #categorySelectionModal .category-list-item span {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #9a3412; /* orange-800 */
+        }
+        #categorySelectionModal .category-list-item .fas {
+            color: #fb923c; /* orange-400 */
+        }
+
+        /* REMOVED: The problematic 'position: sticky' rule */
+        /* #categorySelectionModal #closeCategorySelectionBtn {
+            position: sticky;
+            top: 0.75rem;
+            z-index: 10;
+        } */
+    </style>
+</head>
+<body class="bg-gray-100 leading-normal tracking-normal flex flex-col min-h-screen">
+
+    <!-- Sticky Navbar Wrapper -->
+    <div class="sticky top-0 z-20 bg-white">
+        <!-- Header for Store Info -->
+        <header class="py-3 px-4 flex items-center justify-between border-b border-gray-200">
+            <div id="storeHeaderInfo" class="flex items-center space-x-3 cursor-pointer">
+                <img id="storeLogo" src="" alt="Store Logo" class="h-12 w-12 object-contain rounded-full border border-orange-500 p-1 bg-white" style="display: none;">
+                <h1 id="storeName" class="text-xl sm:text-2xl font-bold text-orange-600"></h1>
+            </div>
+            <!-- View Toggle Icons -->
+            <div class="flex items-center space-x-3">
+                <button id="gridViewBtn" class="text-orange-600 hover:text-orange-800 focus:outline-none">
+                    <i class="fas fa-th-large text-xl"></i> <!-- Grid icon -->
+                </button>
+                <button id="listViewBtn" class="text-gray-400 hover:text-orange-600 focus:outline-none">
+                    <i class="fas fa-list text-xl"></i> <!-- List icon -->
+                </button>
+            </div>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="py-2 px-4 shadow-sm border-b border-gray-200">
+            <div class="container mx-auto">
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-orange-400">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </span>
+                    <input type="text" id="searchMenuInput" placeholder="ស្វែងរក..." class="w-full pl-10 pr-10 py-1.5 rounded-lg border border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700 font-semibold">
+                    <!-- Clear Button -->
+                    <button id="clearSearchBtn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-orange-500 hidden">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <nav class="shadow-sm border-b border-gray-200">
+            <div class="container mx-auto px-4 overflow-x-auto whitespace-nowrap scrollbar-hide tabs-scroll">
+                <ul id="categoryTabs" class="flex space-x-4 py-2">
+                    <!-- Category tabs will be loaded here by JavaScript -->
+                </ul>
+            </div>
+        </nav>
+    </div> <!-- End of Sticky Navbar Wrapper -->
+
+    <main class="container mx-auto px-4 py-6 flex-grow">
+        <!-- MODIFIED: Store Banner Slider Container -->
+        <div id="storeBannerContainer" class="store-banner-container hidden">
+            <!-- Banner images will be loaded here by JavaScript -->
+            <div id="sliderDots" class="slider-dots"></div>
+        </div>
+        
+        <div id="menuContent">
+            <!-- Menu items will be loaded here by JavaScript, grouped by category -->
+            <p id="loadingMessage" class="text-center text-gray-500 text-lg mt-12">Loading menu...</p>
+            <p id="noMenuMessage" class="text-center text-gray-500 text-lg mt-12 hidden">No menu items found for this store.</p>
+            <p id="noSearchResultsMessage" class="text-center text-gray-500 text-lg mt-12 hidden">No matching items found.</p>
+        </div>
+    </main>
+
+    <footer class="bg-orange-600 text-white py-4 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm">
+            &copy; 2025 QR Digital Menu. All rights reserved.
+        </div>
+    </footer>
+
+    <!-- Image Popup Modal Structure -->
+    <div id="imagePopupModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md md:max-w-lg lg:max-w-xl max-h-[90vh] overflow-y-auto relative p-4 flex flex-col items-center">
+            <button id="closeImagePopupBtn" class="absolute top-3 right-3 text-white bg-gray-800 rounded-full p-2 hover:bg-gray-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-white z-10">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <img id="popupImage" src="" alt="Popup Image" class="block w-full h-auto object-contain mb-4">
+            <div class="text-left w-full px-4 product-info-container">
+                <h3 id="popupProductName" class="text-xl font-bold text-gray-800 mb-2"></h3>
+                <p id="popupProductDescription"></p>
+                <p id="popupProductPrice" class="text-lg font-bold text-orange-600"></p> <!-- Price element with orange color -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Info Popup Modal Structure -->
+    <div id="storeInfoModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative text-center">
+            <button id="closeStoreInfoBtn" class="absolute top-3 right-3 text-white bg-gray-800 rounded-full p-2 hover:bg-gray-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-white z-10">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="p-4">
+                <img id="modalStoreLogo" src="" alt="Store Logo" class="h-24 w-24 object-contain rounded-full border border-orange-500 p-1 mx-auto mb-4" style="display: none;">
+                <h2 id="modalStoreName" class="text-2xl font-bold text-gray-800 mb-2"></h2>
+                <p id="modalStoreDescription" class="text-gray-600 text-sm mb-4"></p>
+
+                <div class="space-y-3 mb-4">
+                    <p id="modalStorePhone" class="text-gray-700 text-lg font-semibold flex items-center justify-center">
+                        <i class="fas fa-phone-alt mr-2 text-orange-500"></i>
+                        <span></span>
+                    </p>
+                    <p id="modalStoreAddress" class="text-gray-700 text-lg font-semibold flex items-center justify-center">
+                        <i class="fas fa-map-marker-alt mr-2 text-orange-500"></i>
+                        <span></span>
+                    </p>
+                </div>
+
+                <div class="flex justify-center space-x-6 text-2xl text-gray-700">
+                    <!-- Social media links - these would be populated by JS if data is available -->
+                    <a href="#" target="_blank" class="hover:text-orange-600 transition duration-200 hidden" id="socialFacebook"><i class="fab fa-facebook"></i></a>
+                    <a href="#" target="_blank" class="hover:text-orange-600 transition duration-200 hidden" id="socialTelegram"><i class="fab fa-telegram"></i></a>
+                    <a href="#" target="_blank" class="hover:text-orange-600 transition duration-200 hidden" id="socialTikTok"><i class="fab fa-tiktok"></i></a>
+                    <a href="#" target="_blank" class="hover:text-orange-600 transition duration-200 hidden" id="socialWebsite"><i class="fas fa-globe"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Category Selection Modal Structure -->
+    <div id="categorySelectionModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative p-4 flex flex-col items-center">
+            <button id="closeCategorySelectionBtn" class="absolute top-3 right-3 text-white bg-gray-800 rounded-full p-2 hover:bg-gray-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-white z-10">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="text-center w-full px-4 py-2">
+                <h2 class="text-lg font-font-medium text-gray-800 mb-4">សូមជ្រើសរើស​ប្រភេទ</h2>
+                <div id="categoryListContainer" class="space-y-3">
+                    <!-- Categories will be loaded here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="/js/api.js"></script>
+    <script src="/js/menu_display.js"></script>
+
+    <!-- Bottom Navigation (Mobile App style) -->
+    <nav class="bottom-nav" role="navigation" aria-label="Bottom Navigation">
+        <div class="nav-wrap">
+            <button id="navHome" class="active">
+                <i class="fas fa-home text-lg"></i>
+                <span>Home</span>
+            </button>
+            <button id="navCategories">
+                <i class="fas fa-th-large text-lg"></i>
+                <span>Categories</span>
+            </button>
+            <button id="navProfile">
+                <i class="fas fa-store text-lg"></i>
+                <span>Store</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Floating "Scroll to Top" button -->
+    <button id="fabScrollTop" class="fab-top hidden" aria-label="Scroll to top">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+</body>
+</html>

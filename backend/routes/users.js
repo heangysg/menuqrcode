@@ -56,7 +56,7 @@
                     role: user.role,
                     storeId: store._id,
                     // Return the slug for frontend convenience
-                    publicMenuUrl: `/menu_display.html?slug=${store.slug}` // Use slug for frontend convenience
+                    publicMenuUrl: `/menu.html?slug=${store.slug}` // Use slug for frontend convenience
                 });
             } else {
                 res.status(400).json({ message: 'Invalid admin data' });

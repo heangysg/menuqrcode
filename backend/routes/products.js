@@ -2,6 +2,20 @@
 
 const express = require('express');
 const router = express.Router();
+// Cloudinary upload helper using buffer stream
+const uploadToCloudinary = (buffer) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: 'ysgstore/products', resource_type: 'image', transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], format: 'webp' },
+            (error, result) => {
+                if (result) resolve(result);
+                else reject(error);
+            }
+        );
+        stream.end(buffer);
+    });
+};
+
 const Product = require('../models/Product');
 const Category = require('../models/Category'); // Need to check if category exists and belongs to store
 const Store = require('../models/Store');
@@ -9,6 +23,23 @@ const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const mongoose = require('mongoose'); // NEW: Import mongoose to use mongoose.Types.ObjectId
+
+// Extract Cloudinary public_id safely from a Cloudinary URL
+function getCloudinaryPublicId(url) {
+    if (!url) return null;
+    try {
+        // Example: https://res.cloudinary.com/demo/image/upload/v1693334444/ysgstore/products/abcd1234.webp
+        const parts = url.split('/');
+        const fileWithExt = parts.pop(); // abcd1234.webp
+        const folderPath = parts.slice(parts.indexOf('upload') + 1).join('/'); // ysgstore/products
+        const fileName = fileWithExt.split('.')[0]; // abcd1234
+        return folderPath + '/' + fileName; // ysgstore/products/abcd1234
+    } catch (err) {
+        console.error('Failed to parse Cloudinary public_id:', err);
+        return null;
+    }
+}
+
 
 // Set up Multer for memory storage
 const storage = multer.memoryStorage();
@@ -66,12 +97,7 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
             // Upload image to Cloudinary with optimization settings
              const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                {
-                    folder: 'ysgstore/products',
-                    resource_type: 'image',
-                    quality: 'auto',
-                    fetch_format: 'auto'
-                }
+                { folder: 'ysgstore/products', resource_type: 'image', transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], format: 'webp' }
             );
             cloudinaryImage = uploadRes.secure_url;
         }
@@ -207,34 +233,35 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
             product.imageUrl = imageUrl;
             // If a direct URL is provided, and there was a Cloudinary image, delete the Cloudinary image
             if (product.image) {
-                const publicId = product.image.split('/').pop().split('.')[0];
-                await cloudinary.uploader.destroy(publicId);
+                const publicId = getCloudinaryPublicId(product.image);
+                if (publicId) {
+                    await cloudinary.uploader.destroy(publicId);
+                }
                 product.image = ''; // Clear the Cloudinary image field
             }
         } else if (req.file) {
             // 2. If a file is uploaded and no imageUrl was provided (or imageUrl was explicitly removed/empty)
             // Delete old Cloudinary image if it exists
             if (product.image) {
-                const publicId = product.image.split('/').pop().split('.')[0];
-                await cloudinary.uploader.destroy(publicId);
+                const publicId = getCloudinaryPublicId(product.image);
+                if (publicId) {
+                    await cloudinary.uploader.destroy(publicId);
+                }
             }
             // Upload new image with optimization settings
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                {
-                    folder: 'ysgstore/products',
-                    resource_type: 'image',
-                    quality: 'auto',
-                    fetch_format: 'auto'
-                }
+                { folder: 'ysgstore/products', resource_type: 'image', transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], format: 'webp' }
             );
             product.image = uploadRes.secure_url;
             product.imageUrl = ''; // Clear imageUrl if a file is uploaded
         } else if (req.body.removeImage === 'true') { // Assuming a checkbox or flag for explicit removal
             // 3. If a flag to remove image is sent and no new file/URL
             if (product.image) {
-                const publicId = product.image.split('/').pop().split('.')[0];
-                await cloudinary.uploader.destroy(publicId);
+                const publicId = getCloudinaryPublicId(product.image);
+                if (publicId) {
+                    await cloudinary.uploader.destroy(publicId);
+                }
             }
             product.image = '';
             product.imageUrl = '';

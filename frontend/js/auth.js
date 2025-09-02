@@ -29,13 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Redirect based on role
                 setTimeout(() => {
                     if (data.role === 'superadmin') {
-                        window.location.href = 'superadmin.html';
+                        window.location.href = '/superadmin';
                     } else if (data.role === 'admin') {
-                        window.location.href = 'admin.html';
+                        window.location.href = '/admin';
                     } else {
                         // Fallback or error if role is unexpected
                         console.error('Unknown user role:', data.role);
-                        window.location.href = 'login.html';
+                        window.location.href = '/login';
                     }
                 }, 1000);
 
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('token');
             localStorage.removeItem('userRole');
-            window.location.href = 'login.html'; // Redirect to login page
+            window.location.href = '/login'; // Redirect to login page
         });
     }
 
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const userRole = localStorage.getItem('userRole');
 
         if (!token || !userRole) {
-            window.location.href = 'login.html'; // No token or role, go to login
+            window.location.href = '/login'; // No token or role, go to login
             return false;
         }
 
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn(`Access denied: User is ${userRole}, but ${requiredRole} is required.`);
             localStorage.removeItem('token'); // Clear invalid token
             localStorage.removeItem('userRole');
-            window.location.href = 'login.html'; // Mismatch role, go to login
+            window.location.href = '/login'; // Mismatch role, go to login
             return false;
         }
         return true;

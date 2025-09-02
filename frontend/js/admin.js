@@ -1,3 +1,12 @@
+
+// Optimize Cloudinary images for delivery (auto format, auto quality, max width 600px)
+function getOptimizedImageUrl(url) {
+    if (!url) return url;
+    if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+        return url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
+    }
+    return url;
+}
 // qr-digital-menu-system/frontend/js/admin.js
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -358,7 +367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Generate QR code and display public link using the slug
             if (currentStore.slug) {
-                const publicMenuUrl = `${window.location.origin}/menu_display.html?slug=${currentStore.slug}`;
+                const publicMenuUrl = `${window.location.origin}/menu/${currentStore.slug}`;
                 // Using window.generateQRCode and window.downloadCanvasAsPNG from utils.js
                 const qrCanvas = window.generateQRCode(publicMenuUrl, qrCodeContainer, 256);
                 if (qrCanvas) {
@@ -713,7 +722,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const row = productListTableBody.insertRow();
                 // Prioritize imageUrl, then image (Cloudinary), then placeholder
                 // Apply CORS proxy to imageUrl if it's an external URL
-                const displayImage = getProxiedImageUrl(product.imageUrl) || product.image || `https://placehold.co/50x50/e2e8f0/64748b?text=No+Img`;
+                const displayImage =
+        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+        (product.image && product.image.trim() !== '' ? product.image : null) ||
+        `https://placehold.co/300x300?text=No+Img`;
 
                 row.innerHTML = `
                     <td class="py-2 px-4 border-b border-gray-200">
@@ -832,7 +844,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Display current image (prioritize imageUrl if present)
         // Apply CORS proxy here too for the initial load of the edit modal image
-        const displayImage = getProxiedImageUrl(product.imageUrl) || product.image;
+        const displayImage =
+        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+        (product.image && product.image.trim() !== '' ? product.image : null) ||
+        `https://placehold.co/300x300?text=No+Img`;
         if (displayImage) {
             currentProductImageImg.src = displayImage;
             currentProductImageImg.style.display = 'block';
@@ -876,11 +891,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (editProductImageInput.files[0]) {
                 // If a file is selected and no URL is entered, send the file
                 formData.append('image', editProductImageInput.files[0]);
-                formData.append('imageUrl', ''); // Explicitly clear imageUrl if file is uploaded
+                // Explicitly clear imageUrl if file is uploaded
             } else if (removeProductImageCheckbox.checked) {
                 // If "Remove current image" is checked and no new file/URL
                 formData.append('removeImage', 'true'); // Flag to remove existing image
-                formData.append('imageUrl', ''); // Explicitly clear imageUrl
+                // Explicitly clear imageUrl
             } else {
                 // If no new file, no new URL, and not explicitly removing,
                 // ensure imageUrl is sent as its current value to maintain it.
@@ -1028,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const displayImageUrl = getProxiedImageUrl(imageUrl);
         popupProductImage.src = displayImageUrl;
         popupProductTitle.textContent = title;
-        popupProductDescriptionDetail.textContent = description || 'No description available.';
+        popupProductDescriptionDetail.textContent = description || '';
 
         if (price !== undefined && price !== null && price !== '') {
             popupProductPriceDetail.textContent = `Price: ${price}`;
@@ -1110,3 +1125,38 @@ function clearMessage(element) {
     element.textContent = '';
     element.classList.add('hidden');
 }
+
+
+// ---------------- Image Preview Setup ----------------
+function setupImagePreview(fileInput, urlInput, previewElement) {
+    if (!fileInput || !urlInput || !previewElement) return;
+
+    // File change preview
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files[0]) {
+            const fileUrl = URL.createObjectURL(fileInput.files[0]);
+            previewElement.src = fileUrl;
+        }
+    });
+
+    // URL input live preview
+    urlInput.addEventListener('input', () => {
+        if (urlInput.value.trim() !== '') {
+            previewElement.src = urlInput.value.trim();
+        }
+    });
+}
+
+// Hook up previews for Add Product modal
+setupImagePreview(
+    document.getElementById('productImage'),
+    document.getElementById('productImageUrl'),
+    document.getElementById('productPreview')
+);
+
+// Hook up previews for Edit Product modal
+setupImagePreview(
+    document.getElementById('editProductImage'),
+    document.getElementById('editProductImageUrl'),
+    document.getElementById('editProductPreview')
+);

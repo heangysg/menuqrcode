@@ -2,8 +2,8 @@
 
 // IMPORTANT: Change this to your deployed Render backend URL when deploying!
 // For local development, it should typically be http://localhost:5000/api
-const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
-// const API_BASE_URL = 'http://localhost:5000/api'; 
+// const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
+const API_BASE_URL = 'http://localhost:5000/api'; 
 
 
 
@@ -28,7 +28,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, requiresAuth = 
         const token = localStorage.getItem('token');
         if (!token) {
             console.error('No authentication token found. Redirecting to login.');
-            window.location.href = 'login.html'; // Redirect to login if token is missing
+            window.location.href = '/login'; // Redirect to login if token is missing
             throw new Error('Authentication token missing.');
         }
         headers['Authorization'] = `Bearer ${token}`;
@@ -87,7 +87,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, requiresAuth = 
             console.warn('Unauthorized request. Redirecting to login.');
             localStorage.removeItem('token');
             localStorage.removeItem('userRole');
-            window.location.href = 'login.html';
+            window.location.href = '/login';
         }
 
         throw new Error(errorMessage);
