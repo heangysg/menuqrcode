@@ -2,8 +2,8 @@
 
 // IMPORTANT: Change this to your deployed Render backend URL when deploying!
 // For local development, it should typically be http://localhost:5000/api
-// const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
-const API_BASE_URL = 'http://localhost:5000/api'; 
+const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
+// const API_BASE_URL = 'http://localhost:5000/api'; 
 
 /**
  * Helper function to make authenticated API requests.
