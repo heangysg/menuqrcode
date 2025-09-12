@@ -2,11 +2,8 @@
 
 // IMPORTANT: Change this to your deployed Render backend URL when deploying!
 // For local development, it should typically be http://localhost:5000/api
-const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
-// const API_BASE_URL = 'http://localhost:5000/api'; 
-
-
-
+// const API_BASE_URL = 'https://menuqrcode.onrender.com/api'; 
+const API_BASE_URL = 'http://localhost:5000/api'; 
 
 /**
  * Helper function to make authenticated API requests.
@@ -75,6 +72,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, requiresAuth = 
         console.error(`API Error on ${method} ${endpoint}:`, error);
         let errorMessage = 'An unknown error occurred.';
         let errorStatus = 500;
+        
         try {
             const parsedError = JSON.parse(error.message);
             errorMessage = parsedError.message || errorMessage;
@@ -83,13 +81,34 @@ async function apiRequest(endpoint, method = 'GET', body = null, requiresAuth = 
             errorMessage = error.message || errorMessage;
         }
 
+        // Special handling for password verification errors - don't logout
         if (errorStatus === 401) {
-            console.warn('Unauthorized request. Redirecting to login.');
-            localStorage.removeItem('token');
-            localStorage.removeItem('userRole');
-            window.location.href = '/login';
+            // Check if this is a password verification error (not a general auth error)
+            const isPasswordError = errorMessage.includes('Invalid password') || 
+                                  errorMessage.includes('Password is required') ||
+                                  errorMessage.includes('password');
+            
+            if (isPasswordError) {
+                // Don't logout for password verification failures, just throw the error
+                console.warn('Password verification failed:', errorMessage);
+                throw new Error(errorMessage);
+            } else {
+                // This is a genuine authentication error, so logout
+                console.warn('Unauthorized request. Redirecting to login.');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userRole');
+                window.location.href = '/login';
+                throw new Error('Authentication failed. Please login again.');
+            }
         }
 
+        // For other 400-level errors (like bad password), don't logout either
+        if (errorStatus === 400 && errorMessage.includes('password')) {
+            console.warn('Password validation error:', errorMessage);
+            throw new Error(errorMessage);
+        }
+
+        // For all other errors, just throw the error message
         throw new Error(errorMessage);
     }
 }
