@@ -38,6 +38,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// In backend/server.js - Update the CSP imgSrc
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -45,7 +46,15 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
-            imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://placehold.co", "https://corsproxy.io"],
+            imgSrc: [
+                "'self'", 
+                "data:", 
+                "https://res.cloudinary.com", 
+                "https://placehold.co", 
+                "https://corsproxy.io",
+                "https://www.twothousand.com", // Add your external domain
+                "https:" // Allow all HTTPS images (be careful with this)
+            ],
             connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "https://menuqrcode.onrender.com", "http://localhost:5000"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],

@@ -14,440 +14,688 @@
     <link rel="icon" href="/public/img/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <style>
-        /* Custom scrollbar for category tabs */
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+<style>
+    /* Custom scrollbar for category tabs */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 
-        /* Product card image aspect ratio - square */
-        .product-image-container {
-            position: relative;
-            width: 100%;
-            padding-top: 100%; /* Square aspect ratio */
-            overflow: hidden;
-            border-radius: 0.5rem; /* rounded-lg */
-        }
-        .product-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+    /* Product card image aspect ratio - square */
+    .product-image-container {
+        position: relative;
+        width: 100%;
+        padding-top: 100%; /* Square aspect ratio */
+        overflow: hidden;
+        border-radius: 0.5rem; /* rounded-lg */
+    }
+    .product-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
-        /* Custom styles for list view */
-        .product-list-item {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 0; /* py-3 */
-            border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
-            cursor: pointer;
-        }
-        .product-list-item:last-child {
-            border-bottom: none;
-        }
-        .product-list-item .list-image-container {
-            position: relative;
-            width: 60px; /* Adjust size for list view */
-            height: 60px;
-            flex-shrink: 0;
-            overflow: hidden;
-            border-radius: 0.5rem; /* rounded-lg */
-            margin-right: 1rem; /* mr-4 */
-            border: 1px solid #e5e7eb; /* Subtle border for list view image */
-        }
-        .product-list-item .list-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .product-list-item .list-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .product-list-item .list-content h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 0.25rem;
-        }
-        .product-list-item .list-content p {
-            font-size: 0.75rem;
-            color: #6b7280;
-            line-height: 1.3;
-        }
-        .product-list-item .list-price {
-            flex-shrink: 0;
-            margin-left: 1rem;
-            font-size: 1rem;
-            font-weight: 700;
-            color: #ea580c;
-        }
-        
-        /* New rule to ensure product descriptions are bold in both grid and list views */
-        .product-card-description, /* Changed this to target the new class */
-        .product-list-item p {
-            font-weight: 700 !important;
-        }
-
-        /* Modal styling */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            z-index: 50;
-            backdrop-filter: blur(4px);
-        }
-        .modal-content-wrapper {
-            background-color: white;
-            border-radius: 0.75rem; /* rounded-xl */
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            width: 100%;
-            max-width: 400px;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            padding: 1.5rem;
-        }
-        .modal-close-btn {
-            position: absolute;
-            top: 0.75rem;
-            right: 0.75rem;
-            background-color: rgba(0, 0, 0, 0.6);
-            color: white;
-            border-radius: 9999px;
-            padding: 0.5rem;
-            transition: background-color 200ms;
-            z-index: 10;
-        }
-        .modal-close-btn:hover {
-            background-color: rgba(0, 0, 0, 0.8);
-        }
-
-        /* Specific styling for the store info modal content */
-        #storeInfoModal .modal-content-wrapper {
-            max-width: 450px;
-            padding: 2rem;
-        }
-        #storeInfoModal .modal-content-wrapper h2 {
-            font-size: 1.75rem;
-            line-height: 2.25rem;
-        }
-        #storeInfoModal .modal-content-wrapper p {
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-        #storeInfoModal .modal-content-wrapper .text-lg {
-            font-size: 1.125rem;
-        }
-
-        /* Styling for product image popup content */
-        #imagePopupModal .modal-content-wrapper {
-            max-width: 600px;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #imagePopupModal .modal-content-wrapper img {
-            max-width: 100%;
-            height: auto;
-            object-fit: contain;
-            margin-bottom: 1rem;
-        }
-        #imagePopupModal .product-info-container {
-            padding: 0 1rem;
-            text-align: left;
-        }
-        /* MODIFIED: Reduce font size for product name in popup */
-        #popupProductName {
-            font-size: 1.25rem !important; /* Smaller than previous 1.5rem */
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 0.5rem;
-        }
-        /* MODIFIED: Reduce font size for product description in popup */
-        #popupProductDescription {
-            font-size: 0.875rem !important; /* Keep original small text for description */
-            color: #6b7280;
-            line-height: 1.4;
-            font-weight: 700 !important; /* Still ensure bold */
-        }
-        /* MODIFIED: Reduce font size for product price in popup */
-        #popupProductPrice {
-            color: #ea580c !important; /* Force orange color */
-            font-size: 1.25rem !important; /* Smaller than previous 1.5rem */
-            font-weight: 700 !important;
-        }
-
-
-        /* Apply Kantumruy Pro for Khmer text, Inter for English, with bold weight */
-        body, h1, h2, h3, h4, p, a, span, div, input, select, textarea, button, th, td, li {
-            font-family: 'Kantumruy Pro', 'Inter', sans-serif !important;
-            font-weight: 700; /* Apply bold weight to all text elements */
-        }
-        /* Override for specific elements if needed to be less bold */
-        .text-sm, .text-base, .text-gray-600 { /* Adjust as needed for descriptions/smaller text */
-            font-weight: 400; /* Regular weight for descriptions and messages */
-        }
-        .font-bold {
-            font-weight: 700 !important; /* Ensure Tailwind's font-bold is respected */
-        }
-        .font-semibold {
-            font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
-        }
-
-        /* Specifically target category tabs to ensure they are bold */
-        #categoryTabs a {
-            font-weight: 700 !important; /* Make category tab links bold */
-            font-size: 1rem; /* Increased font size for better readability */
-        }
-        
-        /* Category titles in the main content area */
-        .category-title {
-            font-size: 1.25rem; /* Smaller font size for category titles */
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #fdba74; /* orange-300 */
-        }
-
-
-        /* Custom styling for the banner image */
-        .store-banner-container {
-            position: relative;
-            width: 100%;
-            height: 200px; /* Default height for mobile */
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-        }
-
-        .store-banner-slide {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-        }
-
-        .store-banner-slide.active {
-            opacity: 1;
-        }
-
-        .slider-dots {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-            z-index: 10; /* Ensure dots are above banners */
-        }
-
-        .dot {
-            width: 10px;
-            height: 10px;
-            background-color: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .dot.active {
-            background-color: rgba(255, 255, 255, 0.9);
-        }
-
-        /* Responsive adjustments for the banner */
-        @media (min-width: 768px) { /* md breakpoint */
-            .store-banner-container {
-                height: 300px; /* Taller on tablets */
-            }
-        }
-        @media (min-width: 1024px) { /* lg breakpoint */
-            .store-banner-container {
-                height: 400px; /* Even taller on desktops */
-            }
-        }
+    /* Custom styles for list view */
+    .product-list-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 0; /* py-3 */
+        border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
+        cursor: pointer;
+    }
+    .product-list-item:last-child {
+        border-bottom: none;
+    }
+    .product-list-item .list-image-container {
+        position: relative;
+        width: 60px; /* Adjust size for list view */
+        height: 60px;
+        flex-shrink: 0;
+        overflow: hidden;
+        border-radius: 0.5rem; /* rounded-lg */
+        margin-right: 1rem; /* mr-4 */
+        border: 1px solid #e5e7eb; /* Subtle border for list view image */
+    }
+    .product-list-item .list-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .product-list-item .list-content {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .product-list-item .list-content h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    .product-list-item .list-content p {
+        font-size: 0.75rem;
+        color: #6b7280;
+        line-height: 1.3;
+    }
+    .product-list-item .list-price {
+        flex-shrink: 0;
+        margin-left: 1rem;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #ea580c;
+    }
     
-        /* --- Mobile App Feel Tweaks --- */
-        body { background: #fafafa; }
-        main { padding-bottom: 5.5rem; } /* space for bottom nav */
+    /* New rule to ensure product descriptions are bold in both grid and list views */
+    .product-card-description, /* Changed this to target the new class */
+    .product-list-item p {
+        font-weight: 700 !important;
+    }
+    /* Increase font size for store description in modal */
+#modalStoreDescription {
+    font-size: 1.1rem !important; /* Increased from text-sm to larger size */
+     font-weight: bold;
+    line-height: 1.5;
+    color: #4b5563; /* Slightly darker gray for better readability */
+    margin-bottom: 1.5rem;
+}
+
+    /* Modal styling */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        z-index: 50;
+        backdrop-filter: blur(4px);
+    }
+    .modal-content-wrapper {
+        background-color: white;
+        border-radius: 0.75rem; /* rounded-xl */
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        width: 100%;
+        max-width: 400px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        padding: 1.5rem;
+    }
+    .modal-close-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        border-radius: 9999px;
+        padding: 0.5rem;
+        transition: background-color 200ms;
+        z-index: 10;
+    }
+    .modal-close-btn:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    /* Specific styling for the store info modal content */
+    #storeInfoModal .modal-content-wrapper {
+        max-width: 450px;
+        padding: 2rem;
+    }
+    #storeInfoModal .modal-content-wrapper h2 {
+        font-size: 1.75rem;
+        line-height: 2.25rem;
+    }
+    #storeInfoModal .modal-content-wrapper p {
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    #storeInfoModal .modal-content-wrapper .text-lg {
+        font-size: 1.125rem;
+    }
+
+    /* Styling for product image popup content - UPDATED FOR LAPTOPS */
+    #imagePopupModal .modal-content-wrapper {
+        max-width: 380px; /* Smaller for laptops */
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    #imagePopupModal .modal-content-wrapper img {
+        max-width: 100%;
+        height: auto;
+        object-fit: contain;
+        margin-bottom: 1rem;
+        max-height: 220px; /* Limit image height */
+    }
+    #imagePopupModal .product-info-container {
+        padding: 0 1rem;
+        text-align: left;
+        width: 100%;
+    }
+    /* MODIFIED: Reduce font size for product name in popup */
+    #popupProductName {
+        font-size: 1.1rem !important; /* Smaller for compact design */
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.4rem;
+        line-height: 1.3;
+    }
+    /* MODIFIED: Reduce font size for product description in popup */
+    #popupProductDescription {
+        font-size: 0.8rem !important; /* Smaller for compact design */
+        color: #6b7280;
+        line-height: 1.3;
+        font-weight: 700 !important;
+        margin-bottom: 0.5rem;
+    }
+    /* MODIFIED: Reduce font size for product price in popup */
+    #popupProductPrice {
+        color: #ea580c !important;
+        font-size: 1.1rem !important; /* Smaller for compact design */
+        font-weight: 700 !important;
+    }
+
+    /* Make modal even more compact on larger screens */
+    @media (min-width: 1024px) { /* lg breakpoint */
+        #imagePopupModal .modal-content-wrapper {
+            max-width: 340px; /* Even smaller on laptops */
+            padding: 0.75rem;
+        }
         
-        /* Pill-style category chips */
-        #categoryTabs { gap: 0.5rem; }
-        #categoryTabs a {
-            border: 1px solid #fed7aa; /* orange-200 */
-            background: #fff7ed;      /* orange-50 */
-            color: #9a3412;           /* orange-800 */
-            padding: 0.5rem 0.85rem;
-            border-radius: 999px;
-            font-weight: 700 !important;
-            font-size: 0.93rem; /* Increased font size for better readability */
-            transition: transform 120ms ease, background-color 200ms ease;
-            display: inline-flex;
-            align-items: center;
-            gap: .4rem;
-            white-space: nowrap;
-        }
-        #categoryTabs a:hover { transform: translateY(-1px); }
-        #categoryTabs a.active-chip {
-            background: #ffedd5;      /* orange-100 */
-            border-color: #fb923c;    /* orange-400 */
-            color: #c2410c;           /* orange-700 */
+        #imagePopupModal .product-info-container {
+            padding: 0 0.5rem;
         }
         
-        /* Make tabs nicely scrollable with snapping feel */
-        .tabs-scroll {
-            scroll-snap-type: x mandatory;
+        /* Reduce image size */
+        #imagePopupModal .modal-content-wrapper img {
+            margin-bottom: 0.75rem;
+            max-height: 180px;
         }
-        #categoryTabs > li { scroll-snap-align: start; }
         
-        /* Bottom navigation bar - UPDATED */
-        .bottom-nav {
-            position: fixed;
-            left: 0; right: 0; bottom: 0;
-            background: #ea580c; /* Changed to orange */
-            border-top: 1px solid #c2410c; /* Darker orange border */
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
-            z-index: 40;
+        /* Adjust font sizes for smaller modal */
+        #popupProductName {
+            font-size: 1rem !important;
+            margin-bottom: 0.3rem;
         }
-        .bottom-nav .nav-wrap {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: .5rem;
-            padding: .35rem .75rem .5rem;
-            max-width: 900px;
+        
+        #popupProductDescription {
+            font-size: 0.75rem !important;
+            line-height: 1.2;
+        }
+        
+        #popupProductPrice {
+            font-size: 1rem !important;
+        }
+    }
+
+    @media (min-width: 1280px) { /* xl breakpoint */
+        #imagePopupModal .modal-content-wrapper {
+            max-width: 320px; /* Smallest on large desktop screens */
+        }
+    }
+
+    /* Keep mobile sizes reasonable */
+    @media (max-width: 768px) { /* md breakpoint and below */
+        #imagePopupModal .modal-content-wrapper {
+            max-width: 85vw;
             margin: 0 auto;
         }
-        .bottom-nav button {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: .35rem 0;
-            gap: .15rem;
-            font-size: .7rem;
-            color: #fff; /* Changed to white */
-        }
-        .bottom-nav button.active { color: #fed7aa; } /* Changed to a lighter orange */
-        
-        /* Floating "scroll to top" button (FAB) */
-        .fab-top {
-            position: fixed;
-            right: 1rem;
-            bottom: 4.5rem; /* above bottom nav */
-            width: 3.25rem; height: 3.25rem;
-            border-radius: 9999px;
-            display: flex; align-items: center; justify-content: center;
-            background: #ea580c;
-            color: #fff;
-            box-shadow: 0 10px 20px rgba(234,88,12,.35);
-            z-index: 45;
-            border: none;
-        }
-        .fab-top.hidden { display: none; }
-        
-        /* Bottom-sheet style for the image popup (mobile drawer) */
-        #imagePopupModal.modal-overlay {
-            align-items: flex-end; /* push to bottom like a sheet */
-        }
-        #imagePopupModal .modal-content-wrapper {
-            width: 100%;
-            max-width: 640px;
-            border-top-left-radius: 1.25rem;
-            border-top-right-radius: 1.25rem;
-            border-bottom-left-radius: 0.75rem;
-            border-bottom-right-radius: 0.75rem;
-            transform: translateY(8px);
-            animation: slideUp 220ms ease-out forwards;
-        }
-        @keyframes slideUp {
-            from { transform: translateY(24px); opacity: .98; }
-            to   { transform: translateY(0);    opacity: 1; }
-        }
+    }
 
-        /* Reduce the store name font size for smaller screens */
+    /* Apply Kantumruy Pro for Khmer text, Inter for English, with bold weight */
+    body, h1, h2, h3, h4, p, a, span, div, input, select, textarea, button, th, td, li {
+        font-family: 'Kantumruy Pro', 'Inter', sans-serif !important;
+        font-weight: 700; /* Apply bold weight to all text elements */
+    }
+    /* Override for specific elements if needed to be less bold */
+    .text-sm, .text-base, .text-gray-600 { /* Adjust as needed for descriptions/smaller text */
+        font-weight: 400; /* Regular weight for descriptions and messages */
+    }
+    .font-bold {
+        font-weight: 700 !important; /* Ensure Tailwind's font-bold is respected */
+    }
+    .font-semibold {
+        font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
+    }
+
+    /* Specifically target category tabs to ensure they are bold */
+    #categoryTabs a {
+        font-weight: 700 !important; /* Make category tab links bold */
+        font-size: 1rem; /* Increased font size for better readability */
+    }
+    
+    /* Category titles in the main content area */
+    .category-title {
+        font-size: 1.25rem; /* Smaller font size for category titles */
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #fdba74; /* orange-300 */
+    }
+
+    /* Custom styling for the banner image */
+    .store-banner-container {
+        position: relative;
+        width: 100%;
+        height: 200px; /* Default height for mobile */
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+    }
+
+    .store-banner-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 1s ease-in-out;
+    }
+
+    .store-banner-slide.active {
+        opacity: 1;
+    }
+
+    .slider-dots {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 10; /* Ensure dots are above banners */
+    }
+
+    .dot {
+        width: 10px;
+        height: 10px;
+        background-color: rgba(255, 255, 255, 0.5);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .dot.active {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Responsive adjustments for the banner */
+    @media (min-width: 768px) { /* md breakpoint */
+        .store-banner-container {
+            height: 300px; /* Taller on tablets */
+        }
+    }
+    @media (min-width: 1024px) { /* lg breakpoint */
+        .store-banner-container {
+            height: 400px; /* Even taller on desktops */
+        }
+    }
+
+    /* --- Mobile App Feel Tweaks --- */
+    body { background: #fafafa; }
+    main { padding-bottom: 5.5rem; } /* space for bottom nav */
+    
+    /* Pill-style category chips */
+    #categoryTabs { gap: 0.5rem; }
+    #categoryTabs a {
+        border: 1px solid #fed7aa; /* orange-200 */
+        background: #fff7ed;      /* orange-50 */
+        color: #9a3412;           /* orange-800 */
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        font-weight: 700 !important;
+        font-size: 0.93rem; /* Increased font size for better readability */
+        transition: transform 120ms ease, background-color 200ms ease;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        white-space: nowrap;
+    }
+    #categoryTabs a:hover { transform: translateY(-1px); }
+    #categoryTabs a.active-chip {
+        background: #ffedd5;      /* orange-100 */
+        border-color: #fb923c;    /* orange-400 */
+        color: #c2410c;           /* orange-700 */
+    }
+    
+    /* Make tabs nicely scrollable with snapping feel */
+    .tabs-scroll {
+        scroll-snap-type: x mandatory;
+    }
+    #categoryTabs > li { scroll-snap-align: start; }
+    
+    /* Bottom navigation bar - UPDATED */
+    .bottom-nav {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        background: #ea580c; /* Changed to orange */
+        border-top: 1px solid #c2410c; /* Darker orange border */
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+        z-index: 40;
+    }
+    .bottom-nav .nav-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .5rem;
+        padding: .35rem .75rem .5rem;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .bottom-nav button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: .35rem 0;
+        gap: .15rem;
+        font-size: .7rem;
+        color: #fff; /* Changed to white */
+    }
+    .bottom-nav button.active { color: #fed7aa; } /* Changed to a lighter orange */
+    
+    /* Floating "scroll to top" button (FAB) */
+    .fab-top {
+        position: fixed;
+        right: 1rem;
+        bottom: 4.5rem; /* above bottom nav */
+        width: 3.25rem; height: 3.25rem;
+        border-radius: 9999px;
+        display: flex; align-items: center; justify-content: center;
+        background: #ea580c;
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(234,88,12,.35);
+        z-index: 45;
+        border: none;
+    }
+    .fab-top.hidden { display: none; }
+    
+    /* Bottom-sheet style for the image popup (mobile drawer) */
+    #imagePopupModal.modal-overlay {
+        align-items: flex-end; /* push to bottom like a sheet */
+    }
+    #imagePopupModal .modal-content-wrapper {
+        width: 100%;
+        max-width: 640px;
+        border-top-left-radius: 1.25rem;
+        border-top-right-radius: 1.25rem;
+        border-bottom-left-radius: 0.75rem;
+        border-bottom-right-radius: 0.75rem;
+        transform: translateY(8px);
+        animation: slideUp 220ms ease-out forwards;
+    }
+    @keyframes slideUp {
+        from { transform: translateY(24px); opacity: .98; }
+        to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    /* Reduce the store name font size for smaller screens */
+    #storeName {
+        font-size: 1.25rem; /* text-xl */
+    }
+
+    /* Adjust for larger screens */
+    @media (min-width: 640px) { /* sm breakpoint */
         #storeName {
-            font-size: 1.25rem; /* text-xl */
+            font-size: 1.5rem; /* text-2xl */
         }
+    }
+    /* MODIFIED: Category selection modal styling */
+    #categorySelectionModal .modal-content-wrapper {
+        max-width: 500px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    #categorySelectionModal h2 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    #categorySelectionModal .category-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background-color: #fff7ed; /* orange-50 */
+        border: 1px solid #fed7aa; /* orange-200 */
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    #categorySelectionModal .category-list-item:hover {
+        background-color: #ffedd5; /* orange-100 */
+        transform: translateY(-1px);
+    }
+    #categorySelectionModal .category-list-item.active {
+        background-color: #ffedd5; /* orange-100 */
+        border-color: #fb923c; /* orange-400 */
+        font-weight: 700;
+        color: #c2410c; /* orange-700 */
+    }
+    #categorySelectionModal .category-list-item span {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #9a3412; /* orange-800 */
+    }
+    #categorySelectionModal .category-list-item .fas {
+        color: #fb923c; /* orange-400 */
+    }
 
-        /* Adjust for larger screens */
-        @media (min-width: 640px) { /* sm breakpoint */
-            #storeName {
-                font-size: 1.5rem; /* text-2xl */
-            }
-        }
-        /* MODIFIED: Category selection modal styling */
-        #categorySelectionModal .modal-content-wrapper {
-            max-width: 500px;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        #categorySelectionModal h2 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 0.5rem;
-        }
-        #categorySelectionModal .category-list-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            background-color: #fff7ed; /* orange-50 */
-            border: 1px solid #fed7aa; /* orange-200 */
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-        #categorySelectionModal .category-list-item:hover {
-            background-color: #ffedd5; /* orange-100 */
-            transform: translateY(-1px);
-        }
-        #categorySelectionModal .category-list-item.active {
-            background-color: #ffedd5; /* orange-100 */
-            border-color: #fb923c; /* orange-400 */
-            font-weight: 700;
-            color: #c2410c; /* orange-700 */
-        }
-        #categorySelectionModal .category-list-item span {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #9a3412; /* orange-800 */
-        }
-        #categorySelectionModal .category-list-item .fas {
-            color: #fb923c; /* orange-400 */
-        }
+    /* Social Media Icons Styling for Modal Popup - UPDATED WITH REAL COLORS */
+    .social-media-icons {
+        display: flex;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 1.2rem;
+        padding: 0.9rem 0;
+        position: relative;
+        width: 100%;
+    }
 
-        /* REMOVED: The problematic 'position: sticky' rule */
-        /* #categorySelectionModal #closeCategorySelectionBtn {
-            position: sticky;
-            top: 0.75rem;
-            z-index: 10;
-        } */
+    /* Add dark yellow straight line above the icons */
+    .social-media-icons::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 10%;
+        right: 10%;
+        height: 2px;
+        background: #d97706; /* Dark yellow color */
+        border-radius: 1px;
+    }
+
+    .social-icon-modal {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        position: relative;
+        overflow: hidden;
+        border: 2px solid transparent;
+    }
+
+    .social-icon-modal:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .social-icon-modal:active {
+        transform: translateY(-1px);
+    }
+
+    .social-icon-modal::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%);
+        border-radius: 50%;
+    }
+
+    /* Facebook - REAL BRAND COLOR */
+    .social-icon-modal.facebook {
+        background: #1877F2; /* Official Facebook blue */
+        color: white;
+    }
+
+    .social-icon-modal.facebook:hover {
+        background: #166FE5; /* Darker Facebook blue */
+    }
+
+    /* TikTok - REAL BRAND COLORS */
+    .social-icon-modal.tiktok {
+        background: #000000; /* Official TikTok black */
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .social-icon-modal.tiktok::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            45deg,
+            #25F4EE 0%,
+            #000000 30%,
+            #000000 70%,
+            #FE2C55 100%
+        );
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
+    }
+
+    .social-icon-modal.tiktok:hover::before {
+        opacity: 1;
+    }
+
+    .social-icon-modal.tiktok i {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Telegram - REAL BRAND COLOR */
+    .social-icon-modal.telegram {
+        background: #0088cc; /* Official Telegram blue */
+        color: white;
+    }
+
+    .social-icon-modal.telegram:hover {
+        background: #0077B5; /* Darker Telegram blue */
+    }
+
+    /* Icon size adjustment */
+    .social-icon-modal i {
+        font-size: 16px !important;
+        z-index: 1;
+    }
+
+    /* Pulse animation on hover */
+    .social-icon-modal:hover i {
+        animation: pulse 0.6s ease-in-out;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+    }
+
+    /* Add subtle glow effect on hover */
+    .social-icon-modal:hover::after {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border-radius: 50%;
+        background: inherit;
+        filter: blur(6px);
+        opacity: 0.3;
+        z-index: -1;
+    }
+
+    /* Adjust social icons for smaller modal on desktop */
+    @media (min-width: 1024px) {
+        .social-media-icons {
+            margin-top: 1rem;
+            padding: 0.7rem 0;
+            gap: 12px;
+        }
+        
+        .social-icon-modal {
+            width: 36px;
+            height: 36px;
+        }
+        
+        .social-icon-modal i {
+            font-size: 15px !important;
+        }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+        .social-media-icons {
+            gap: 12px;
+        }
+        
+        .social-icon-modal {
+            width: 38px;
+            height: 38px;
+        }
+        
+        .social-icon-modal i {
+            font-size: 15px !important;
+        }
+    }
+
+    @media (max-width: 360px) {
+        .social-media-icons {
+            gap: 10px;
+        }
+        
+        .social-icon-modal {
+            width: 36px;
+            height: 36px;
+        }
+        
+        .social-icon-modal i {
+            font-size: 14px !important;
+        }
+    }
+
+    
+</style>
     </style>
 </head>
 <body class="bg-gray-100 leading-normal tracking-normal flex flex-col min-h-screen">
@@ -530,6 +778,17 @@
                 <p id="popupProductDescription"></p>
                 <p id="popupProductPrice" class="text-lg font-bold text-orange-600"></p> <!-- Price element with orange color -->
             </div>
+               <div class="social-media-icons">
+    <a href="https://www.facebook.com/profile.php?id=61560948651091" class="social-icon-modal facebook" title="Share on Facebook">
+        <i class="fab fa-facebook-f"></i>
+    </a>
+    <a href="https://www.tiktok.com/@spare_part_center" class="social-icon-modal tiktok" title="Follow on TikTok">
+        <i class="fab fa-tiktok"></i>
+    </a>
+    <a href="https://t.me/sparepartcenter" class="social-icon-modal telegram" title="Message on Telegram">
+        <i class="fab fa-telegram"></i>
+    </a>
+</div>
         </div>
     </div>
 

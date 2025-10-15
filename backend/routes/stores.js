@@ -97,9 +97,9 @@ router.put('/my-store', protect, authorizeRoles('admin'), upload.fields([{ name:
         }
         // If no new logo file and no remove flag, logo remains unchanged.
 
-        // Handle banner upload or removal (MODIFIED LOGIC for multiple banners)
+        // Handle banner upload or removal with optimized compression (800x800 + auto compression)
         if (req.files && req.files.banner && req.files.banner.length > 0) {
-            console.log(`New banner files detected: ${req.files.banner.length}. Uploading...`);
+            console.log(`New banner files detected: ${req.files.banner.length}. Uploading and optimizing to 800x800...`);
             // New banner files are provided. Delete all existing banners and upload new ones.
             if (store.banner && store.banner.length > 0) {
                 console.log(`Deleting ${store.banner.length} existing banners.`);
@@ -122,19 +122,26 @@ router.put('/my-store', protect, authorizeRoles('admin'), upload.fields([{ name:
                         {
                             folder: 'ysgstore/banners', // Dedicated folder for banners
                             resource_type: 'image',
-                            quality: 'auto',
-                            fetch_format: 'auto'
+                            transformation: [
+                                {
+                                    width: 800,
+                                    height: 800,
+                                    crop: 'limit', // 'limit' maintains aspect ratio and ensures dimensions don't exceed 800x800
+                                    quality: 'auto:good', // Optimized compression (reduces 3MB to ~100-300KB)
+                                    fetch_format: 'auto' // Converts to WebP/AVIF for better compression
+                                }
+                            ]
                         }
                     );
                     newBannerUrls.push(uploadRes.secure_url);
-                    console.log('Uploaded new banner:', uploadRes.secure_url);
+                    console.log('Uploaded and optimized new banner (800x800):', uploadRes.secure_url);
                 } catch (uploadError) {
                     console.error(`Failed to upload banner file: ${file.originalname}:`, uploadError.message);
                     // Decide whether to throw or continue. For now, continue and log.
                 }
             }
             store.banner = newBannerUrls; // Save the array of new banner URLs
-            console.log('All new banners uploaded and assigned to store.');
+            console.log('All new banners uploaded, optimized, and assigned to store.');
         } else if (req.body.removeBanner === 'true') { // Check for explicit removal flag from frontend
             console.log('Remove banner flag detected. Removing all banners...');
             if (store.banner && store.banner.length > 0) {
@@ -153,7 +160,6 @@ router.put('/my-store', protect, authorizeRoles('admin'), upload.fields([{ name:
             console.log('Banner field set to empty array.');
         }
         // If no new banner files and no remove flag, banners remain unchanged.
-
 
         const updatedStore = await store.save();
         res.json(updatedStore);
@@ -196,6 +202,5 @@ router.get('/public/slug/:slug', async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
-
 
 module.exports = router;

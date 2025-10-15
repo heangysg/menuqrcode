@@ -12,9 +12,8 @@ const categorySchema = mongoose.Schema(
         store: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Store',
-            required: true,
+            required: false, // CHANGED TO OPTIONAL
         },
-        // You might want to add an 'order' field for custom sorting
         order: {
             type: Number,
             default: 0,
@@ -25,8 +24,8 @@ const categorySchema = mongoose.Schema(
     }
 );
 
-// Ensure unique category names per store
-categorySchema.index({ name: 1, store: 1 }, { unique: true });
+// Remove the unique index that requires store
+// categorySchema.index({ name: 1, store: 1 }, { unique: true });
 
 const Category = mongoose.model('Category', categorySchema);
 module.exports = Category;

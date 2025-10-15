@@ -2,50 +2,34 @@
 
 const express = require('express');
 const router = express.Router();
-// Cloudinary upload helper using buffer stream
-const uploadToCloudinary = (buffer) => {
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder: 'ysgstore/products', resource_type: 'image', transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], format: 'webp' },
-            (error, result) => {
-                if (result) resolve(result);
-                else reject(error);
-            }
-        );
-        stream.end(buffer);
-    });
-};
-
 const Product = require('../models/Product');
-const Category = require('../models/Category'); // Need to check if category exists and belongs to store
+const Category = require('../models/Category');
 const Store = require('../models/Store');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
-const mongoose = require('mongoose'); // NEW: Import mongoose to use mongoose.Types.ObjectId
+const mongoose = require('mongoose');
 
 // Extract Cloudinary public_id safely from a Cloudinary URL
 function getCloudinaryPublicId(url) {
     if (!url) return null;
     try {
-        // Example: https://res.cloudinary.com/demo/image/upload/v1693334444/ysgstore/products/abcd1234.webp
         const parts = url.split('/');
-        const fileWithExt = parts.pop(); // abcd1234.webp
-        const folderPath = parts.slice(parts.indexOf('upload') + 1).join('/'); // ysgstore/products
-        const fileName = fileWithExt.split('.')[0]; // abcd1234
-        return folderPath + '/' + fileName; // ysgstore/products/abcd1234
+        const fileWithExt = parts.pop();
+        const folderPath = parts.slice(parts.indexOf('upload') + 1).join('/');
+        const fileName = fileWithExt.split('.')[0];
+        return folderPath + '/' + fileName;
     } catch (err) {
         console.error('Failed to parse Cloudinary public_id:', err);
         return null;
     }
 }
 
-
 // Set up Multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB file size limit
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -62,18 +46,228 @@ const getAdminStoreId = async (req, res, next) => {
         if (!store) {
             return res.status(404).json({ message: 'No store found for this admin.' });
         }
-        req.storeId = store._id; // Attach storeId to the request
+        req.storeId = store._id;
         next();
     } catch (error) {
         res.status(500).json({ message: 'Error fetching admin store.', error: error.message });
     }
 };
 
-// @desc    Add a new product
+// ==================== PUBLIC ROUTES ====================
+
+// @desc    Get all SUPERADMIN products for website (PUBLIC) - ONLY superadmin products
+// @route   GET /api/products/website
+// @access  Public
+router.get('/website', async (req, res) => {
+    try {
+        console.log('Fetching SUPERADMIN products for website...');
+        // Only get products that don't have a store field (superadmin products)
+        const products = await Product.find({ 
+            isAvailable: true,
+            store: { $exists: false } // Only products without store field (superadmin products)
+        })
+        .populate('category', 'name')
+        .sort({ createdAt: -1 });
+        
+        console.log(`Found ${products.length} SUPERADMIN products`);
+        res.json(products);
+    } catch (error) {
+        console.error('Error fetching website products:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// ==================== SUPERADMIN ROUTES ====================
+
+// @desc    Get all products for superadmin (ONLY superadmin products)
+// @route   GET /api/products/superadmin
+// @access  Private (Superadmin only)
+router.get('/superadmin', protect, authorizeRoles('superadmin'), async (req, res) => {
+    try {
+        // Only get products that don't have a store field (superadmin products)
+        const products = await Product.find({ store: { $exists: false } })
+            .populate('category', 'name')
+            .sort({ createdAt: -1 });
+        res.json(products);
+    } catch (error) {
+        console.error('Error fetching superadmin products:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Create product for superadmin
+// @route   POST /api/products/superadmin
+// @access  Private (Superadmin only)
+router.post('/superadmin', protect, authorizeRoles('superadmin'), upload.single('image'), async (req, res) => {
+    const { title, description, price, category, imageUrl, isAvailable } = req.body;
+
+    if (!title || !category) {
+        return res.status(400).json({ message: 'Please add product title and select a category' });
+    }
+
+    try {
+        // Verify category exists
+        const existingCategory = await Category.findById(category);
+        if (!existingCategory) {
+            return res.status(400).json({ message: 'Invalid category' });
+        }
+
+        let finalImageUrl = imageUrl || '';
+        let cloudinaryImage = '';
+
+        if (req.file) {
+            const uploadRes = await cloudinary.uploader.upload(
+                `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+                { 
+                    folder: 'ysgstore/superadmin-products', // Separate folder for superadmin
+                    resource_type: 'image', 
+                    transformation: [ 
+                        { width: 600, crop: 'limit' }, 
+                        { quality: 'auto' } 
+                    ], 
+                    format: 'webp' 
+                }
+            );
+            cloudinaryImage = uploadRes.secure_url;
+        }
+
+        const product = await Product.create({
+            title,
+            description: description || '',
+            price: price || 0,
+            image: cloudinaryImage,
+            imageUrl: finalImageUrl,
+            category: existingCategory._id,
+            isAvailable: isAvailable !== undefined ? isAvailable : true,
+            // NO store field - this identifies it as superadmin product
+        });
+
+        const populatedProduct = await Product.findById(product._id).populate('category', 'name');
+        res.status(201).json(populatedProduct);
+    } catch (error) {
+        console.error('Error adding product as superadmin:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Update product for superadmin
+// @route   PUT /api/products/superadmin/:id
+// @access  Private (Superadmin only)
+router.put('/superadmin/:id', protect, authorizeRoles('superadmin'), upload.single('image'), async (req, res) => {
+    const { title, description, price, category, imageUrl, isAvailable } = req.body;
+
+    try {
+        // Only allow updating superadmin products (no store field)
+        const product = await Product.findOne({ 
+            _id: req.params.id, 
+            store: { $exists: false } 
+        });
+        
+        if (!product) {
+            return res.status(404).json({ message: 'Superadmin product not found' });
+        }
+
+        // Verify category if it's being updated
+        if (category) {
+            const existingCategory = await Category.findById(category);
+            if (!existingCategory) {
+                return res.status(400).json({ message: 'Invalid category' });
+            }
+            product.category = existingCategory._id;
+        }
+
+        product.title = title || product.title;
+        product.description = description !== undefined ? description : product.description;
+        product.price = price !== undefined ? price : product.price;
+        product.isAvailable = isAvailable !== undefined ? isAvailable : product.isAvailable;
+
+        if (imageUrl !== undefined) {
+            product.imageUrl = imageUrl;
+            if (product.image) {
+                const publicId = getCloudinaryPublicId(product.image);
+                if (publicId) {
+                    await cloudinary.uploader.destroy(publicId);
+                }
+                product.image = '';
+            }
+        } else if (req.file) {
+            if (product.image) {
+                const publicId = getCloudinaryPublicId(product.image);
+                if (publicId) {
+                    await cloudinary.uploader.destroy(publicId);
+                }
+            }
+            const uploadRes = await cloudinary.uploader.upload(
+                `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+                { 
+                    folder: 'ysgstore/superadmin-products', // Separate folder
+                    resource_type: 'image', 
+                    transformation: [ 
+                        { width: 600, crop: 'limit' }, 
+                        { quality: 'auto' } 
+                    ], 
+                    format: 'webp' 
+                }
+            );
+            product.image = uploadRes.secure_url;
+            product.imageUrl = '';
+        } else if (req.body.removeImage === 'true') {
+            if (product.image) {
+                const publicId = getCloudinaryPublicId(product.image);
+                if (publicId) {
+                    await cloudinary.uploader.destroy(publicId);
+                }
+            }
+            product.image = '';
+            product.imageUrl = '';
+        }
+
+        const updatedProduct = await product.save();
+        const populatedProduct = await Product.findById(updatedProduct._id).populate('category', 'name');
+        res.json(populatedProduct);
+    } catch (error) {
+        console.error('Error updating product as superadmin:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Delete product for superadmin
+// @route   DELETE /api/products/superadmin/:id
+// @access  Private (Superadmin only)
+router.delete('/superadmin/:id', protect, authorizeRoles('superadmin'), async (req, res) => {
+    try {
+        // Only allow deleting superadmin products (no store field)
+        const product = await Product.findOne({ 
+            _id: req.params.id, 
+            store: { $exists: false } 
+        });
+        
+        if (!product) {
+            return res.status(404).json({ message: 'Superadmin product not found' });
+        }
+
+        // Delete image from Cloudinary if it exists
+        if (product.image) {
+            const publicId = getCloudinaryPublicId(product.image);
+            if (publicId) {
+                await cloudinary.uploader.destroy(publicId);
+            }
+        }
+
+        await Product.deleteOne({ _id: req.params.id });
+        res.json({ message: 'Superadmin product removed' });
+    } catch (error) {
+        console.error('Error deleting product as superadmin:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// ==================== ADMIN/STORE ROUTES ====================
+
+// @desc    Add a new product (Admin)
 // @route   POST /api/products
 // @access  Private (Admin only)
 router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.single('image'), async (req, res) => {
-    // Destructure new 'imageUrl' field from body
     const { title, description, price, category, imageUrl } = req.body;
 
     if (!title || !category) {
@@ -87,17 +281,18 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
             return res.status(400).json({ message: 'Invalid category or category does not belong to your store.' });
         }
 
-        let finalImageUrl = imageUrl || ''; // Use provided imageUrl if it exists
-
-        // If a file is uploaded AND no imageUrl was provided, upload the file
-        // If imageUrl is provided, it takes precedence over file upload for the `imageUrl` field
-        // The `image` field will still be used for Cloudinary uploads if you want to keep that.
+        let finalImageUrl = imageUrl || '';
         let cloudinaryImage = '';
+
         if (req.file) {
-            // Upload image to Cloudinary with optimization settings
-             const uploadRes = await cloudinary.uploader.upload(
+            const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { folder: 'ysgstore/products', resource_type: 'image', transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], format: 'webp' }
+                { 
+                    folder: 'ysgstore/store-products', // Separate folder for store products
+                    resource_type: 'image', 
+                    transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], 
+                    format: 'webp' 
+                }
             );
             cloudinaryImage = uploadRes.secure_url;
         }
@@ -106,10 +301,10 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
             title,
             description,
             price: price,
-            image: cloudinaryImage, // This is for Cloudinary uploaded images
-            imageUrl: finalImageUrl, // This is for direct URL input
+            image: cloudinaryImage,
+            imageUrl: finalImageUrl,
             category: existingCategory._id,
-            store: req.storeId,
+            store: req.storeId, // This identifies it as store product
         });
 
         res.status(201).json(product);
@@ -119,31 +314,23 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
     }
 });
 
-// @desc    Get all products for the authenticated admin's store, with optional category and search filters
+// @desc    Get all products for the authenticated admin's store
 // @route   GET /api/products/my-store
 // @access  Private (Admin only)
 router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
     try {
-        const { category, search } = req.query; // Extract category AND search from query parameters
-        let filter = { store: req.storeId }; // ALWAYS filter by store
+        const { category, search } = req.query;
+        let filter = { store: req.storeId }; // Only products with store field
 
-        console.log('Backend (my-store): Received category parameter:', category);
-        console.log('Backend (my-store): Received search parameter:', search);
-
-        // Apply category filter if provided and it's not 'all'
-        // CRITICAL FIX: Explicitly cast category ID to ObjectId
         if (category && category !== 'all') {
-            // Validate if it's a valid MongoDB ObjectId format before casting
-            if (mongoose.Types.ObjectId.isValid(category)) { // NEW VALIDATION
-                filter.category = new mongoose.Types.ObjectId(category); // NEW: Explicitly cast
+            if (mongoose.Types.ObjectId.isValid(category)) {
+                filter.category = new mongoose.Types.ObjectId(category);
             } else {
-                // If the category ID is invalid, log an error and return no products for this filter
                 console.warn(`Backend (my-store): Invalid category ID received: ${category}`);
-                return res.json([]); // Return empty array if category ID is malformed
+                return res.json([]);
             }
         }
 
-        // Apply search filter if provided
         if (search) {
             filter.$or = [
                 { title: { $regex: search, $options: 'i' } },
@@ -151,9 +338,7 @@ router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async
             ];
         }
 
-        console.log('Backend (my-store): Final Mongoose filter applied:', filter);
         const products = await Product.find(filter).populate('category', 'name').sort('title');
-        console.log('Backend (my-store): Number of products found:', products.length);
         res.json(products);
     } catch (error) {
         console.error('Error fetching admin store products:', error);
@@ -161,7 +346,7 @@ router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async
     }
 });
 
-// @desc    Get all products for a public store (by slug) with optional category and search filters
+// @desc    Get all products for a public store (by slug)
 // @route   GET /api/products/public-store/slug/:slug
 // @access  Public
 router.get('/public-store/slug/:slug', async (req, res) => {
@@ -172,15 +357,14 @@ router.get('/public-store/slug/:slug', async (req, res) => {
         }
 
         const { category, search } = req.query;
-        let filter = { store: store._id };
+        let filter = { store: store._id }; // Only products with this specific store
 
         if (category && category !== 'all-items' && category !== 'all') {
-            // Public route also needs explicit casting if category is passed
-            if (mongoose.Types.ObjectId.isValid(category)) { // NEW VALIDATION
-                filter.category = new mongoose.Types.ObjectId(category); // NEW: Explicitly cast
+            if (mongoose.Types.ObjectId.isValid(category)) {
+                filter.category = new mongoose.Types.ObjectId(category);
             } else {
                 console.warn(`Backend (public-store): Invalid category ID received: ${category}`);
-                return res.json([]); // Return empty array if category ID is malformed
+                return res.json([]);
             }
         }
 
@@ -199,11 +383,10 @@ router.get('/public-store/slug/:slug', async (req, res) => {
     }
 });
 
-// @desc    Update a product
+// @desc    Update a product (Admin)
 // @route   PUT /api/products/:id
 // @access  Private (Admin only)
 router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.single('image'), async (req, res) => {
-    // Destructure new 'imageUrl' field from body
     const { title, description, price, category, imageUrl } = req.body;
 
     try {
@@ -225,38 +408,36 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
         product.title = title || product.title;
         product.description = description !== undefined ? description : product.description;
         product.price = price;
-        product.isAvailable = req.body.isAvailable !== undefined ? req.body.isAvailable : product.isAvailable; // Ensure isAvailable is updated
+        product.isAvailable = req.body.isAvailable !== undefined ? req.body.isAvailable : product.isAvailable;
 
-        // Logic for image handling:
-        // 1. If imageUrl is provided (even if empty string), use it for product.imageUrl
         if (imageUrl !== undefined) {
             product.imageUrl = imageUrl;
-            // If a direct URL is provided, and there was a Cloudinary image, delete the Cloudinary image
             if (product.image) {
                 const publicId = getCloudinaryPublicId(product.image);
                 if (publicId) {
                     await cloudinary.uploader.destroy(publicId);
                 }
-                product.image = ''; // Clear the Cloudinary image field
+                product.image = '';
             }
         } else if (req.file) {
-            // 2. If a file is uploaded and no imageUrl was provided (or imageUrl was explicitly removed/empty)
-            // Delete old Cloudinary image if it exists
             if (product.image) {
                 const publicId = getCloudinaryPublicId(product.image);
                 if (publicId) {
                     await cloudinary.uploader.destroy(publicId);
                 }
             }
-            // Upload new image with optimization settings
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { folder: 'ysgstore/products', resource_type: 'image', transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], format: 'webp' }
+                { 
+                    folder: 'ysgstore/store-products', 
+                    resource_type: 'image', 
+                    transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], 
+                    format: 'webp' 
+                }
             );
             product.image = uploadRes.secure_url;
-            product.imageUrl = ''; // Clear imageUrl if a file is uploaded
-        } else if (req.body.removeImage === 'true') { // Assuming a checkbox or flag for explicit removal
-            // 3. If a flag to remove image is sent and no new file/URL
+            product.imageUrl = '';
+        } else if (req.body.removeImage === 'true') {
             if (product.image) {
                 const publicId = getCloudinaryPublicId(product.image);
                 if (publicId) {
@@ -267,7 +448,6 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
             product.imageUrl = '';
         }
 
-
         const updatedProduct = await product.save();
         res.json(updatedProduct);
     } catch (error) {
@@ -276,7 +456,7 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
     }
 });
 
-// @desc    Delete a product
+// @desc    Delete a product (Admin)
 // @route   DELETE /api/products/:id
 // @access  Private (Admin only)
 router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
@@ -287,10 +467,12 @@ router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (
             return res.status(404).json({ message: 'Product not found or you do not own this product.' });
         }
 
-        // Delete image from Cloudinary if it exists (assuming 'image' field stores Cloudinary URL)
+        // Delete image from Cloudinary if it exists
         if (product.image) {
-            const publicId = product.image.split('/').pop().split('.')[0];
-            await cloudinary.uploader.destroy(publicId);
+            const publicId = getCloudinaryPublicId(product.image);
+            if (publicId) {
+                await cloudinary.uploader.destroy(publicId);
+            }
         }
 
         await Product.deleteOne({ _id: req.params.id });
@@ -301,5 +483,30 @@ router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (
     }
 });
 
+// Add this to backend/routes/products.js in the SUPERADMIN ROUTES section
+
+// @desc    Get single product for superadmin
+// @route   GET /api/products/superadmin/:id
+// @access  Private (Superadmin only)
+router.get('/superadmin/:id', protect, authorizeRoles('superadmin'), async (req, res) => {
+    try {
+        // Only get superadmin products (no store field)
+        const product = await Product.findOne({ 
+            _id: req.params.id, 
+            store: { $exists: false } 
+        }).populate('category', 'name');
+        
+        if (!product) {
+            return res.status(404).json({ message: 'Superadmin product not found' });
+        }
+
+        res.json(product);
+    } catch (error) {
+        console.error('Error fetching superadmin product:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
 
 module.exports = router;
+
+

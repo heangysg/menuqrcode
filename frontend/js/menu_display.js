@@ -343,7 +343,7 @@ function getOptimizedImageUrl(url) {
                     categorySection.classList.add('mb-8');
 
                     const categoryTitle = document.createElement('h2');
-                    categoryTitle.classList.add('text-2xl', 'font-bold', 'text-gray-800', 'mb-4', 'pb-2', 'border-b', 'border-orange-500', 'sticky', 'top-0', 'bg-gray-100', 'z-10', 'py-2');
+                    categoryTitle.classList.add('text-xl', 'font-bold', 'text-gray-800', 'mb-4', 'pb-2', 'border-b', 'border-orange-500', 'sticky', 'top-0', 'bg-gray-100', 'z-10', 'py-2');
                     categoryTitle.textContent = category.name;
                     categorySection.appendChild(categoryTitle);
 
@@ -827,6 +827,22 @@ clearSearchBtn.addEventListener('click', async () => {
     setActiveCategoryTab('all-items');
     await fetchAndRenderProducts('all-items');
 });
+
+// Add this function to fix the stopBannerSlider error
+function stopBannerSlider() {
+    const bannerSlider = document.getElementById('bannerSlider');
+    if (bannerSlider) {
+        bannerSlider.innerHTML = '';
+    }
+    // Clear any existing intervals
+    if (window.bannerInterval) {
+        clearInterval(window.bannerInterval);
+        window.bannerInterval = null;
+    }
+}
+
+// Make sure it's available globally
+window.stopBannerSlider = stopBannerSlider;
 
     } catch (error) {
         console.error('Error fetching menu:', error.message);
