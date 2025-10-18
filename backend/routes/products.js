@@ -1,3 +1,4 @@
+
 // qr-digital-menu-system/backend/routes/products.js
 
 const express = require('express');
@@ -29,7 +30,7 @@ function getCloudinaryPublicId(url) {
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 8 * 1024 * 1024 }, // Reduced to 8MB since we're using smaller images
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -38,6 +39,30 @@ const upload = multer({
         }
     }
 });
+
+// Improved Cloudinary upload configuration for balanced image quality and size
+const cloudinaryUploadOptions = {
+    resource_type: 'image',
+    quality: 'auto:good', // Good balance between quality and file size
+    format: 'webp',
+    fetch_format: 'auto',
+    transformation: [
+        { width: 800, crop: 'limit', quality: 'auto:good' }, // Perfect balance at 800px
+        { dpr: 'auto' }
+    ]
+};
+
+// Superadmin specific upload options
+const superadminUploadOptions = {
+    ...cloudinaryUploadOptions,
+    folder: 'ysgstore/superadmin-products'
+};
+
+// Store specific upload options  
+const storeUploadOptions = {
+    ...cloudinaryUploadOptions,
+    folder: 'ysgstore/store-products'
+};
 
 // Middleware to get the admin's store ID and ensure they own it
 const getAdminStoreId = async (req, res, next) => {
@@ -118,15 +143,7 @@ router.post('/superadmin', protect, authorizeRoles('superadmin'), upload.single(
         if (req.file) {
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { 
-                    folder: 'ysgstore/superadmin-products', // Separate folder for superadmin
-                    resource_type: 'image', 
-                    transformation: [ 
-                        { width: 600, crop: 'limit' }, 
-                        { quality: 'auto' } 
-                    ], 
-                    format: 'webp' 
-                }
+                superadminUploadOptions
             );
             cloudinaryImage = uploadRes.secure_url;
         }
@@ -199,15 +216,7 @@ router.put('/superadmin/:id', protect, authorizeRoles('superadmin'), upload.sing
             }
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { 
-                    folder: 'ysgstore/superadmin-products', // Separate folder
-                    resource_type: 'image', 
-                    transformation: [ 
-                        { width: 600, crop: 'limit' }, 
-                        { quality: 'auto' } 
-                    ], 
-                    format: 'webp' 
-                }
+                superadminUploadOptions
             );
             product.image = uploadRes.secure_url;
             product.imageUrl = '';
@@ -287,12 +296,7 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
         if (req.file) {
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { 
-                    folder: 'ysgstore/store-products', // Separate folder for store products
-                    resource_type: 'image', 
-                    transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], 
-                    format: 'webp' 
-                }
+                storeUploadOptions
             );
             cloudinaryImage = uploadRes.secure_url;
         }
@@ -428,12 +432,7 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
             }
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { 
-                    folder: 'ysgstore/store-products', 
-                    resource_type: 'image', 
-                    transformation: [ { width: 600, crop: 'limit' }, { quality: 'auto' } ], 
-                    format: 'webp' 
-                }
+                storeUploadOptions
             );
             product.image = uploadRes.secure_url;
             product.imageUrl = '';
@@ -483,8 +482,6 @@ router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (
     }
 });
 
-// Add this to backend/routes/products.js in the SUPERADMIN ROUTES section
-
 // @desc    Get single product for superadmin
 // @route   GET /api/products/superadmin/:id
 // @access  Private (Superadmin only)
@@ -508,5 +505,3 @@ router.get('/superadmin/:id', protect, authorizeRoles('superadmin'), async (req,
 });
 
 module.exports = router;
-
-

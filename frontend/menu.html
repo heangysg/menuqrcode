@@ -287,15 +287,15 @@
     }
 
     /* Custom styling for the banner image */
-    .store-banner-container {
-        position: relative;
-        width: 100%;
-        height: 200px; /* Default height for mobile */
-        overflow: hidden;
-        margin-bottom: 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-    }
+        .store-banner-container {
+            position: relative;
+            width: 100%;
+            height: 170px; /* Reduced height for mobile */
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
 
     .store-banner-slide {
         position: absolute;
@@ -388,7 +388,14 @@
         border-top: 1px solid #c2410c; /* Darker orange border */
         box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
         z-index: 40;
+        transition: transform 0.3s ease, opacity 0.3s ease;
     }
+
+    .bottom-nav.hidden {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    
     .bottom-nav .nav-wrap {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -497,6 +504,70 @@
     }
     #categorySelectionModal .category-list-item .fas {
         color: #fb923c; /* orange-400 */
+    }
+
+    /* NEW: Bottom Nav Toggle Button for Desktop */
+    .nav-toggle-btn {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        background: #ea580c;
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+        z-index: 50;
+        display: none; /* Hidden by default */
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .nav-toggle-btn:hover {
+        background: #c2410c;
+        transform: scale(1.1);
+    }
+
+    .nav-toggle-btn i {
+        font-size: 1.2rem;
+        transition: transform 0.3s ease;
+    }
+
+    .nav-toggle-btn.rotated i {
+        transform: rotate(180deg);
+    }
+
+    /* Show toggle button only on desktop */
+    @media (min-width: 1024px) { /* lg breakpoint and above */
+        .nav-toggle-btn {
+            display: flex;
+        }
+        
+        /* Adjust main padding when nav is hidden */
+        .bottom-nav.hidden ~ main {
+            padding-bottom: 2rem;
+        }
+    }
+
+    /* Keep bottom nav always visible on mobile */
+    @media (max-width: 1023px) {
+        .bottom-nav {
+            display: block !important;
+            transform: translateY(0) !important;
+            opacity: 1 !important;
+        }
+        
+        .nav-toggle-btn {
+            display: none !important;
+        }
+        
+        /* Keep the original padding for mobile */
+        main {
+            padding-bottom: 5.5rem !important;
+        }
     }
 
     /* Social Media Icons Styling for Modal Popup - UPDATED WITH REAL COLORS */
@@ -696,7 +767,6 @@
 
     
 </style>
-    </style>
 </head>
 <body class="bg-gray-100 leading-normal tracking-normal flex flex-col min-h-screen">
 
@@ -762,9 +832,14 @@
 
     <footer class="bg-orange-600 text-white py-4 mt-auto">
         <div class="container mx-auto px-4 text-center text-sm">
-            &copy; 2025 QR Digital Menu. All rights reserved.
+            &copy; © 2025 Yeung Shi Group. All rights reserved.
         </div>
     </footer>
+
+    <!-- NEW: Bottom Nav Toggle Button (Visible only on desktop) -->
+    <button id="navToggleBtn" class="nav-toggle-btn" title="Hide Bottom Navigation">
+        <i class="fas fa-chevron-down"></i>
+    </button>
 
     <!-- Image Popup Modal Structure -->
     <div id="imagePopupModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
@@ -778,17 +853,19 @@
                 <p id="popupProductDescription"></p>
                 <p id="popupProductPrice" class="text-lg font-bold text-orange-600"></p> <!-- Price element with orange color -->
             </div>
-               <div class="social-media-icons">
-    <a href="https://www.facebook.com/profile.php?id=61560948651091" class="social-icon-modal facebook" title="Share on Facebook">
-        <i class="fab fa-facebook-f"></i>
-    </a>
-    <a href="https://www.tiktok.com/@spare_part_center" class="social-icon-modal tiktok" title="Follow on TikTok">
-        <i class="fab fa-tiktok"></i>
-    </a>
-    <a href="https://t.me/sparepartcenter" class="social-icon-modal telegram" title="Message on Telegram">
-        <i class="fab fa-telegram"></i>
-    </a>
-</div>
+            
+            <!-- UPDATED: Only Social Media Icons (Facebook, TikTok, Telegram) -->
+            <div class="social-media-icons">
+                <a href="https://www.facebook.com/profile.php?id=61560948651091" class="social-icon-modal facebook" title="Share on Facebook">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+                <a href="https://www.tiktok.com/@spare_part_center" class="social-icon-modal tiktok" title="Follow on TikTok">
+                    <i class="fab fa-tiktok"></i>
+                </a>
+                <a href="ttps://t.me/sparepartcenter" class="social-icon-modal telegram" title="Message on Telegram">
+                    <i class="fab fa-telegram"></i>
+                </a>
+            </div>
         </div>
     </div>
 
@@ -843,6 +920,25 @@
 
     <script src="/js/api.js"></script>
     <script src="/js/menu_display.js"></script>
+
+    <!-- NEW: Bottom Nav Toggle Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navToggleBtn = document.getElementById('navToggleBtn');
+            const bottomNav = document.querySelector('.bottom-nav');
+            
+            if (navToggleBtn && bottomNav) {
+                navToggleBtn.addEventListener('click', function() {
+                    bottomNav.classList.toggle('hidden');
+                    this.classList.toggle('rotated');
+                    
+                    // Update tooltip text
+                    const isHidden = bottomNav.classList.contains('hidden');
+                    this.setAttribute('title', isHidden ? 'Show Navigation' : 'Hide Navigation');
+                });
+            }
+        });
+    </script>
 
     <!-- Bottom Navigation (Mobile App style) -->
     <nav class="bottom-nav" role="navigation" aria-label="Bottom Navigation">

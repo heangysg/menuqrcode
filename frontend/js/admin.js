@@ -1,4 +1,3 @@
-
 // Optimize Cloudinary images for delivery (auto format, auto quality, max width 600px)
 function getOptimizedImageUrl(url) {
     if (!url) return url;
@@ -7,26 +6,24 @@ function getOptimizedImageUrl(url) {
     }
     return url;
 }
-// qr-digital-menu-system/frontend/js/admin.js
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Authentication Check
-    // Ensure the user is authenticated and is an admin
     if (!window.checkAuthAndRedirect('admin')) {
-        return; // Redirect handled by auth.js if not authenticated or wrong role
+        return;
     }
 
     // --- DOM Element References ---
     // Mobile Menu
     const mobileMenuButton = document.getElementById('mobileMenuButton');
     const sidebar = document.getElementById('sidebar');
-    const mainContentArea = document.querySelector('main'); // Reference to the main content area for scrolling
 
-    // Main Content Sections (NEW: Added IDs to sections)
+    // Main Content Sections (UPDATED: Separate sections for Add Products and Your Products)
     const dashboardOverviewSection = document.getElementById('dashboard-overview-section');
     const storeManagementSection = document.getElementById('store-management-section');
     const categoryManagementSection = document.getElementById('category-management-section');
-    const productManagementSection = document.getElementById('product-management-section');
+    const addProductsSection = document.getElementById('add-products-section'); // NEW
+    const yourProductsSection = document.getElementById('your-products-section'); // NEW
 
     // Dashboard Overview
     const totalProductsCount = document.getElementById('totalProductsCount');
@@ -41,18 +38,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const storeDescriptionInput = document.getElementById('storeDescription');
     const storeFacebookInput = document.getElementById('storeFacebook');
     const storeTelegramInput = document.getElementById('storeTelegram');
-    const storeTikTokInput = document = document.getElementById('storeTikTok');
+    const storeTikTokInput = document.getElementById('storeTikTok');
     const storeWebsiteInput = document.getElementById('storeWebsite');
     const storeLogoInput = document.getElementById('storeLogo');
     const currentLogoImg = document.getElementById('currentLogo');
     const removeLogoContainer = document.getElementById('removeLogoContainer');
     const removeStoreLogoCheckbox = document.getElementById('removeStoreLogo');
-    // MODIFIED: Banner elements for multiple images
     const storeBannerInput = document.getElementById('storeBanner');
-    const currentBannersPreview = document.getElementById('currentBannersPreview'); // Container for multiple banner previews
+    const currentBannersPreview = document.getElementById('currentBannersPreview');
     const removeBannerContainer = document.getElementById('removeBannerContainer');
     const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
-
     const qrCodeContainer = document.getElementById('qrCodeContainer');
     const downloadQrBtn = document.getElementById('downloadQrBtn');
     const publicMenuLinkInput = document.getElementById('publicMenuLink');
@@ -69,18 +64,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editCategoryNameInput = document.getElementById('editCategoryName');
     const cancelEditCategoryBtn = document.getElementById('cancelEditCategoryBtn');
 
-    // Product Management
+    // Product Management (UPDATED: Now separate for Add Products and Your Products)
     const productForm = document.getElementById('productForm');
     const productNameInput = document.getElementById('productName');
     const productCategorySelect = document.getElementById('productCategory');
     const productDescriptionInput = document.getElementById('productDescription');
     const productPriceInput = document.getElementById('productPrice');
-    const productImageUrlInput = document.getElementById('productImageUrl'); // NEW: Image URL input for ADD form
-    const productImageInput = document.getElementById('productImage'); // File input for ADD form
+    const productImageUrlInput = document.getElementById('productImageUrl');
+    const productImageInput = document.getElementById('productImage');
     const newProductImagePreview = document.getElementById('newProductImagePreview');
+    
+    // Your Products Section
     const productListTableBody = document.getElementById('productListTableBody');
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
     const productSearchInput = document.getElementById('productSearchInput');
+    
+    // Edit Product Modal (shared between sections)
     const editProductModal = document.getElementById('editProductModal');
     const editProductForm = document.getElementById('editProductForm');
     const editProductIdInput = document.getElementById('editProductId');
@@ -89,18 +88,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editProductDescriptionInput = document.getElementById('editProductDescription');
     const editProductPriceInput = document.getElementById('editProductPrice');
     const editProductAvailabilityCheckbox = document.getElementById('editProductAvailabilityCheckbox');
-    const editProductImageUrlInput = document.getElementById('editProductImageUrl'); // NEW: Image URL input for EDIT form
-    const editProductImageInput = document.getElementById('editProductImage'); // File input for EDIT form
+    const editProductImageUrlInput = document.getElementById('editProductImageUrl');
+    const editProductImageInput = document.getElementById('editProductImage');
     const currentProductImageImg = document.getElementById('currentProductImage');
-    const removeProductImageContainer = document.getElementById('removeProductImageContainer'); // NEW: Container for remove checkbox
-    const removeProductImageCheckbox = document.getElementById('removeProductImage'); // NEW: Checkbox to remove product image
+    const removeProductImageContainer = document.getElementById('removeProductImageContainer');
+    const removeProductImageCheckbox = document.getElementById('removeProductImage');
     const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
-    const yourProductsListSection = document.getElementById('your-products-list-section'); // New reference for scrolling
-    // NEW: Reference to the "Add New Product" section for scrolling
-    const addProductSection = document.getElementById('add-product-section');
 
-
-    // Product Image Popup Modal (for admin page)
+    // Product Image Popup Modal
     const productImagePopupModal = document.getElementById('productImagePopupModal');
     const popupProductImage = document.getElementById('popupProductImage');
     const popupProductTitle = document.getElementById('popupProductTitle');
@@ -114,19 +109,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const customMessageBody = document.getElementById('customMessageBody');
     const customMessageButtons = document.getElementById('customMessageButtons');
 
-
     let currentStore = null;
+    let allProducts = []; // Store all products for filtering
 
     // --- Utility Functions ---
 
     // Function to prepend CORS proxy if the URL is external and not already proxied
     function getProxiedImageUrl(url) {
         if (!url) return '';
-        // Check if the URL is already using the proxy
         if (url.startsWith('https://corsproxy.io/?')) {
             return url;
         }
-        // Check if the URL is from the same origin or cloudinary (which is already allowed by CSP)
         const isCloudinary = url.includes('res.cloudinary.com');
         const isPlaceholder = url.includes('placehold.co');
         const isSameOrigin = url.startsWith(window.location.origin);
@@ -137,53 +130,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         return url;
     }
 
-
     /**
      * Displays a custom message modal.
-     * @param {string} title - The title of the message.
-     * @param {string} message - The body of the message.
-     * @param {boolean} isError - True if it's an error message.
-     * @param {string} okButtonText - Text for the OK button.
      */
     function showMessageModal(title, message, isError = false, okButtonText = 'OK') {
         customMessageTitle.textContent = title;
         customMessageBody.textContent = message;
-        customMessageButtons.innerHTML = ''; // Clear previous buttons
+        customMessageButtons.innerHTML = '';
 
         const okBtn = document.createElement('button');
         okBtn.textContent = okButtonText;
         okBtn.classList.add('modal-button', 'ok-btn');
         okBtn.addEventListener('click', () => {
             customMessageModal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore scroll
+            document.body.style.overflow = '';
         });
         customMessageButtons.appendChild(okBtn);
 
         customMessageModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
+        document.body.style.overflow = 'hidden';
     }
 
     /**
      * Displays a custom confirmation modal.
-     * @param {string} title - The title of the confirmation.
-     * @param {string} message - The confirmation question.
-     * @param {function} onConfirm - Callback function to execute if 'Yes' is clicked.
-     * @param {function} onCancel - Callback function to execute if 'No' is clicked (optional).
-     * @param {string} confirmButtonText - Text for the confirm button.
-     * @param {string} cancelButtonText - Text for the cancel button.
      */
     function showConfirmationModal(title, message, onConfirm, onCancel = () => {}, confirmButtonText = 'Yes', cancelButtonText = 'No') {
         customMessageTitle.textContent = title;
         customMessageBody.textContent = message;
-        customMessageButtons.innerHTML = ''; // Clear previous buttons
+        customMessageButtons.innerHTML = '';
 
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = cancelButtonText;
         cancelBtn.classList.add('modal-button', 'cancel-btn');
         cancelBtn.addEventListener('click', () => {
             customMessageModal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore scroll
-            onCancel(); // Execute cancel callback
+            document.body.style.overflow = '';
+            onCancel();
         });
         customMessageButtons.appendChild(cancelBtn);
 
@@ -192,41 +174,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         confirmBtn.classList.add('modal-button', 'confirm-btn');
         confirmBtn.addEventListener('click', () => {
             customMessageModal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore scroll
-            onConfirm(); // Execute confirm callback
+            document.body.style.overflow = '';
+            onConfirm();
         });
         customMessageButtons.appendChild(confirmBtn);
 
         customMessageModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
+        document.body.style.overflow = 'hidden';
     }
-
 
     // --- Mobile Menu Toggle ---
     if (mobileMenuButton) {
         mobileMenuButton.addEventListener('click', () => {
-            // Toggle 'hidden' class on sidebar for mobile view
             sidebar.classList.toggle('hidden');
-            // Adjust body overflow to prevent scrolling when sidebar is open
             if (sidebar.classList.contains('hidden')) {
                 document.body.style.overflow = '';
             } else {
                 document.body.style.overflow = 'hidden';
             }
         });
-        // Close sidebar when a navigation link is clicked on mobile
         sidebar.querySelectorAll('nav a').forEach(link => {
             link.addEventListener('click', () => {
-                if (window.innerWidth < 1024) { // Only close on smaller screens
+                if (window.innerWidth < 1024) {
                     sidebar.classList.add('hidden');
-                    document.body.style.overflow = ''; // Restore scroll
+                    document.body.style.overflow = '';
                 }
             });
         });
     }
 
-    // --- Section Visibility Management (NEW) ---
-    const allSections = document.querySelectorAll('main section[id$="-section"]'); // Selects all sections ending with -section
+    // --- Section Visibility Management (UPDATED) ---
+    const allSections = document.querySelectorAll('main section[id$="-section"]');
 
     function hideAllSections() {
         allSections.forEach(section => {
@@ -234,40 +212,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function showSection(sectionId, scrollToElementId = null) {
+    function showSection(sectionId) {
         hideAllSections();
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.remove('hidden');
-            
-            // Use a slight delay to ensure the section is rendered before scrolling
+            // Scroll to top of the section
             setTimeout(() => {
-                // If a specific element ID is provided, scroll to that element.
-                // Otherwise, scroll the targetSection itself into view (which will be its top).
-                const elementToScrollTo = scrollToElementId ? document.getElementById(scrollToElementId) : targetSection;
-                if (elementToScrollTo) {
-                    elementToScrollTo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 50); // Small delay, adjust if needed
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
         }
     }
 
-    // Event listeners for sidebar links (NEW: Uses data-target attribute)
+    // Event listeners for sidebar links (UPDATED: Simple section switching)
     document.querySelectorAll('.sidebar-link').forEach(link => {
         link.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent default anchor link behavior
+            e.preventDefault();
             const targetSectionId = e.currentTarget.dataset.target;
-            const scrollToElementId = e.currentTarget.dataset.scrollTo; // Get the new data-scroll-to attribute
+            showSection(targetSectionId);
 
-            showSection(targetSectionId, scrollToElementId);
-
-            // Optional: Update active state for sidebar links (highlighting)
+            // Update active state for sidebar links
             document.querySelectorAll('.sidebar-link').forEach(innerLink => {
                 innerLink.classList.remove('bg-gray-700', 'text-blue-300', 'active:bg-gray-700');
                 innerLink.classList.add('hover:bg-gray-700', 'hover:text-blue-300');
             });
             e.currentTarget.classList.add('bg-gray-700', 'text-blue-300');
-            e.currentTarget.classList.remove('hover:bg-gray-700', 'hover:text-blue-300'); // Remove hover for active
+            e.currentTarget.classList.remove('hover:bg-gray-700', 'hover:text-blue-300');
         });
     });
 
@@ -292,11 +262,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            categoryProductCountsList.innerHTML = ''; // Clear previous list items
+            categoryProductCountsList.innerHTML = '';
             if (categories.length === 0) {
                 categoryProductCountsList.innerHTML = '<li class="text-gray-200">No categories added yet.</li>';
             } else {
-                // Sort categories by name for consistent display
                 categories.sort((a, b) => a.name.localeCompare(b.name)).forEach(cat => {
                     const li = document.createElement('li');
                     li.classList.add('flex', 'justify-between', 'items-center', 'py-1');
@@ -312,15 +281,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error fetching dashboard overview:', error.message);
             totalProductsCount.textContent = 'N/A';
             totalCategoriesCount.textContent = 'N/A';
-            categoryProductCountsList.innerHTML = '<li class="text-red-200">Failed to load counts.</li>'; // Display error for counts
+            categoryProductCountsList.innerHTML = '<li class="text-red-200">Failed to load counts.</li>';
         }
     }
 
-
     // --- Store Management Functions ---
-
     async function fetchStoreDetails() {
-        clearMessage(copyMessage); // Keep this for the copy link message
+        clearMessage(copyMessage);
         try {
             currentStore = await apiRequest('/stores/my-store', 'GET');
             storeNameInput.value = currentStore.name;
@@ -331,7 +298,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             storeTelegramInput.value = currentStore.telegramUrl || '';
             storeTikTokInput.value = currentStore.tiktokUrl || '';
             storeWebsiteInput.value = currentStore.websiteUrl || '';
-
 
             if (currentStore.logo) {
                 currentLogoImg.src = currentStore.logo;
@@ -345,9 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 removeStoreLogoCheckbox.checked = false;
             }
 
-            // MODIFIED: Handle multiple banner display
-            currentBannersPreview.innerHTML = ''; // Clear previous previews
-            // Ensure currentStore.banner is an array before iterating
+            currentBannersPreview.innerHTML = '';
             if (Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
                 currentStore.banner.forEach(url => {
                     const img = document.createElement('img');
@@ -359,16 +323,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 removeBannerContainer.style.display = 'block';
                 removeStoreBannerCheckbox.checked = false;
             } else {
-                currentBannersPreview.innerHTML = ''; // Ensure empty if no banners
+                currentBannersPreview.innerHTML = '';
                 removeBannerContainer.style.display = 'none';
                 removeStoreBannerCheckbox.checked = false;
             }
 
-
-            // Generate QR code and display public link using the slug
             if (currentStore.slug) {
                 const publicMenuUrl = `${window.location.origin}/menu/${currentStore.slug}`;
-                // Using window.generateQRCode and window.downloadCanvasAsPNG from utils.js
                 const qrCanvas = window.generateQRCode(publicMenuUrl, qrCodeContainer, 256);
                 if (qrCanvas) {
                     downloadQrBtn.style.display = 'inline-block';
@@ -377,7 +338,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     };
                 }
 
-                // Display the public menu link
                 publicMenuLinkInput.value = publicMenuUrl;
                 copyMenuLinkBtn.style.display = 'inline-block';
 
@@ -394,7 +354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentLogoImg.src = '';
             currentLogoImg.style.display = 'none';
             removeLogoContainer.style.display = 'none';
-            currentBannersPreview.innerHTML = ''; // Clear banners on error too
+            currentBannersPreview.innerHTML = '';
             removeBannerContainer.style.display = 'none';
             qrCodeContainer.innerHTML = '<p class="text-gray-500">Failed to load QR code.</p>';
             downloadQrBtn.style.display = 'none';
@@ -417,90 +377,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('tiktokUrl', storeTikTokInput.value);
             formData.append('websiteUrl', storeWebsiteInput.value);
 
-            // Handle logo file and removal flag
             if (storeLogoInput.files[0]) {
                 formData.append('logo', storeLogoInput.files[0]);
             } else if (removeStoreLogoCheckbox.checked) {
-                formData.append('removeLogo', 'true'); // Send a flag to backend to indicate removal
+                formData.append('removeLogo', 'true');
             }
 
-            // MODIFIED: Handle multiple banner files and removal flag
             if (storeBannerInput.files.length > 0) {
-                // Append each selected banner file
                 for (let i = 0; i < storeBannerInput.files.length; i++) {
                     formData.append('banner', storeBannerInput.files[i]);
                 }
             } else if (removeStoreBannerCheckbox.checked) {
-                formData.append('removeBanner', 'true'); // Send a flag to backend to indicate removal of all banners
+                formData.append('removeBanner', 'true');
             }
-
 
             try {
                 const updatedStore = await apiRequest('/stores/my-store', 'PUT', formData, true, true);
                 showMessageModal('Success', 'Store details updated successfully!', false);
-                await fetchStoreDetails(); // Re-fetch to update UI with new data (including new logo/banner URLs)
+                await fetchStoreDetails();
             } catch (error) {
                 showMessageModal('Error', `Error updating store: ${error.message}`, true);
             }
         });
     }
-
-    // MODIFIED: Preview for Multiple Banner Images
-    if (storeBannerInput) {
-        storeBannerInput.addEventListener('change', (event) => {
-            currentBannersPreview.innerHTML = ''; // Clear previous previews
-            const files = event.target.files;
-            if (files.length > 0) {
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.alt = `New Banner ${i + 1}`;
-                        img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
-                        currentBannersPreview.appendChild(img);
-                    };
-                    reader.readAsDataURL(file);
-                }
-                removeBannerContainer.style.display = 'block'; // Show remove checkbox when new images are selected
-                removeStoreBannerCheckbox.checked = false; // Uncheck remove checkbox
-            } else {
-                // If no files selected, revert to current stored banners or hide
-                if (currentStore && Array.isArray(currentStore.banner) && currentStore.banner.length > 0 && !removeStoreBannerCheckbox.checked) {
-                    currentStore.banner.forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = 'Store Banner';
-                        img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
-                        currentBannersPreview.appendChild(img);
-                    });
-                }
-            }
-        });
-    }
-
-    // MODIFIED: Handle remove all banners checkbox state
-    if (removeStoreBannerCheckbox) {
-        removeStoreBannerCheckbox.addEventListener('change', () => {
-            if (removeStoreBannerCheckbox.checked) {
-                currentBannersPreview.innerHTML = ''; // Clear all previews
-                storeBannerInput.value = ''; // Clear file input if removing
-            } else {
-                // If unchecked, and there were previous banners, show them
-                if (currentStore && Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
-                    currentStore.banner.forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = 'Store Banner';
-                        img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
-                        currentBannersPreview.appendChild(img);
-                    });
-                }
-            }
-        });
-    }
-
 
     // Copy Menu Link functionality
     if (copyMenuLinkBtn) {
@@ -537,9 +436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-
     // --- Category Management Functions ---
-
     async function fetchCategories() {
         categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Loading categories...</td></tr>';
         try {
@@ -549,7 +446,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Clear all existing options before repopulating
             productCategorySelect.innerHTML = '<option value="">Select a Category</option>';
             editProductCategorySelect.innerHTML = '';
-            productFilterCategorySelect.innerHTML = '<option value="all">All Categories</option>'; // Keep this default option
+            productFilterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
 
             if (categories.length === 0) {
                 categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">No categories added yet.</td></tr>';
@@ -589,7 +486,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const currentFilterValue = productFilterCategorySelect.dataset.currentFilter || 'all';
             productFilterCategorySelect.value = currentFilterValue;
 
-
             document.querySelectorAll('.edit-category-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
                     openEditCategoryModal(e.target.dataset.id, e.target.dataset.name);
@@ -627,8 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showMessageModal('Success', 'Category added successfully!', false);
                 categoryNameInput.value = '';
                 await fetchCategories();
-                // When adding/editing categories, re-fetch products with current filter and search term
-                await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+                await fetchProductsForDisplay();
                 updateDashboardOverview();
             } catch (error) {
                 showMessageModal('Error', `Error adding category: ${error.message}`, true);
@@ -663,8 +558,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showMessageModal('Success', 'Category updated successfully!', false);
                 editCategoryModal.classList.add('hidden');
                 await fetchCategories();
-                // When adding/editing categories, re-fetch products with current filter and search term
-                await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+                await fetchProductsForDisplay();
                 updateDashboardOverview();
             } catch (error) {
                 showMessageModal('Error', `Error updating category: ${error.message}`, true);
@@ -677,8 +571,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await apiRequest(`/categories/${id}`, 'DELETE');
             showMessageModal('Success', 'Category deleted successfully!', false);
             await fetchCategories();
-            // When deleting categories, re-fetch products with current filter and search term
-            await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+            await fetchProductsForDisplay();
             updateDashboardOverview();
         } catch (error) {
             showMessageModal('Error', `Error deleting category: ${error.message}`, true);
@@ -687,8 +580,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Product Management Functions ---
 
-    // fetchProducts now accepts both categoryId and searchTerm
-    async function fetchProducts(categoryId = 'all', searchTerm = '') {
+    // Fetch products for display in "Your Products" section
+    async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
         productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading products...</td></tr>';
         try {
             let url = '/products/my-store';
@@ -698,7 +591,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 queryParams.append('category', categoryId);
             }
             if (searchTerm) {
-                queryParams.append('search', searchTerm); // Use 'search' parameter for backend
+                queryParams.append('search', searchTerm);
             }
 
             if (queryParams.toString()) {
@@ -706,73 +599,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             console.log('Frontend: Fetching products with URL:', url);
+            allProducts = await apiRequest(url, 'GET');
+            console.log('Frontend: Received products for rendering:', allProducts);
 
-            const products = await apiRequest(url, 'GET');
-
-            console.log('Frontend: Received products for rendering:', products); // IMPORTANT: Check this log!
-
-            productListTableBody.innerHTML = ''; // Clear existing rows
-
-            if (products.length === 0) {
-                productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No products found.</td></tr>';
-                return;
-            }
-
-            products.forEach(product => {
-                const row = productListTableBody.insertRow();
-                // Prioritize imageUrl, then image (Cloudinary), then placeholder
-                // Apply CORS proxy to imageUrl if it's an external URL
-                const displayImage =
-        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-        (product.image && product.image.trim() !== '' ? product.image : null) ||
-        `https://placehold.co/300x300?text=No+Img`;
-
-                row.innerHTML = `
-                    <td class="py-2 px-4 border-b border-gray-200">
-                        <div class="product-list-image-container cursor-pointer" data-image="${displayImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
-                            <img src="${displayImage}" alt="${product.title}" class="product-list-image">
-                        </div>
-                    </td>
-                    <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
-                    <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
-                    <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
-                    <td class="py-2 px-4 border-b border-gray-200">
-                        <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
-                        <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
-                    </td>
-                `;
-            });
-
-            document.querySelectorAll('.edit-product-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const productId = e.target.dataset.id;
-                    const product = products.find(p => p._id === productId);
-                    if (product) {
-                        openEditProductModal(product);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-product-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const productIdToDelete = e.target.dataset.id;
-                    showConfirmationModal(
-                        'Confirm Deletion',
-                        'Are you sure you want to delete this product?',
-                        () => deleteProduct(productIdToDelete)
-                    );
-                });
-            });
-
-            document.querySelectorAll('.product-list-image-container').forEach(container => {
-                container.addEventListener('click', (e) => {
-                    const imageUrl = e.currentTarget.dataset.image;
-                    const title = e.currentTarget.dataset.title;
-                    const description = e.currentTarget.dataset.description;
-                    const price = e.currentTarget.dataset.price;
-                    openProductImagePopup(imageUrl, title, description, price);
-                });
-            });
+            renderProductsTable(allProducts);
 
         } catch (error) {
             showMessageModal('Error', `Error fetching products: ${error.message}`, true);
@@ -780,6 +610,72 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // Render products table
+    function renderProductsTable(products) {
+        productListTableBody.innerHTML = '';
+
+        if (products.length === 0) {
+            productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No products found.</td></tr>';
+            return;
+        }
+
+        products.forEach(product => {
+            const row = productListTableBody.insertRow();
+            const displayImage =
+                (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+                (product.image && product.image.trim() !== '' ? product.image : null) ||
+                `https://placehold.co/300x300?text=No+Img`;
+
+            row.innerHTML = `
+                <td class="py-2 px-4 border-b border-gray-200">
+                    <div class="product-list-image-container cursor-pointer" data-image="${displayImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
+                        <img src="${displayImage}" alt="${product.title}" class="product-list-image">
+                    </div>
+                </td>
+                <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
+                <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
+                <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
+                <td class="py-2 px-4 border-b border-gray-200">
+                    <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
+                    <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
+                </td>
+            `;
+        });
+
+        // Add event listeners for the newly created buttons
+        document.querySelectorAll('.edit-product-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = e.target.dataset.id;
+                const product = allProducts.find(p => p._id === productId);
+                if (product) {
+                    openEditProductModal(product);
+                }
+            });
+        });
+
+        document.querySelectorAll('.delete-product-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productIdToDelete = e.target.dataset.id;
+                showConfirmationModal(
+                    'Confirm Deletion',
+                    'Are you sure you want to delete this product?',
+                    () => deleteProduct(productIdToDelete)
+                );
+            });
+        });
+
+        document.querySelectorAll('.product-list-image-container').forEach(container => {
+            container.addEventListener('click', (e) => {
+                const imageUrl = e.currentTarget.dataset.image;
+                const title = e.currentTarget.dataset.title;
+                const description = e.currentTarget.dataset.description;
+                const price = e.currentTarget.dataset.price;
+                openProductImagePopup(imageUrl, title, description, price);
+            });
+        });
+    }
+
+    // Add Product Form
     if (productForm) {
         productForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -789,7 +685,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('category', productCategorySelect.value);
             formData.append('description', productDescriptionInput.value);
             formData.append('price', productPriceInput.value);
-            formData.append('imageUrl', productImageUrlInput.value); // NEW: Add imageUrl to formData
+            formData.append('imageUrl', productImageUrlInput.value);
 
             if (productImageInput.files[0]) {
                 formData.append('image', productImageInput.files[0]);
@@ -800,10 +696,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showMessageModal('Success', 'Product added successfully!', false);
                 productForm.reset();
                 productImageInput.value = '';
+                productImageUrlInput.value = '';
                 newProductImagePreview.src = '';
                 newProductImagePreview.classList.add('hidden');
-                // Re-fetch products with current filter and search term
-                await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+                await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
                 updateDashboardOverview();
             } catch (error) {
                 showMessageModal('Error', `Error adding product: ${error.message}`, true);
@@ -822,9 +718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     newProductImagePreview.classList.remove('hidden');
                 };
                 reader.readAsDataURL(file);
-                // Clear URL input if a file is selected
                 productImageUrlInput.value = '';
-                // Clear onerror for new file
                 newProductImagePreview.onerror = null;
             } else {
                 newProductImagePreview.src = '';
@@ -833,41 +727,63 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Live preview for Product Image URL input (Add Product Form)
+    if (productImageUrlInput) {
+        productImageUrlInput.addEventListener('input', () => {
+            const url = productImageUrlInput.value.trim();
+            if (url) {
+                const proxiedUrl = getProxiedImageUrl(url);
+                newProductImagePreview.src = proxiedUrl;
+                newProductImagePreview.classList.remove('hidden');
+                productImageInput.value = '';
+                newProductImagePreview.onerror = () => {
+                    newProductImagePreview.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=Image+Load+Error';
+                    console.error('Failed to load image from URL:', url);
+                };
+            } else {
+                newProductImagePreview.src = '';
+                newProductImagePreview.classList.add('hidden');
+                newProductImagePreview.onerror = null;
+            }
+        });
+    }
 
+    // Edit Product Modal Functions
     function openEditProductModal(product) {
         editProductIdInput.value = product._id;
         editProductNameInput.value = product.title;
         editProductCategorySelect.value = product.category ? product.category._id : '';
         editProductDescriptionInput.value = product.description || '';
         editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
-        editProductImageUrlInput.value = product.imageUrl || ''; // NEW: Populate imageUrl field
+        editProductImageUrlInput.value = product.imageUrl || '';
+        editProductAvailabilityCheckbox.checked = product.isAvailable !== false;
 
-        // Display current image (prioritize imageUrl if present)
-        // Apply CORS proxy here too for the initial load of the edit modal image
         const displayImage =
-        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-        (product.image && product.image.trim() !== '' ? product.image : null) ||
-        `https://placehold.co/300x300?text=No+Img`;
+            (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+            (product.image && product.image.trim() !== '' ? product.image : null) ||
+            `https://placehold.co/300x300?text=No+Img`;
+        
         if (displayImage) {
             currentProductImageImg.src = displayImage;
             currentProductImageImg.style.display = 'block';
-            removeProductImageContainer.style.display = 'block'; // Show remove checkbox
+            removeProductImageContainer.style.display = 'block';
         } else {
             currentProductImageImg.src = '';
             currentProductImageImg.style.display = 'none';
-            removeProductImageContainer.style.display = 'none'; // Hide remove checkbox if no image
+            removeProductImageContainer.style.display = 'none';
         }
-        editProductImageInput.value = ''; // Clear file input
-        removeProductImageCheckbox.checked = false; // Uncheck remove checkbox by default
+        
+        editProductImageInput.value = '';
+        removeProductImageCheckbox.checked = false;
 
         editProductModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
+        document.body.style.overflow = 'hidden';
     }
 
     if (cancelEditProductBtn) {
         cancelEditProductBtn.addEventListener('click', () => {
             editProductModal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore scroll
+            document.body.style.overflow = '';
         });
     }
 
@@ -880,40 +796,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('category', editProductCategorySelect.value);
             formData.append('description', editProductDescriptionInput.value);
             formData.append('price', editProductPriceInput.value);
-            formData.append('isAvailable', editProductAvailabilityCheckbox.checked); // Add isAvailable to form data
+            formData.append('isAvailable', editProductAvailabilityCheckbox.checked);
 
-            // Determine what to send for image:
             if (editProductImageUrlInput.value.trim() !== '') {
-                // If a URL is entered, send it as `imageUrl`
                 formData.append('imageUrl', editProductImageUrlInput.value.trim());
-                // No need to send 'image' file or 'removeImage' flag in this case,
-                // backend will handle clearing Cloudinary image if imageUrl is provided.
             } else if (editProductImageInput.files[0]) {
-                // If a file is selected and no URL is entered, send the file
                 formData.append('image', editProductImageInput.files[0]);
-                // Explicitly clear imageUrl if file is uploaded
             } else if (removeProductImageCheckbox.checked) {
-                // If "Remove current image" is checked and no new file/URL
-                formData.append('removeImage', 'true'); // Flag to remove existing image
-                // Explicitly clear imageUrl
-            } else {
-                // If no new file, no new URL, and not explicitly removing,
-                // ensure imageUrl is sent as its current value to maintain it.
-                // If product.imageUrl was empty, it will remain empty.
-                // If product.image was present, it will remain present (unless imageUrl was provided).
-                // This scenario means no change to image fields.
-                // We don't need to append anything for image/imageUrl if no change is intended
-                // and no file/url/remove flag is set.
+                formData.append('removeImage', 'true');
             }
-
 
             try {
                 await apiRequest(`/products/${editProductIdInput.value}`, 'PUT', formData, true, true);
                 showMessageModal('Success', 'Product updated successfully!', false);
                 editProductModal.classList.add('hidden');
-                document.body.style.overflow = ''; // Restore scroll
-                // Re-fetch products with current filter and search term
-                await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+                document.body.style.overflow = '';
+                await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
                 updateDashboardOverview();
             } catch (error) {
                 showMessageModal('Error', `Error updating product: ${error.message}`, true);
@@ -921,125 +819,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Handle preview for file input (for edit product form)
-    if (editProductImageInput) {
-        editProductImageInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    currentProductImageImg.src = e.target.result;
-                    currentProductImageImg.classList.remove('hidden');
-                    currentProductImageImg.style.display = 'block';
-                    removeProductImageCheckbox.checked = false; // Uncheck remove if new file selected
-                    removeProductImageContainer.style.display = 'block'; // Ensure it's visible
-                };
-                reader.readAsDataURL(file);
-                // Clear URL input if a file is selected
-                editProductImageUrlInput.value = '';
-                // Clear onerror for new file
-                currentProductImageImg.onerror = null;
-            } else {
-                // If no file selected, revert to the product's original image or hide
-                // This part is tricky if you want to revert to the *original* image if the user
-                // selects a file and then cancels it. For simplicity, if no file is selected,
-                // and no URL is present, the image preview will just hide.
-                if (editProductImageUrlInput.value.trim() === '') {
-                    currentProductImageImg.src = '';
-                    currentProductImageImg.style.display = 'none';
-                }
-            }
-        });
-    }
-
-    // Handle remove product image checkbox
-    if (removeProductImageCheckbox) {
-        removeProductImageCheckbox.addEventListener('change', () => {
-            if (removeProductImageCheckbox.checked) {
-                currentProductImageImg.src = '';
-                currentProductImageImg.style.display = 'none';
-                editProductImageInput.value = ''; // Clear file input
-                editProductImageUrlInput.value = ''; // Clear URL input
-                // Clear onerror when removing
-                currentProductImageImg.onerror = null;
-            } else {
-                // If unchecked, and there was an original image, display it again
-                // This requires storing the original product data or re-fetching it.
-                // For now, it will just remain hidden if it was hidden.
-            }
-        });
-    }
-
-    // NEW: Live preview for Product Image URL input (Add Product Form)
-    if (productImageUrlInput) {
-        productImageUrlInput.addEventListener('input', () => {
-            const url = productImageUrlInput.value.trim();
-            if (url) {
-                // Use CORS proxy for preview
-                const proxiedUrl = getProxiedImageUrl(url);
-                newProductImagePreview.src = proxiedUrl;
-                newProductImagePreview.classList.remove('hidden');
-                // Clear file input if a URL is entered
-                productImageInput.value = '';
-                // Add onerror handler for the preview image
-                newProductImagePreview.onerror = () => {
-                    newProductImagePreview.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=Image+Load+Error'; // Placeholder for error
-                    console.error('Failed to load image from URL:', url);
-                };
-            } else {
-                newProductImagePreview.src = '';
-                newProductImagePreview.classList.add('hidden');
-                newProductImagePreview.onerror = null; // Remove handler if URL is cleared
-            }
-        });
-    }
-
-    // NEW: Live preview for Product Image URL input (Edit Product Form)
-    if (editProductImageUrlInput) {
-        editProductImageUrlInput.addEventListener('input', () => {
-            const url = editProductImageUrlInput.value.trim();
-            if (url) {
-                // Use CORS proxy for preview
-                const proxiedUrl = getProxiedImageUrl(url);
-                currentProductImageImg.src = proxiedUrl;
-                currentProductImageImg.style.display = 'block';
-                // Clear file input and uncheck remove checkbox if a URL is entered
-                editProductImageInput.value = '';
-                removeProductImageCheckbox.checked = false;
-                removeProductImageContainer.style.display = 'block'; // Ensure it's visible
-                // Add onerror handler for the preview image
-                currentProductImageImg.onerror = () => {
-                    currentProductImageImg.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=Image+Load+Error'; // Placeholder for error
-                    console.error('Failed to load image from URL:', url);
-                };
-            } else {
-                currentProductImageImg.src = '';
-                currentProductImageImg.style.display = 'none';
-                // If URL is cleared, and no file is selected, hide remove checkbox
-                if (!editProductImageInput.files[0]) {
-                    removeProductImageContainer.style.display = 'none';
-                }
-                currentProductImageImg.onerror = null; // Remove handler if URL is cleared
-            }
-        });
-    }
-
-
     async function deleteProduct(id) {
         try {
             await apiRequest(`/products/${id}`, 'DELETE');
             showMessageModal('Success', 'Product deleted successfully!', false);
-            // Re-fetch products with current filter and search term
-            await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+            await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
             updateDashboardOverview();
         } catch (error) {
             showMessageModal('Error', `Error deleting product: ${error.message}`, true);
         }
     }
 
-    // --- Product Image Popup Functions (for admin page) ---
+    // Event listener for product category filter
+    if (productFilterCategorySelect) {
+        productFilterCategorySelect.addEventListener('change', () => {
+            const selectedCategoryId = productFilterCategorySelect.value;
+            const currentSearchTerm = productSearchInput.value.trim();
+            productFilterCategorySelect.dataset.currentFilter = selectedCategoryId;
+            console.log('Frontend: Category filter changed to:', selectedCategoryId);
+            fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
+        });
+    }
+
+    // Event listener for product search input
+    if (productSearchInput) {
+        productSearchInput.addEventListener('input', () => {
+            const currentSearchTerm = productSearchInput.value.trim();
+            const selectedCategoryId = productFilterCategorySelect.value;
+            console.log('Frontend: Search term changed to:', currentSearchTerm);
+            fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
+        });
+    }
+
+    // --- Product Image Popup Functions ---
     function openProductImagePopup(imageUrl, title, description, price) {
-        // Apply CORS proxy here for the popup image
         const displayImageUrl = getProxiedImageUrl(imageUrl);
         popupProductImage.src = displayImageUrl;
         popupProductTitle.textContent = title;
@@ -1078,28 +891,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Event listener for product category filter ---
-    if (productFilterCategorySelect) {
-        productFilterCategorySelect.addEventListener('change', () => {
-            const selectedCategoryId = productFilterCategorySelect.value;
-            const currentSearchTerm = productSearchInput.value.trim();
-            productFilterCategorySelect.dataset.currentFilter = selectedCategoryId;
-            console.log('Frontend: Category filter changed to:', selectedCategoryId);
-            fetchProducts(selectedCategoryId, currentSearchTerm);
-        });
-    }
-
-    // Event listener for product search input
-    if (productSearchInput) {
-        productSearchInput.addEventListener('input', () => {
-            const currentSearchTerm = productSearchInput.value.trim();
-            const selectedCategoryId = productFilterCategorySelect.value;
-            console.log('Frontend: Search term changed to:', currentSearchTerm);
-            fetchProducts(selectedCategoryId, currentSearchTerm);
-        });
-    }
-
-
     // --- Initial Data Load on Page Load ---
     (async () => {
         // Set initial active state for Dashboard Overview
@@ -1114,8 +905,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         await fetchStoreDetails();
         await fetchCategories();
-        // Initial load of products, applying default filter ('all') and empty search term
-        await fetchProducts(productFilterCategorySelect.value, productSearchInput.value.trim());
+        await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
         await updateDashboardOverview();
     })();
 });
@@ -1125,38 +915,3 @@ function clearMessage(element) {
     element.textContent = '';
     element.classList.add('hidden');
 }
-
-
-// ---------------- Image Preview Setup ----------------
-function setupImagePreview(fileInput, urlInput, previewElement) {
-    if (!fileInput || !urlInput || !previewElement) return;
-
-    // File change preview
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files && fileInput.files[0]) {
-            const fileUrl = URL.createObjectURL(fileInput.files[0]);
-            previewElement.src = fileUrl;
-        }
-    });
-
-    // URL input live preview
-    urlInput.addEventListener('input', () => {
-        if (urlInput.value.trim() !== '') {
-            previewElement.src = urlInput.value.trim();
-        }
-    });
-}
-
-// Hook up previews for Add Product modal
-setupImagePreview(
-    document.getElementById('productImage'),
-    document.getElementById('productImageUrl'),
-    document.getElementById('productPreview')
-);
-
-// Hook up previews for Edit Product modal
-setupImagePreview(
-    document.getElementById('editProductImage'),
-    document.getElementById('editProductImageUrl'),
-    document.getElementById('editProductPreview')
-);
