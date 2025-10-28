@@ -5,12 +5,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadProductsForIndex() {
     try {
-        const products = await fetch('/api/products/website').then(res => res.json());
+        // Use the new specialized function for public products
+        const products = await fetchPublicProducts();
         const productsContainer = document.getElementById('products-container');
         
         if (!productsContainer) return;
         
-        if (products.length === 0) {
+        if (!products || products.length === 0) {
             productsContainer.innerHTML = '<p class="text-center text-gray-500">No products available.</p>';
             return;
         }

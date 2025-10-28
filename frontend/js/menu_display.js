@@ -1,134 +1,327 @@
-
-// Optimize Cloudinary images for delivery (600px)
-function getOptimizedImageUrl(url) {
-    if (!url) return url;
-    if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/")
-    }
-    return url;
-}
-
+// qr-digital-menu-system/frontend/js/menu_display.js
 
 // Extract slug from path (/menu/ysg)
 const pathParts = window.location.pathname.split("/");
 const slug = pathParts[pathParts.length - 1];
 
-// qr-digital-menu-system/frontend/js/menu_display.js
-
-document.addEventListener('DOMContentLoaded', async () => {
-    
-
-if (!slug) {
-  console.error("No publicUrlId found in URL for menu display.");
-}
-
-    const menuTitle = document.getElementById('menuTitle');
-    const storeHeaderInfo = document.getElementById('storeHeaderInfo');
-    const storeLogoImg = document.getElementById('storeLogo');
-    const storeNameElem = document.getElementById('storeName');
-    const categoryTabs = document.getElementById('categoryTabs');
-    const menuContent = document.getElementById('menuContent');
-    const loadingMessage = document.getElementById('loadingMessage');
-    const noMenuMessage = document.getElementById('noMenuMessage');
-    const searchMenuInput = document.getElementById('searchMenuInput');
-    const noSearchResultsMessage = document.getElementById('noSearchResultsMessage');
-    const clearSearchBtn = document.getElementById('clearSearchBtn');
-
-    const imagePopupModal = document.getElementById('imagePopupModal');
-    const popupImage = document.getElementById('popupImage');
-    const closeImagePopupBtn = document.getElementById('closeImagePopupBtn');
-    const popupProductName = document.getElementById('popupProductName');
-    const popupProductDescription = document.getElementById('popupProductDescription');
-    const popupProductPrice = document.getElementById('popupProductPrice');
-
-    const storeInfoModal = document.getElementById('storeInfoModal');
-    const closeStoreInfoBtn = document.getElementById('closeStoreInfoBtn');
-    const modalStoreLogo = document.getElementById('modalStoreLogo');
-    const modalStoreName = document.getElementById('modalStoreName');
-    const modalStoreDescription = document.getElementById('modalStoreDescription');
-    const modalStorePhone = document.getElementById('modalStorePhone').querySelector('span');
-    const modalStoreAddress = document.getElementById('modalStoreAddress').querySelector('span');
-    const socialFacebook = document.getElementById('socialFacebook');
-    const socialTelegram = document.getElementById('socialTelegram');
-    const socialTikTok = document.getElementById('socialTikTok');
-    const socialWebsite = document.getElementById('socialWebsite');
-
-    const gridViewBtn = document.getElementById('gridViewBtn');
-    const listViewBtn = document.getElementById('listViewBtn');
-
-    // MODIFIED: Banner elements for slider
-    const storeBannerContainer = document.getElementById('storeBannerContainer');
-    const sliderDotsContainer = document.getElementById('sliderDots');
-
-    // NEW: Category Selection Modal elements
-    const categorySelectionModal = document.getElementById('categorySelectionModal');
-    const closeCategorySelectionBtn = document.getElementById('closeCategorySelectionBtn');
-    const categoryListContainer = document.getElementById('categoryListContainer');
-
-
-    let allProducts = []; // Keep this to store *all* products for search functionality
-    let currentFilteredProducts = []; // Stores products currently displayed based on active category or search
-    let allCategories = [];
-    let currentStoreData = null;
-    let currentView = 'grid'; // Default view
-    let activeCategoryId = 'all-items'; // Track active category for re-rendering on view change
-
-    let currentBannerIndex = 0;
-    let bannerInterval; // To hold the interval for automatic sliding
-
-    // Function to prepend CORS proxy if the URL is external and not already proxied
-    function getProxiedImageUrl(url) {
-        if (!url) return '';
-        // Check if the URL is already using the proxy
-        if (url.startsWith('https://corsproxy.io/?')) {
-            return url;
-        }
-        // Check if the URL is from the same origin or cloudinary (which is already allowed by CSP)
-        const isCloudinary = url.includes('res.cloudinary.com');
-        const isPlaceholder = url.includes('placehold.co');
-        const isSameOrigin = url.startsWith(window.location.origin);
-
-        if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
-            return `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        }
-        return url;
-    }
-
-// Optimize Cloudinary images for delivery (safe version)
+// Optimize Cloudinary images for delivery
 function getOptimizedImageUrl(url) {
     if (!url) return url;
-    // Only optimize Cloudinary images with /upload/
-    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
-        return url.replace('/upload/', '/upload/f_auto,q_auto,w_800/');
+    if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
+        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/");
     }
-    // Leave external URLs or previews untouched
     return url;
 }
 
+// Function to prepend CORS proxy if the URL is external
+function getProxiedImageUrl(url) {
+    if (!url) return '';
+    
+    // Check if the URL is already using the proxy
+    if (url.startsWith('https://corsproxy.io/?')) {
+        return url;
+    }
+    
+    // Check if the URL is from allowed domains
+    const isCloudinary = url.includes('res.cloudinary.com');
+    const isPlaceholder = url.includes('placehold.co');
+    const isSameOrigin = url.startsWith(window.location.origin);
 
+    if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
+        return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    }
+    return url;
+}
 
-    if (!slug) {
-        menuTitle.textContent = 'Menu Not Found';
-        storeNameElem.textContent = 'Error: No Store ID provided.';
-        loadingMessage.classList.add('hidden');
-        noMenuMessage.textContent = 'Please scan a valid QR code.';
-        noMenuMessage.classList.remove('hidden');
-        console.error('No publicUrlId found in URL for menu display.');
+// Debounce function for search optimization
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check if slug exists
+    if (!slug || slug === 'menu') {
+        console.error("No valid slug found in URL for menu display.");
+        showErrorMessage('Menu Not Found', 'Error: No Store ID provided.', 'Please scan a valid QR code.');
         return;
     }
 
-    // Function to fetch and render products based on category/search
+    // DOM Elements
+    const elements = {
+        menuTitle: document.getElementById('menuTitle'),
+        storeHeaderInfo: document.getElementById('storeHeaderInfo'),
+        storeLogoImg: document.getElementById('storeLogo'),
+        storeNameElem: document.getElementById('storeName'),
+        categoryTabs: document.getElementById('categoryTabs'),
+        menuContent: document.getElementById('menuContent'),
+        loadingMessage: document.getElementById('loadingMessage'),
+        noMenuMessage: document.getElementById('noMenuMessage'),
+        searchMenuInput: document.getElementById('searchMenuInput'),
+        noSearchResultsMessage: document.getElementById('noSearchResultsMessage'),
+        clearSearchBtn: document.getElementById('clearSearchBtn'),
+        imagePopupModal: document.getElementById('imagePopupModal'),
+        popupImage: document.getElementById('popupImage'),
+        closeImagePopupBtn: document.getElementById('closeImagePopupBtn'),
+        popupProductName: document.getElementById('popupProductName'),
+        popupProductDescription: document.getElementById('popupProductDescription'),
+        popupProductPrice: document.getElementById('popupProductPrice'),
+        storeInfoModal: document.getElementById('storeInfoModal'),
+        closeStoreInfoBtn: document.getElementById('closeStoreInfoBtn'),
+        modalStoreLogo: document.getElementById('modalStoreLogo'),
+        modalStoreName: document.getElementById('modalStoreName'),
+        modalStoreDescription: document.getElementById('modalStoreDescription'),
+        modalStorePhone: document.getElementById('modalStorePhone')?.querySelector('span'),
+        modalStoreAddress: document.getElementById('modalStoreAddress')?.querySelector('span'),
+        socialFacebook: document.getElementById('socialFacebook'),
+        socialTelegram: document.getElementById('socialTelegram'),
+        socialTikTok: document.getElementById('socialTikTok'),
+        socialWebsite: document.getElementById('socialWebsite'),
+        gridViewBtn: document.getElementById('gridViewBtn'),
+        listViewBtn: document.getElementById('listViewBtn'),
+        storeBannerContainer: document.getElementById('storeBannerContainer'),
+        sliderDotsContainer: document.getElementById('sliderDots'),
+        categorySelectionModal: document.getElementById('categorySelectionModal'),
+        closeCategorySelectionBtn: document.getElementById('closeCategorySelectionBtn'),
+        categoryListContainer: document.getElementById('categoryListContainer'),
+        bottomNavHome: document.getElementById('navHome'),
+        bottomNavCategories: document.getElementById('navCategories'),
+        bottomNavProfile: document.getElementById('navProfile'),
+        fabScrollTop: document.getElementById('fabScrollTop'),
+        navToggleBtn: document.getElementById('navToggleBtn')
+    };
+
+    // Application State
+    const state = {
+        allProducts: [],
+        currentFilteredProducts: [],
+        allCategories: [],
+        currentStoreData: null,
+        currentView: 'grid',
+        activeCategoryId: 'all-items',
+        currentBannerIndex: 0,
+        bannerInterval: null,
+        isLoading: false
+    };
+
+    // Error handling function
+    function showErrorMessage(title, storeName, message) {
+        if (elements.menuTitle) elements.menuTitle.textContent = title;
+        if (elements.storeNameElem) elements.storeNameElem.textContent = storeName;
+        if (elements.loadingMessage) elements.loadingMessage.classList.add('hidden');
+        if (elements.noMenuMessage) {
+            elements.noMenuMessage.textContent = message;
+            elements.noMenuMessage.classList.remove('hidden');
+        }
+        if (elements.storeLogoImg) elements.storeLogoImg.style.display = 'none';
+        if (elements.storeBannerContainer) elements.storeBannerContainer.classList.add('hidden');
+        stopBannerSlider();
+    }
+
+    // Social Media Functions
+    function setupSocialMediaLinks() {
+        if (!state.currentStoreData) return;
+        
+        console.log('🔗 Setting up social media links with store data:', {
+            facebook: state.currentStoreData.facebookUrl,
+            tiktok: state.currentStoreData.tiktokUrl,
+            telegram: state.currentStoreData.telegramUrl,
+            website: state.currentStoreData.websiteUrl
+        });
+        
+        // Get social media icons from the product image popup modal
+        const socialIcons = {
+            facebook: document.querySelector('.social-icon-modal.facebook'),
+            tiktok: document.querySelector('.social-icon-modal.tiktok'),
+            telegram: document.querySelector('.social-icon-modal.telegram')
+        };
+        
+        // Set Facebook link
+        if (state.currentStoreData.facebookUrl && state.currentStoreData.facebookUrl.trim() !== '') {
+            socialIcons.facebook.href = state.currentStoreData.facebookUrl;
+            socialIcons.facebook.style.display = 'flex';
+            console.log('✅ Facebook link set:', state.currentStoreData.facebookUrl);
+        } else {
+            socialIcons.facebook.style.display = 'none';
+            console.log('❌ Facebook link not available');
+        }
+        
+        // Set TikTok link
+        if (state.currentStoreData.tiktokUrl && state.currentStoreData.tiktokUrl.trim() !== '') {
+            socialIcons.tiktok.href = state.currentStoreData.tiktokUrl;
+            socialIcons.tiktok.style.display = 'flex';
+            console.log('✅ TikTok link set:', state.currentStoreData.tiktokUrl);
+        } else {
+            socialIcons.tiktok.style.display = 'none';
+            console.log('❌ TikTok link not available');
+        }
+        
+        // Set Telegram link
+        if (state.currentStoreData.telegramUrl && state.currentStoreData.telegramUrl.trim() !== '') {
+            socialIcons.telegram.href = state.currentStoreData.telegramUrl;
+            socialIcons.telegram.style.display = 'flex';
+            console.log('✅ Telegram link set:', state.currentStoreData.telegramUrl);
+        } else {
+            socialIcons.telegram.style.display = 'none';
+            console.log('❌ Telegram link not available');
+        }
+    }
+
+    function toggleSocialLink(element, url) {
+        if (!element) return;
+        
+        if (url && url.trim() !== '') {
+            element.href = url;
+            element.classList.remove('hidden');
+            console.log(`✅ Social link set: ${element.id} -> ${url}`);
+        } else {
+            element.classList.add('hidden');
+            console.log(`❌ Social link hidden: ${element.id}`);
+        }
+    }
+
+    // Banner Slider Functions
+    function renderBanners(bannerUrls) {
+        if (!elements.storeBannerContainer || !elements.sliderDotsContainer) return;
+        
+        elements.storeBannerContainer.innerHTML = '';
+        elements.sliderDotsContainer.innerHTML = '';
+
+        if (!bannerUrls || !Array.isArray(bannerUrls) || bannerUrls.length === 0) {
+            elements.storeBannerContainer.classList.add('hidden');
+            return;
+        }
+
+        elements.storeBannerContainer.classList.remove('hidden');
+
+        bannerUrls.forEach((url, index) => {
+            const img = document.createElement('img');
+            img.src = getOptimizedImageUrl(getProxiedImageUrl(url));
+            img.alt = `Store Banner ${index + 1}`;
+            img.classList.add('store-banner-slide');
+            img.loading = 'lazy';
+            
+            if (index === 0) {
+                img.classList.add('active');
+            }
+            elements.storeBannerContainer.appendChild(img);
+
+            const dot = document.createElement('span');
+            dot.classList.add('dot');
+            if (index === 0) {
+                dot.classList.add('active');
+            }
+            dot.addEventListener('click', () => {
+                showBanner(index);
+                resetBannerSlider();
+            });
+            elements.sliderDotsContainer.appendChild(dot);
+        });
+
+        elements.storeBannerContainer.appendChild(elements.sliderDotsContainer);
+    }
+
+    function showBanner(index) {
+        const slides = elements.storeBannerContainer?.querySelectorAll('.store-banner-slide');
+        const dots = elements.sliderDotsContainer?.querySelectorAll('.dot');
+
+        if (!slides || slides.length === 0) return;
+
+        if (index >= slides.length) {
+            state.currentBannerIndex = 0;
+        } else if (index < 0) {
+            state.currentBannerIndex = slides.length - 1;
+        } else {
+            state.currentBannerIndex = index;
+        }
+
+        slides.forEach((slide, i) => {
+            slide.classList.remove('active');
+            if (i === state.currentBannerIndex) {
+                slide.classList.add('active');
+            }
+        });
+
+        dots?.forEach((dot, i) => {
+            dot.classList.remove('active');
+            if (i === state.currentBannerIndex) {
+                dot.classList.add('active');
+            }
+        });
+    }
+
+    function nextBanner() {
+        showBanner(state.currentBannerIndex + 1);
+    }
+
+    function startBannerSlider() {
+        stopBannerSlider();
+        if (state.currentStoreData && Array.isArray(state.currentStoreData.banner) && state.currentStoreData.banner.length > 1) {
+            state.bannerInterval = setInterval(nextBanner, 5000);
+        }
+    }
+
+    function stopBannerSlider() {
+        if (state.bannerInterval) {
+            clearInterval(state.bannerInterval);
+            state.bannerInterval = null;
+        }
+    }
+
+    function resetBannerSlider() {
+        stopBannerSlider();
+        startBannerSlider();
+    }
+
+    // Search Functionality
+    function setupSearchFunctionality() {
+        if (!elements.searchMenuInput || !elements.clearSearchBtn) return;
+
+        const debouncedSearch = debounce(async (searchTerm) => {
+            state.activeCategoryId = 'all-items';
+            setActiveCategoryTab('all-items');
+            await fetchAndRenderProducts(null, searchTerm);
+        }, 300);
+
+        elements.searchMenuInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+
+            // Show/hide clear button
+            if (searchTerm.length > 0) {
+                elements.clearSearchBtn.classList.remove('hidden');
+            } else {
+                elements.clearSearchBtn.classList.add('hidden');
+            }
+
+            debouncedSearch(searchTerm);
+        });
+
+        elements.clearSearchBtn.addEventListener('click', async () => {
+            elements.searchMenuInput.value = '';
+            elements.clearSearchBtn.classList.add('hidden');
+            state.activeCategoryId = 'all-items';
+            setActiveCategoryTab('all-items');
+            await fetchAndRenderProducts('all-items');
+        });
+    }
+
+    // Product Fetching and Rendering
     async function fetchAndRenderProducts(categoryId = null, searchTerm = null) {
-        loadingMessage.classList.remove('hidden');
-        noMenuMessage.classList.add('hidden');
-        noSearchResultsMessage.classList.add('hidden');
-        menuContent.innerHTML = ''; // Clear previous content
+        if (state.isLoading) return;
+        
+        state.isLoading = true;
+        showLoadingState();
 
         try {
             let products;
             if (searchTerm) {
-                // If there's a search term, fetch all products and filter locally for simplicity.
-                // For very large menus, you might implement a backend search endpoint.
                 products = await apiRequest(`/products/public-store/slug/${slug}`, 'GET', null, false);
                 products = products.filter(product =>
                     product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,723 +329,635 @@ function getOptimizedImageUrl(url) {
                     (product.category && product.category.name.toLowerCase().includes(searchTerm.toLowerCase()))
                 );
             } else {
-                // If no search term, fetch products based on the category ID (or all if 'all-items')
                 const queryParams = categoryId && categoryId !== 'all-items' ? { category: categoryId } : null;
                 products = await apiRequest(`/products/public-store/slug/${slug}`, 'GET', null, false, false, queryParams);
             }
-            currentFilteredProducts = products; // Update currently displayed products
-
-            loadingMessage.classList.add('hidden');
+            
+            state.currentFilteredProducts = products;
+            hideLoadingState();
 
             if (products.length === 0) {
-                if (searchTerm) {
-                    noSearchResultsMessage.classList.remove('hidden');
-                } else {
-                    noMenuMessage.textContent = 'No items found in this category.';
-                    noMenuMessage.classList.remove('hidden');
-                }
+                showNoResultsMessage(searchTerm);
                 return;
             }
 
-            // Determine how to render: grouped by category or as a single list ("All Items" or "Search Results")
-            // This logic is now handled more explicitly by shouldGroupByCategory()
-            const shouldGroup = shouldGroupByCategory();
-
-            if (!shouldGroup) {
-                renderMenuContent(products, []); // Pass an empty array for categories to indicate no grouping
-            } else {
-                // If a specific category is selected, filter categoriesToDisplay to only that one
-                const categoriesToDisplay = allCategories.filter(cat => cat._id === activeCategoryId);
-                renderMenuContent(products, categoriesToDisplay); // Pass filtered products and specific category for grouping
-            }
-
+            renderMenuContent(products);
 
         } catch (error) {
             console.error('Error fetching filtered products:', error.message);
-            loadingMessage.classList.add('hidden');
-            noMenuMessage.textContent = `Failed to load menu items: ${error.message}`;
-            noMenuMessage.classList.remove('hidden');
+            hideLoadingState();
+            showErrorMessage('Menu Error', 'Error loading menu', `Failed to load menu items: ${error.message}`);
+        } finally {
+            state.isLoading = false;
         }
     }
 
+    function showLoadingState() {
+        if (elements.loadingMessage) elements.loadingMessage.classList.remove('hidden');
+        if (elements.noMenuMessage) elements.noMenuMessage.classList.add('hidden');
+        if (elements.noSearchResultsMessage) elements.noSearchResultsMessage.classList.add('hidden');
+        if (elements.menuContent) elements.menuContent.innerHTML = '';
+    }
 
-    try {
-        // Fetch store details using publicUrlId
-       currentStoreData = await apiRequest(`/stores/public/slug/${slug}`, 'GET', null, false);
-        menuTitle.textContent = `${currentStoreData.name}'s Menu`;
-        storeNameElem.textContent = currentStoreData.name;
+    function hideLoadingState() {
+        if (elements.loadingMessage) elements.loadingMessage.classList.add('hidden');
+    }
 
-        if (currentStoreData.logo) {
-            storeLogoImg.src = getOptimizedImageUrl(getProxiedImageUrl(currentStoreData.logo)); // Apply proxy to store logo
-            storeLogoImg.style.display = 'block';
+    function showNoResultsMessage(searchTerm) {
+        if (searchTerm) {
+            if (elements.noSearchResultsMessage) {
+                elements.noSearchResultsMessage.classList.remove('hidden');
+            }
         } else {
-            storeLogoImg.src = '';
-            storeLogoImg.style.display = 'none';
+            if (elements.noMenuMessage) {
+                elements.noMenuMessage.textContent = 'No items found in this category.';
+                elements.noMenuMessage.classList.remove('hidden');
+            }
         }
+    }
 
-        // MODIFIED: Handle multiple banners for slider
-        // Ensure currentStoreData.banner is an array before checking length
-        if (Array.isArray(currentStoreData.banner) && currentStoreData.banner.length > 0) {
-            storeBannerContainer.classList.remove('hidden');
-            renderBanners(currentStoreData.banner);
-            startBannerSlider();
-        } else {
-            storeBannerContainer.classList.add('hidden');
-            stopBannerSlider();
+    // Category Management
+    function renderCategoryTabs(categories, activeTabId = 'all-items') {
+        if (!elements.categoryTabs) return;
+        
+        elements.categoryTabs.innerHTML = '';
+
+        // Add "All" tab
+        const allLi = createCategoryTab('all-items', 'All', activeTabId === 'all-items');
+        elements.categoryTabs.appendChild(allLi);
+
+        // Add category tabs
+        categories.forEach((category) => {
+            const li = createCategoryTab(`cat-${category._id}`, category.name, activeTabId === `cat-${category._id}`);
+            elements.categoryTabs.appendChild(li);
+        });
+
+        setActiveCategoryTab(activeTabId);
+    }
+
+    function createCategoryTab(tabId, name, isActive) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `#${tabId}`;
+        a.textContent = name;
+        a.classList.add('block', 'cursor-pointer');
+        if (isActive) {
+            a.classList.add('active-chip');
         }
+        
+        a.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const categoryId = tabId === 'all-items' ? 'all-items' : tabId.replace('cat-', '');
+            state.activeCategoryId = categoryId;
+            setActiveCategoryTab(tabId);
+            if (elements.searchMenuInput) elements.searchMenuInput.value = '';
+            if (elements.clearSearchBtn) elements.clearSearchBtn.classList.add('hidden');
+            await fetchAndRenderProducts(categoryId);
+            
+            try {
+                document.querySelector(a.hash)?.scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                console.warn(`Element ${a.hash} not found for scrolling.`, error);
+            }
+        });
+        
+        li.appendChild(a);
+        return li;
+    }
 
+    function setActiveCategoryTab(tabId) {
+        if (!elements.categoryTabs) return;
+        
+        elements.categoryTabs.querySelectorAll('a').forEach(tab => {
+            tab.classList.remove('active-chip');
+        });
+        
+        const activeTab = elements.categoryTabs.querySelector(`a[href="#${tabId}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active-chip');
+        }
+    }
 
-        // Fetch categories (always all categories for the store)
-        allCategories = await apiRequest(`/categories/store/${currentStoreData._id}`, 'GET', null, false);
+    function shouldGroupByCategory() {
+        return state.activeCategoryId !== 'all-items' && 
+               elements.searchMenuInput && 
+               !elements.searchMenuInput.value.trim();
+    }
 
-        // Fetch all products initially to populate `allProducts` for search
-        // This initial fetch populates 'allProducts' for local search filtering.
-        // It's separate from 'fetchAndRenderProducts' which handles display logic.
-        allProducts = await apiRequest(`/products/public-store/slug/${slug}`, 'GET', null, false);
+    // Content Rendering
+    function renderMenuContent(productsToRender) {
+        if (!elements.menuContent) return;
+        
+        elements.menuContent.innerHTML = '';
+        hideAllMessages();
 
-
-        loadingMessage.classList.add('hidden');
-
-        if (allProducts.length === 0) {
-            noMenuMessage.classList.remove('hidden');
+        if (productsToRender.length === 0) {
+            showNoResultsMessage(elements.searchMenuInput?.value.trim());
             return;
         }
 
-        // Render Category Tabs (at the top)
-        function renderCategoryTabs(categoriesToRender, activeTabId = 'all-items') {
-            categoryTabs.innerHTML = '';
-
-            // Add "All" tab
-            const allLi = document.createElement('li');
-            const allA = document.createElement('a');
-            allA.href = `#all-items`;
-            allA.textContent = 'All';
-            allA.classList.add('block','cursor-pointer'); // styles applied via CSS chips
-            allA.addEventListener('click', async (e) => { // Make async
-                e.preventDefault();
-                activeCategoryId = 'all-items'; // Update active category
-                setActiveCategoryTab('all-items');
-                searchMenuInput.value = ''; // Clear search when "All" is clicked
-                await fetchAndRenderProducts('all-items'); // Fetch all products from backend (no category filter)
-                try {
-                    document.querySelector('#all-items-section').scrollIntoView({ behavior: 'smooth' });
-                } catch (error) {
-                    console.warn("Element #all-items-section not found for scrolling.", error);
-                }
-            });
-            allLi.appendChild(allA);
-            categoryTabs.appendChild(allLi);
-
-            // Add other category tabs
-            categoriesToRender.forEach((category) => {
-                const li = document.createElement('li');
-                const a = document.createElement('a');
-                a.href = `#cat-${category._id}`;
-                a.textContent = category.name;
-                a.classList.add('block','cursor-pointer'); // styles applied via CSS chips
-                a.addEventListener('click', async (e) => { // Make async
-                    e.preventDefault();
-                    activeCategoryId = category._id; // Update active category
-                    setActiveCategoryTab(`cat-${category._id}`);
-                    searchMenuInput.value = ''; // Clear search when category is clicked
-                    await fetchAndRenderProducts(category._id); // Fetch products for this category from backend
-                    try {
-                        document.querySelector(a.hash).scrollIntoView({ behavior: 'smooth' });
-                    }
-                    catch (error) {
-                        console.warn(`Element ${a.hash} not found for scrolling.`, error);
-                    }
-                });
-                li.appendChild(a);
-                categoryTabs.appendChild(li);
-            });
-
-            // Set active tab
-            setActiveCategoryTab(activeTabId);
+        if (!shouldGroupByCategory()) {
+            renderAsSingleList(productsToRender);
+        } else {
+            renderByCategory(productsToRender);
         }
-
-        // Helper function to set the active category tab
-        function setActiveCategoryTab(tabId) {
-            document.querySelectorAll('#categoryTabs a').forEach(tab => {
-                tab.classList.remove('active-chip');
-            });
-            const activeTab = document.querySelector(`#categoryTabs a[href="#${tabId}"]`);
-            if (activeTab) {
-                activeTab.classList.add('active-chip');
-            }
-        }
-
-        // Helper function to determine if content should be grouped by category
-        function shouldGroupByCategory() {
-            // Group by category if a specific category tab is active AND there's no active search term
-            return activeCategoryId !== 'all-items' && !searchMenuInput.value.trim();
-        }
-
-        // Render Menu Content based on current view and filtered products/categories
-        // productsToRender: The list of products to display (already filtered by category or search if applicable)
-        // categoriesToRender: The list of categories to group by. If empty, it means render as a single list.
-        function renderMenuContent(productsToRender, categoriesToRender) {
-            menuContent.innerHTML = '';
-            noSearchResultsMessage.classList.add('hidden');
-            noMenuMessage.classList.add('hidden'); // Ensure this is hidden when content is rendered
-
-            if (productsToRender.length === 0) {
-                // Determine if it's no search results or no items in category
-                if (searchMenuInput.value.trim() !== '') {
-                    noSearchResultsMessage.classList.remove('hidden');
-                } else {
-                    noMenuMessage.textContent = 'No items found in this category.';
-                    noMenuMessage.classList.remove('hidden');
-                }
-                return;
-            }
-
-            if (!shouldGroupByCategory()) { // Use the helper function here
-                // Render as a single, mixed list (for "All Items" or "Search Results")
-                const allItemsSection = document.createElement('section');
-                allItemsSection.id = 'all-items-section';
-                allItemsSection.classList.add('mb-8');
-
-                const allItemsTitle = document.createElement('h2');
-                allItemsTitle.classList.add('text-2xl', 'font-bold', 'text-gray-800', 'mb-4', 'pb-2', 'border-b', 'border-orange-500', 'sticky', 'top-0', 'bg-gray-100', 'z-10', 'py-2');
-                allItemsTitle.textContent = searchMenuInput.value.trim() !== '' ? 'Search Results' : 'All Items';
-                allItemsSection.appendChild(allItemsTitle);
-
-                if (currentView === 'grid') {
-                    const productGrid = document.createElement('div');
-                    productGrid.classList.add('grid', 'grid-cols-2', 'sm:grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'gap-4');
-                    productsToRender.forEach(product => {
-                        productGrid.appendChild(createProductGridCard(product));
-                    });
-                    allItemsSection.appendChild(productGrid);
-                } else { // List View
-                    const productList = document.createElement('div');
-                    productList.classList.add('divide-y', 'divide-gray-200');
-                    productsToRender.forEach(product => {
-                        productList.appendChild(createProductListItem(product));
-                    });
-                    allItemsSection.appendChild(productList);
-                }
-                menuContent.appendChild(allItemsSection);
-
-            } else {
-                // Render by category (for specific category tabs)
-                categoriesToRender.forEach(category => {
-                    const categorySection = document.createElement('section');
-                    categorySection.id = `cat-${category._id}`;
-                    categorySection.classList.add('mb-8');
-
-                    const categoryTitle = document.createElement('h2');
-                    categoryTitle.classList.add('text-xl', 'font-bold', 'text-gray-800', 'mb-4', 'pb-2', 'border-b', 'border-orange-500', 'sticky', 'top-0', 'bg-gray-100', 'z-10', 'py-2');
-                    categoryTitle.textContent = category.name;
-                    categorySection.appendChild(categoryTitle);
-
-                    // Filter products to only those belonging to the current category being rendered
-                    // This is still needed here because productsToRender might contain ALL products if fetched initially
-                    // but we only want to display products of the current 'category' in this specific section.
-                    const productsInThisCategorySection = productsToRender.filter(product => product.category && product.category._id === category._id);
-
-
-                    if (productsInThisCategorySection.length === 0) {
-                        const noItemsMessage = document.createElement('p');
-                        noItemsMessage.classList.add('text-gray-500', 'text-center', 'col-span-full');
-                        noItemsMessage.textContent = 'No items in this category yet.';
-                        categorySection.appendChild(noItemsMessage);
-                    } else {
-                        if (currentView === 'grid') {
-                            const productGrid = document.createElement('div');
-                            productGrid.classList.add('grid', 'grid-cols-2', 'sm:grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'gap-4');
-                            productsInThisCategorySection.forEach(product => {
-                                productGrid.appendChild(createProductGridCard(product));
-                            });
-                            categorySection.appendChild(productGrid);
-                        } else { // List View
-                            const productList = document.createElement('div');
-                            productList.classList.add('divide-y', 'divide-gray-200');
-                            productsInThisCategorySection.forEach(product => {
-                                productList.appendChild(createProductListItem(product));
-                            });
-                            categorySection.appendChild(productList);
-                        }
-                    }
-                    menuContent.appendChild(categorySection);
-                });
-            }
-        }
-
-        // Helper function to create a product card for grid view
-        function createProductGridCard(product) {
-            const productCard = document.createElement('div');
-            productCard.classList.add('bg-white', 'rounded-lg', 'shadow-md', 'overflow-hidden', 'flex', 'flex-col', 'cursor-pointer');
-
-            const imgContainer = document.createElement('div');
-            imgContainer.classList.add('product-image-container');
-            const defaultImage = `https://placehold.co/400x400/e2e8f0/64748b?text=No+Image`;
-            
-            // Prioritize imageUrl, then image (Cloudinary), then image (from backend, if not imageUrl), then placeholder
-            const displayImage = getOptimizedImageUrl(getProxiedImageUrl(product.imageUrl || product.image)) || defaultImage;
-
-            const img = document.createElement('img');
-            img.src = displayImage;
-            img.alt = product.title;
-            img.classList.add('product-image');
-            imgContainer.appendChild(img);
-            productCard.appendChild(imgContainer);
-
-            const cardContent = document.createElement('div');
-            cardContent.classList.add('p-3', 'flex-grow', 'flex', 'flex-col', 'justify-between');
-
-            const title = document.createElement('h3');
-            title.classList.add('text-base', 'font-semibold', 'text-gray-800', 'mb-1');
-            title.textContent = product.title;
-            cardContent.appendChild(title);
-
-            if (product.description) {
-                const description = document.createElement('p');
-                // MODIFIED: Add 'product-card-description' class here to ensure bold styling
-                description.classList.add('text-gray-600', 'text-xs', 'mb-2', 'line-clamp-2', 'product-card-description'); 
-                description.textContent = product.description;
-                cardContent.appendChild(description);
-            }
-
-            if (product.price !== undefined && product.price !== null && product.price !== '') {
-                const price = document.createElement('p');
-                price.classList.add('text-orange-600', 'font-bold', 'text-md');
-                price.textContent = product.price; // Display price as string
-                cardContent.appendChild(price);
-            }
-
-            productCard.appendChild(cardContent);
-
-            productCard.addEventListener('click', () => {
-                // Pass product.price to openImagePopup
-                openImagePopup(displayImage, product.title, product.description, product.price);
-            });
-            return productCard;
-        }
-
-        // Helper function to create a product item for list view
-        function createProductListItem(product) {
-            const listItem = document.createElement('div');
-            listItem.classList.add('product-list-item');
-
-            const defaultImage = `https://placehold.co/60x60/e2e8f0/64748b?text=No+Img`;
-            // Prioritize imageUrl, then image (Cloudinary), then image (from backend, if not imageUrl), then placeholder
-            const displayImage = getOptimizedImageUrl(getProxiedImageUrl(product.imageUrl || product.image)) || defaultImage;
-
-            const imgContainer = document.createElement('div');
-            imgContainer.classList.add('list-image-container');
-            const img = document.createElement('img');
-            img.src = displayImage;
-            img.alt = product.title;
-            img.classList.add('list-image');
-            imgContainer.appendChild(img);
-            listItem.appendChild(imgContainer);
-
-            const listContent = document.createElement('div');
-            listContent.classList.add('list-content');
-
-            const title = document.createElement('h3');
-            title.textContent = product.title;
-            listContent.appendChild(title);
-
-            if (product.description) {
-                const description = document.createElement('p');
-                description.textContent = product.description;
-                // The CSS already targets '.product-list-item p' so no extra class needed here.
-                listContent.appendChild(description);
-            }
-            listItem.appendChild(listContent);
-
-            if (product.price !== undefined && product.price !== null && product.price !== '') {
-                const price = document.createElement('p');
-                price.classList.add('list-price');
-                price.textContent = product.price; // Display price as string
-                listItem.appendChild(price);
-            }
-
-            listItem.addEventListener('click', () => {
-                // Pass product.price to openImagePopup
-                openImagePopup(displayImage, product.title, product.description, product.price);
-            });
-            return listItem;
-        }
-
-
-        // Image popup functions
-        function openImagePopup(imageUrl, productName, productDescription, productPrice) {
-            popupImage.src = imageUrl;
-            popupProductName.textContent = productName;
-            popupProductDescription.textContent = productDescription || '';
-
-            // Set the price in the popup
-            if (productPrice !== undefined && productPrice !== null && productPrice !== '') {
-                popupProductPrice.textContent = productPrice;
-                popupProductPrice.classList.remove('hidden');
-            } else {
-                popupProductPrice.textContent = '';
-                popupProductPrice.classList.add('hidden');
-            }
-
-            imagePopupModal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeImagePopup() {
-            imagePopupModal.classList.add('hidden');
-            popupImage.src = '';
-            popupProductName.textContent = '';
-            popupProductDescription.textContent = '';
-            popupProductPrice.textContent = '';
-            popupProductPrice.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
-
-
-        // Store Info popup functions
-        function openStoreInfoPopup() {
-            if (!currentStoreData) return;
-
-            if (currentStoreData.logo) {
-                modalStoreLogo.src = getOptimizedImageUrl(getProxiedImageUrl(currentStoreData.logo)); // Apply proxy to modal logo
-                modalStoreLogo.style.display = 'block';
-            } else {
-                modalStoreLogo.src = '';
-                modalStoreLogo.style.display = 'none';
-            }
-            modalStoreName.textContent = currentStoreData.name || 'N/A';
-            modalStoreDescription.textContent = currentStoreData.description || 'មិនមានការពិពណ៌នាទេ។';
-            modalStorePhone.textContent = currentStoreData.phone || 'N/A';
-            modalStoreAddress.textContent = currentStoreData.address || 'N/A';
-
-            if (currentStoreData.facebookUrl) {
-                socialFacebook.href = currentStoreData.facebookUrl;
-                socialFacebook.classList.remove('hidden');
-            } else { socialFacebook.classList.add('hidden'); }
-
-            if (currentStoreData.telegramUrl) {
-                socialTelegram.href = currentStoreData.telegramUrl;
-                socialTelegram.classList.remove('hidden');
-            } else { socialTelegram.classList.add('hidden'); }
-
-            if (currentStoreData.tiktokUrl) {
-                socialTikTok.href = currentStoreData.tiktokUrl;
-                socialTikTok.classList.remove('hidden');
-            } else { socialTikTok.classList.add('hidden'); }
-
-            if (currentStoreData.websiteUrl) {
-                socialWebsite.href = currentStoreData.websiteUrl;
-                socialWebsite.classList.remove('hidden');
-            } else { socialWebsite.classList.add('hidden'); }
-
-
-            storeInfoModal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeStoreInfoPopup() {
-            storeInfoModal.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
-
-        // NEW: Category Selection Modal Functions
-        function openCategorySelectionModal() {
-            categoryListContainer.innerHTML = ''; // Clear previous categories
-
-            // Add "All" option to the modal
-            const allCategoryItem = document.createElement('div');
-            allCategoryItem.classList.add('category-list-item');
-            allCategoryItem.innerHTML = `<span>All Items</span><i class="fas fa-chevron-right"></i>`;
-            allCategoryItem.addEventListener('click', async () => {
-                activeCategoryId = 'all-items';
-                setActiveCategoryTab('all-items'); // Highlight 'All' in top tabs
-                searchMenuInput.value = ''; // Clear search
-                await fetchAndRenderProducts('all-items');
-                closeCategorySelectionModal();
-            });
-            categoryListContainer.appendChild(allCategoryItem);
-
-            allCategories.forEach(category => {
-                const categoryItem = document.createElement('div');
-                categoryItem.classList.add('category-list-item');
-                categoryItem.innerHTML = `<span>${category.name}</span><i class="fas fa-chevron-right"></i>`;
-                categoryItem.addEventListener('click', async () => {
-                    activeCategoryId = category._id;
-                    setActiveCategoryTab(`cat-${category._id}`); // Highlight in top tabs
-                    searchMenuInput.value = ''; // Clear search
-                    await fetchAndRenderProducts(category._id);
-                    closeCategorySelectionModal();
-                });
-                categoryListContainer.appendChild(categoryItem);
-            });
-
-            categorySelectionModal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeCategorySelectionModal() {
-            categorySelectionModal.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
-
-
-        // Event listeners for popup close
-        if (closeImagePopupBtn) {
-            closeImagePopupBtn.addEventListener('click', closeImagePopup);
-        }
-        if (closeStoreInfoBtn) {
-            closeStoreInfoBtn.addEventListener('click', closeStoreInfoPopup);
-        }
-        // NEW: Event listener for category selection modal close
-        if (closeCategorySelectionBtn) {
-            closeCategorySelectionBtn.addEventListener('click', closeCategorySelectionModal);
-        }
-
-        // Close popup if clicking on the overlay itself
-        if (imagePopupModal) {
-            imagePopupModal.addEventListener('click', (e) => {
-                if (e.target === imagePopupModal) {
-                    closeImagePopup();
-                }
-            });
-        }
-        if (storeInfoModal) {
-            storeInfoModal.addEventListener('click', (e) => {
-                if (e.target === storeInfoModal) {
-                    closeStoreInfoPopup();
-                }
-            });
-        }
-        // NEW: Close category selection modal if clicking on the overlay itself
-        if (categorySelectionModal) {
-            categorySelectionModal.addEventListener('click', (e) => {
-                if (e.target === categorySelectionModal) {
-                    closeCategorySelectionModal();
-                }
-            });
-        }
-
-        // Event listener for store header (logo/name) click
-        if (storeHeaderInfo) {
-            storeHeaderInfo.addEventListener('click', openStoreInfoPopup);
-        }
-
-        // View Toggle Event Listeners
-        if (gridViewBtn) {
-            gridViewBtn.addEventListener('click', async () => { // Make async
-                currentView = 'grid';
-                gridViewBtn.classList.add('text-orange-600');
-                listViewBtn.classList.remove('text-orange-600');
-                listViewBtn.classList.add('text-gray-400');
-                // Re-render based on current search term or active category
-                await fetchAndRenderProducts(activeCategoryId, searchMenuInput.value.trim()); // Use activeCategoryId and search term
-            });
-        }
-
-        if (listViewBtn) {
-            listViewBtn.addEventListener('click', async () => { // Make async
-                currentView = 'list';
-                listViewBtn.classList.add('text-orange-600');
-                gridViewBtn.classList.remove('text-orange-600');
-                gridViewBtn.classList.add('text-gray-400');
-                // Re-render based on current search term or active category
-                await fetchAndRenderProducts(activeCategoryId, searchMenuInput.value.trim()); // Use activeCategoryId and search term
-            });
-        }
-
-        // MODIFIED: Banner Slider Functions
-        function renderBanners(bannerUrls) {
-            storeBannerContainer.innerHTML = ''; // Clear existing banners and dots
-            sliderDotsContainer.innerHTML = '';
-
-            if (!bannerUrls || bannerUrls.length === 0) {
-                storeBannerContainer.classList.add('hidden');
-                return;
-            }
-
-            storeBannerContainer.classList.remove('hidden');
-
-            bannerUrls.forEach((url, index) => {
-                const img = document.createElement('img');
-                img.src = getOptimizedImageUrl(getProxiedImageUrl(url)); // Apply proxy here
-                img.alt = `Store Banner ${index + 1}`;
-                img.classList.add('store-banner-slide');
-                if (index === 0) {
-                    img.classList.add('active'); // First banner is active initially
-                }
-                storeBannerContainer.appendChild(img);
-
-                const dot = document.createElement('span');
-                dot.classList.add('dot');
-                if (index === 0) {
-                    dot.classList.add('active');
-                }
-                dot.addEventListener('click', () => {
-                    showBanner(index);
-                    resetBannerSlider(); // Reset timer on manual navigation
-                });
-                sliderDotsContainer.appendChild(dot);
-            });
-
-            // Append dots container to the banner container
-            storeBannerContainer.appendChild(sliderDotsContainer);
-        }
-
-        function showBanner(index) {
-            const slides = storeBannerContainer.querySelectorAll('.store-banner-slide');
-            const dots = sliderDotsContainer.querySelectorAll('.dot');
-
-            if (slides.length === 0) return;
-
-            // Loop back to start if index is out of bounds
-            if (index >= slides.length) {
-                currentBannerIndex = 0;
-            } else if (index < 0) {
-                currentBannerIndex = slides.length - 1;
-            } else {
-                currentBannerIndex = index;
-            }
-
-            slides.forEach((slide, i) => {
-                slide.classList.remove('active');
-                if (i === currentBannerIndex) {
-                    slide.classList.add('active');
-                }
-            });
-
-            dots.forEach((dot, i) => {
-                dot.classList.remove('active');
-                if (i === currentBannerIndex) {
-                    dot.classList.add('active');
-                }
-            });
-        }
-
-        function nextBanner() {
-            showBanner(currentBannerIndex + 1);
-        }
-
-        function startBannerSlider() {
-            stopBannerSlider(); // Clear any existing interval
-            if (currentStoreData && Array.isArray(currentStoreData.banner) && currentStoreData.banner.length > 1) {
-                bannerInterval = setInterval(nextBanner, 5000); // Change banner every 5 seconds
-            }
-        }
-
-        function stopBannerSlider() {
-            if (bannerInterval) {
-                clearInterval(bannerInterval);
-            }
-        }
-
-        function resetBannerSlider() {
-            stopBannerSlider();
-            startBannerSlider();
-        }
-
+    }
+
+    function renderAsSingleList(products) {
+        const section = document.createElement('section');
+        section.id = 'all-items-section';
+        section.classList.add('mb-8');
+
+        const title = document.createElement('h2');
+        title.classList.add('text-2xl', 'font-bold', 'text-gray-800', 'mb-4', 'pb-2', 'border-b', 'border-orange-500', 'sticky', 'top-0', 'bg-gray-100', 'z-10', 'py-2');
+        title.textContent = elements.searchMenuInput?.value.trim() ? 'Search Results' : 'All Items';
+        section.appendChild(title);
+
+        const container = state.currentView === 'grid' ? 
+            createProductGrid(products) : 
+            createProductList(products);
         
-        // --- Mobile app helpers: bottom nav + fab ---
-        const bottomNavHome = document.getElementById('navHome');
-        const bottomNavCategories = document.getElementById('navCategories');
-        const bottomNavProfile = document.getElementById('navProfile');
-        const fabScrollTop = document.getElementById('fabScrollTop');
+        section.appendChild(container);
+        elements.menuContent.appendChild(section);
+    }
 
-        function setActiveBottom(button) {
-            [bottomNavHome, bottomNavCategories, bottomNavProfile].forEach(b => b && b.classList.remove('active'));
-            button && button.classList.add('active');
+    function renderByCategory(products) {
+        const categoriesToDisplay = state.allCategories.filter(cat => cat._id === state.activeCategoryId);
+        
+        categoriesToDisplay.forEach(category => {
+            const section = document.createElement('section');
+            section.id = `cat-${category._id}`;
+            section.classList.add('mb-8');
+
+            const title = document.createElement('h2');
+            title.classList.add('text-xl', 'font-bold', 'text-gray-800', 'mb-4', 'pb-2', 'border-b', 'border-orange-500', 'sticky', 'top-0', 'bg-gray-100', 'z-10', 'py-2');
+            title.textContent = category.name;
+            section.appendChild(title);
+
+            const productsInCategory = products.filter(product => 
+                product.category && product.category._id === category._id
+            );
+
+            if (productsInCategory.length === 0) {
+                const message = document.createElement('p');
+                message.classList.add('text-gray-500', 'text-center', 'col-span-full');
+                message.textContent = 'No items in this category yet.';
+                section.appendChild(message);
+            } else {
+                const container = state.currentView === 'grid' ?
+                    createProductGrid(productsInCategory) :
+                    createProductList(productsInCategory);
+                section.appendChild(container);
+            }
+
+            elements.menuContent.appendChild(section);
+        });
+    }
+
+    function createProductGrid(products) {
+        const grid = document.createElement('div');
+        grid.classList.add('grid', 'grid-cols-2', 'sm:grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'gap-4');
+        
+        products.forEach(product => {
+            grid.appendChild(createProductGridCard(product));
+        });
+        
+        return grid;
+    }
+
+    function createProductList(products) {
+        const list = document.createElement('div');
+        list.classList.add('divide-y', 'divide-gray-200');
+        
+        products.forEach(product => {
+            list.appendChild(createProductListItem(product));
+        });
+        
+        return list;
+    }
+
+    function createProductGridCard(product) {
+        const card = document.createElement('div');
+        card.classList.add('bg-white', 'rounded-lg', 'shadow-md', 'overflow-hidden', 'flex', 'flex-col', 'cursor-pointer', 'hover:shadow-lg', 'transition-shadow');
+
+        const defaultImage = `https://placehold.co/400x400/e2e8f0/64748b?text=No+Image`;
+        const displayImage = getOptimizedImageUrl(getProxiedImageUrl(product.imageUrl || product.image)) || defaultImage;
+
+        const imgContainer = document.createElement('div');
+        imgContainer.classList.add('product-image-container');
+        const img = document.createElement('img');
+        img.src = displayImage;
+        img.alt = product.title;
+        img.classList.add('product-image');
+        img.loading = 'lazy';
+        imgContainer.appendChild(img);
+        card.appendChild(imgContainer);
+
+        const cardContent = document.createElement('div');
+        cardContent.classList.add('p-3', 'flex-grow', 'flex', 'flex-col', 'justify-between');
+
+        const title = document.createElement('h3');
+        title.classList.add('text-base', 'font-semibold', 'text-gray-800', 'mb-1', 'line-clamp-2');
+        title.textContent = product.title;
+        cardContent.appendChild(title);
+
+        if (product.description) {
+            const description = document.createElement('p');
+            description.classList.add('text-gray-600', 'text-xs', 'mb-2', 'line-clamp-2', 'product-card-description');
+            description.textContent = product.description;
+            cardContent.appendChild(description);
         }
 
-        bottomNavHome?.addEventListener('click', () => {
-            setActiveBottom(bottomNavHome);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (product.price !== undefined && product.price !== null && product.price !== '') {
+            const price = document.createElement('p');
+            price.classList.add('text-orange-600', 'font-bold', 'text-md');
+            price.textContent = product.price;
+            cardContent.appendChild(price);
+        }
+
+        card.appendChild(cardContent);
+
+        card.addEventListener('click', () => {
+            openImagePopup(displayImage, product.title, product.description, product.price);
         });
 
-        // MODIFIED: This now opens the new category selection modal
-        bottomNavCategories?.addEventListener('click', () => {
-            setActiveBottom(bottomNavCategories);
-            openCategorySelectionModal(); // Open the new category selection modal
+        return card;
+    }
+
+    function createProductListItem(product) {
+        const listItem = document.createElement('div');
+        listItem.classList.add('product-list-item', 'hover:bg-gray-50', 'transition-colors');
+
+        const defaultImage = `https://placehold.co/60x60/e2e8f0/64748b?text=No+Img`;
+        const displayImage = getOptimizedImageUrl(getProxiedImageUrl(product.imageUrl || product.image)) || defaultImage;
+
+        const imgContainer = document.createElement('div');
+        imgContainer.classList.add('list-image-container');
+        const img = document.createElement('img');
+        img.src = displayImage;
+        img.alt = product.title;
+        img.classList.add('list-image');
+        img.loading = 'lazy';
+        imgContainer.appendChild(img);
+        listItem.appendChild(imgContainer);
+
+        const listContent = document.createElement('div');
+        listContent.classList.add('list-content');
+
+        const title = document.createElement('h3');
+        title.classList.add('font-semibold', 'line-clamp-1');
+        title.textContent = product.title;
+        listContent.appendChild(title);
+
+        if (product.description) {
+            const description = document.createElement('p');
+            description.classList.add('text-sm', 'line-clamp-2');
+            description.textContent = product.description;
+            listContent.appendChild(description);
+        }
+        listItem.appendChild(listContent);
+
+        if (product.price !== undefined && product.price !== null && product.price !== '') {
+            const price = document.createElement('p');
+            price.classList.add('list-price');
+            price.textContent = product.price;
+            listItem.appendChild(price);
+        }
+
+        listItem.addEventListener('click', () => {
+            openImagePopup(displayImage, product.title, product.description, product.price);
         });
 
-        bottomNavProfile?.addEventListener('click', () => {
-            setActiveBottom(bottomNavProfile);
-            // Open the Store Info popup as a "Profile"
-            openStoreInfoPopup();
+        return listItem;
+    }
+
+    function hideAllMessages() {
+        if (elements.noMenuMessage) elements.noMenuMessage.classList.add('hidden');
+        if (elements.noSearchResultsMessage) elements.noSearchResultsMessage.classList.add('hidden');
+    }
+
+    // Modal Functions
+    function openImagePopup(imageUrl, productName, productDescription, productPrice) {
+        if (!elements.imagePopupModal || !elements.popupImage) return;
+        
+        elements.popupImage.src = imageUrl;
+        elements.popupProductName.textContent = productName;
+        elements.popupProductDescription.textContent = productDescription || '';
+
+        if (productPrice !== undefined && productPrice !== null && productPrice !== '') {
+            elements.popupProductPrice.textContent = productPrice;
+            elements.popupProductPrice.classList.remove('hidden');
+        } else {
+            elements.popupProductPrice.textContent = '';
+            elements.popupProductPrice.classList.add('hidden');
+        }
+
+        // Setup social media links when opening popup
+        setupSocialMediaLinks();
+        
+        elements.imagePopupModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeImagePopup() {
+        if (!elements.imagePopupModal) return;
+        
+        elements.imagePopupModal.classList.add('hidden');
+        elements.popupImage.src = '';
+        elements.popupProductName.textContent = '';
+        elements.popupProductDescription.textContent = '';
+        elements.popupProductPrice.textContent = '';
+        document.body.style.overflow = '';
+    }
+
+    function openStoreInfoPopup() {
+        if (!state.currentStoreData || !elements.storeInfoModal) return;
+
+        if (state.currentStoreData.logo) {
+            elements.modalStoreLogo.src = getOptimizedImageUrl(getProxiedImageUrl(state.currentStoreData.logo));
+            elements.modalStoreLogo.style.display = 'block';
+        } else {
+            elements.modalStoreLogo.src = '';
+            elements.modalStoreLogo.style.display = 'none';
+        }
+
+        elements.modalStoreName.textContent = state.currentStoreData.name || 'N/A';
+        elements.modalStoreDescription.textContent = state.currentStoreData.description || 'មិនមានការពិពណ៌នាទេ។';
+        if (elements.modalStorePhone) elements.modalStorePhone.textContent = state.currentStoreData.phone || 'N/A';
+        if (elements.modalStoreAddress) elements.modalStoreAddress.textContent = state.currentStoreData.address || 'N/A';
+
+        // Social media links - Updated to handle empty URLs properly
+        console.log('🔗 Setting store info modal social links:', {
+            facebook: state.currentStoreData.facebookUrl,
+            telegram: state.currentStoreData.telegramUrl,
+            tiktok: state.currentStoreData.tiktokUrl,
+            website: state.currentStoreData.websiteUrl
+        });
+        
+        toggleSocialLink(elements.socialFacebook, state.currentStoreData.facebookUrl);
+        toggleSocialLink(elements.socialTelegram, state.currentStoreData.telegramUrl);
+        toggleSocialLink(elements.socialTikTok, state.currentStoreData.tiktokUrl);
+        toggleSocialLink(elements.socialWebsite, state.currentStoreData.websiteUrl);
+
+        elements.storeInfoModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeStoreInfoPopup() {
+        if (!elements.storeInfoModal) return;
+        
+        elements.storeInfoModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function openCategorySelectionModal() {
+        if (!elements.categoryListContainer || !elements.categorySelectionModal) return;
+        
+        elements.categoryListContainer.innerHTML = '';
+
+        // Add "All" option
+        const allCategoryItem = createCategoryModalItem('All Items', 'all-items');
+        elements.categoryListContainer.appendChild(allCategoryItem);
+
+        // Add categories
+        state.allCategories.forEach(category => {
+            const categoryItem = createCategoryModalItem(category.name, category._id);
+            elements.categoryListContainer.appendChild(categoryItem);
         });
 
-        // Show FAB when scrolled down a bit
+        elements.categorySelectionModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function createCategoryModalItem(name, categoryId) {
+        const item = document.createElement('div');
+        item.classList.add('category-list-item');
+        item.innerHTML = `<span>${name}</span><i class="fas fa-chevron-right"></i>`;
+        
+        item.addEventListener('click', async () => {
+            state.activeCategoryId = categoryId;
+            const tabId = categoryId === 'all-items' ? 'all-items' : `cat-${categoryId}`;
+            setActiveCategoryTab(tabId);
+            if (elements.searchMenuInput) elements.searchMenuInput.value = '';
+            if (elements.clearSearchBtn) elements.clearSearchBtn.classList.add('hidden');
+            await fetchAndRenderProducts(categoryId);
+            closeCategorySelectionModal();
+        });
+        
+        return item;
+    }
+
+    function closeCategorySelectionModal() {
+        if (!elements.categorySelectionModal) return;
+        
+        elements.categorySelectionModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    // View Toggle
+    function setupViewToggle() {
+        if (!elements.gridViewBtn || !elements.listViewBtn) return;
+
+        elements.gridViewBtn.addEventListener('click', async () => {
+            state.currentView = 'grid';
+            updateViewToggleButtons();
+            await fetchAndRenderProducts(state.activeCategoryId, elements.searchMenuInput?.value.trim());
+        });
+
+        elements.listViewBtn.addEventListener('click', async () => {
+            state.currentView = 'list';
+            updateViewToggleButtons();
+            await fetchAndRenderProducts(state.activeCategoryId, elements.searchMenuInput?.value.trim());
+        });
+    }
+
+    function updateViewToggleButtons() {
+        if (state.currentView === 'grid') {
+            elements.gridViewBtn.classList.add('text-orange-600');
+            elements.listViewBtn.classList.remove('text-orange-600');
+            elements.listViewBtn.classList.add('text-gray-400');
+        } else {
+            elements.listViewBtn.classList.add('text-orange-600');
+            elements.gridViewBtn.classList.remove('text-orange-600');
+            elements.gridViewBtn.classList.add('text-gray-400');
+        }
+    }
+
+    // Navigation Setup
+    function setupNavigation() {
+        // Bottom navigation
+        if (elements.bottomNavHome) {
+            elements.bottomNavHome.addEventListener('click', () => {
+                setActiveBottomNav(elements.bottomNavHome);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        if (elements.bottomNavCategories) {
+            elements.bottomNavCategories.addEventListener('click', () => {
+                setActiveBottomNav(elements.bottomNavCategories);
+                openCategorySelectionModal();
+            });
+        }
+
+        if (elements.bottomNavProfile) {
+            elements.bottomNavProfile.addEventListener('click', () => {
+                setActiveBottomNav(elements.bottomNavProfile);
+                openStoreInfoPopup();
+            });
+        }
+
+        // Scroll to top FAB
         window.addEventListener('scroll', () => {
             const scrolled = window.scrollY || document.documentElement.scrollTop;
-            if (fabScrollTop) {
-                if (scrolled > 300) fabScrollTop.classList.remove('hidden');
-                else fabScrollTop.classList.add('hidden');
+            if (elements.fabScrollTop) {
+                if (scrolled > 300) {
+                    elements.fabScrollTop.classList.remove('hidden');
+                } else {
+                    elements.fabScrollTop.classList.add('hidden');
+                }
             }
         });
 
-        fabScrollTop?.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (elements.fabScrollTop) {
+            elements.fabScrollTop.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        // Nav toggle for desktop
+        if (elements.navToggleBtn) {
+            elements.navToggleBtn.addEventListener('click', function() {
+                const bottomNav = document.querySelector('.bottom-nav');
+                if (bottomNav) {
+                    bottomNav.classList.toggle('hidden');
+                    this.classList.toggle('rotated');
+                    this.setAttribute('title', bottomNav.classList.contains('hidden') ? 'Show Navigation' : 'Hide Navigation');
+                }
+            });
+        }
+    }
+
+    function setActiveBottomNav(activeButton) {
+        [elements.bottomNavHome, elements.bottomNavCategories, elements.bottomNavProfile].forEach(btn => {
+            if (btn) btn.classList.remove('active');
         });
-
-        // Initial render
-        renderCategoryTabs(allCategories, 'all-items'); // Set 'All' as active initially
-        await fetchAndRenderProducts('all-items'); // Initial fetch of all products
-
-        // Search functionality
-        searchMenuInput.addEventListener('input', async (e) => { // Make async
-            const searchTerm = e.target.value.toLowerCase();
-            // When searching, reset active category to "all-items" visually and logically
-            activeCategoryId = 'all-items';
-            setActiveCategoryTab('all-items');
-
-            await fetchAndRenderProducts(null, searchTerm); // Pass null for category, searchTerm for search
-        });
-// --- Search functionality with clear button toggle ---
-searchMenuInput.addEventListener('input', async (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-
-    if (searchTerm.length > 0) {
-        clearSearchBtn.classList.remove('hidden'); // show clear button
-    } else {
-        clearSearchBtn.classList.add('hidden'); // hide clear button
+        if (activeButton) activeButton.classList.add('active');
     }
 
-    activeCategoryId = 'all-items';
-    setActiveCategoryTab('all-items');
-    await fetchAndRenderProducts(null, searchTerm);
-});
+    // Event Listeners Setup
+    function setupEventListeners() {
+        // Popup close events
+        if (elements.closeImagePopupBtn) {
+            elements.closeImagePopupBtn.addEventListener('click', closeImagePopup);
+        }
+        if (elements.closeStoreInfoBtn) {
+            elements.closeStoreInfoBtn.addEventListener('click', closeStoreInfoPopup);
+        }
+        if (elements.closeCategorySelectionBtn) {
+            elements.closeCategorySelectionBtn.addEventListener('click', closeCategorySelectionModal);
+        }
 
-clearSearchBtn.addEventListener('click', async () => {
-    searchMenuInput.value = '';
-    clearSearchBtn.classList.add('hidden'); // hide again
-    activeCategoryId = 'all-items';
-    setActiveCategoryTab('all-items');
-    await fetchAndRenderProducts('all-items');
-});
+        // Overlay click events
+        if (elements.imagePopupModal) {
+            elements.imagePopupModal.addEventListener('click', (e) => {
+                if (e.target === elements.imagePopupModal) closeImagePopup();
+            });
+        }
+        if (elements.storeInfoModal) {
+            elements.storeInfoModal.addEventListener('click', (e) => {
+                if (e.target === elements.storeInfoModal) closeStoreInfoPopup();
+            });
+        }
+        if (elements.categorySelectionModal) {
+            elements.categorySelectionModal.addEventListener('click', (e) => {
+                if (e.target === elements.categorySelectionModal) closeCategorySelectionModal();
+            });
+        }
 
-// Add this function to fix the stopBannerSlider error
-function stopBannerSlider() {
-    const bannerSlider = document.getElementById('bannerSlider');
-    if (bannerSlider) {
-        bannerSlider.innerHTML = '';
+        // Store header click
+        if (elements.storeHeaderInfo) {
+            elements.storeHeaderInfo.addEventListener('click', openStoreInfoPopup);
+        }
     }
-    // Clear any existing intervals
-    if (window.bannerInterval) {
-        clearInterval(window.bannerInterval);
-        window.bannerInterval = null;
-    }
-}
 
-// Make sure it's available globally
-window.stopBannerSlider = stopBannerSlider;
+    // Main initialization
+    async function initializeMenu() {
+        try {
+            console.log('🚀 Starting menu initialization with slug:', slug);
+            
+            // Fetch store data with debug logging
+            console.log('🔍 Fetching store data from:', `/stores/public/slug/${slug}`);
+            state.currentStoreData = await apiRequest(`/stores/public/slug/${slug}`, 'GET', null, false);
+            console.log('✅ Store data received:', state.currentStoreData);
+            
+            if (!state.currentStoreData) {
+                throw new Error('Store not found');
+            }
 
-    } catch (error) {
-        console.error('Error fetching menu:', error.message);
-        loadingMessage.classList.add('hidden');
-        noMenuMessage.textContent = `Failed to load menu: ${error.message}`;
-        noMenuMessage.classList.remove('hidden');
-        menuTitle.textContent = 'Menu Load Error';
-        storeNameElem.textContent = 'Error loading menu details.';
-        storeLogoImg.style.display = 'none';
-        storeBannerContainer.classList.add('hidden'); // Hide banner container on error
-        stopBannerSlider(); // Stop slider on error
+            // Update page title and store info
+            console.log('📝 Updating page with store:', state.currentStoreData.name);
+            elements.menuTitle.textContent = `${state.currentStoreData.name}'s Menu`;
+            elements.storeNameElem.textContent = state.currentStoreData.name;
+
+            // Set store logo
+            if (state.currentStoreData.logo) {
+                console.log('🖼️ Setting store logo');
+                elements.storeLogoImg.src = getOptimizedImageUrl(getProxiedImageUrl(state.currentStoreData.logo));
+                elements.storeLogoImg.style.display = 'block';
+            }
+
+            // Setup banners
+            if (Array.isArray(state.currentStoreData.banner) && state.currentStoreData.banner.length > 0) {
+                console.log('🎨 Setting up banners:', state.currentStoreData.banner.length, 'banners found');
+                renderBanners(state.currentStoreData.banner);
+                startBannerSlider();
+            }
+
+            // Fetch categories and products
+            console.log('🔍 Fetching categories from:', `/categories/store/slug/${slug}`);
+            state.allCategories = await apiRequest(`/categories/store/slug/${slug}`, 'GET', null, false);
+            console.log('✅ Categories received:', state.allCategories);
+
+            console.log('🔍 Fetching products from:', `/products/public-store/slug/${slug}`);
+            state.allProducts = await apiRequest(`/products/public-store/slug/${slug}`, 'GET', null, false);
+            console.log('✅ Products received:', state.allProducts);
+
+            elements.loadingMessage.classList.add('hidden');
+
+            if (state.allProducts.length === 0) {
+                console.log('⚠️ No products found for store');
+                elements.noMenuMessage.classList.remove('hidden');
+                return;
+            }
+
+            console.log('🛠️ Initializing all functionality');
+            // Initialize all functionality
+            setupSearchFunctionality();
+            setupViewToggle();
+            setupNavigation();
+            setupEventListeners();
+
+            // NEW: Initialize social media links on page load
+            setupSocialMediaLinks();
+
+            // Render initial content
+            console.log('🎨 Rendering initial content');
+            renderCategoryTabs(state.allCategories, 'all-items');
+            await fetchAndRenderProducts('all-items');
+
+            console.log('✅ Menu initialization completed successfully');
+
+        } catch (error) {
+            console.error('❌ Error initializing menu:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
+            showErrorMessage('Menu Load Error', 'Error loading menu details', `Failed to load menu: ${error.message}`);
+        }
     }
+
+    // Start the application
+    await initializeMenu();
 });

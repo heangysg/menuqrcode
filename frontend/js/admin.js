@@ -1,3 +1,5 @@
+// qr-digital-menu-system/frontend/js/admin.js
+
 // Optimize Cloudinary images for delivery (auto format, auto quality, max width 600px)
 function getOptimizedImageUrl(url) {
     if (!url) return url;
@@ -7,81 +9,527 @@ function getOptimizedImageUrl(url) {
     return url;
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Authentication Check
-    if (!window.checkAuthAndRedirect('admin')) {
-        return;
+// Global variables
+let currentStore = null;
+let allProducts = []; // Store all products for filtering
+
+    // SIMPLIFIED - Remove the complex multi-user logic
+function setActiveUserForAdminPage() {
+    try {
+        console.log('🔄 Setting active user for admin page...');
+        
+        // Use the simple auth system - just get the current user
+        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        
+        if (!userData) {
+            console.log('❌ No user data found');
+            return null;
+        }
+        
+        console.log('✅ Active user found:', userData.email, 'Role:', userData.role);
+        
+        // Update UI with current user info
+        const adminNameElement = document.getElementById('adminName');
+        if (adminNameElement && userData) {
+            if (userData.role === 'superadmin') {
+                adminNameElement.innerHTML = `${userData.name} <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded-full ml-2">Superadmin</span>`;
+            } else {
+                adminNameElement.textContent = userData.name;
+            }
+        }
+        
+        return userData;
+    } catch (error) {
+        console.error('Error setting active user:', error);
+        return null;
     }
+}
 
-    // --- DOM Element References ---
-    // Mobile Menu
-    const mobileMenuButton = document.getElementById('mobileMenuButton');
-    const sidebar = document.getElementById('sidebar');
+// Wait for authentication to complete
+function waitForAuth() {
+    return new Promise((resolve) => {
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max wait
+        
+        function checkAuth() {
+            attempts++;
+            const token = window.getStoredToken ? window.getStoredToken('admin') : null;
+            const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+            
+            console.log(`🔐 Auth check attempt ${attempts}:`, { 
+                hasToken: !!token, 
+                hasUserData: !!userData,
+                userRole: userData ? userData.role : 'none'
+            });
+            
+            if (token && userData) {
+                console.log('✅ Auth confirmed, proceeding...');
+                resolve(true);
+                return;
+            }
+            
+            if (attempts >= maxAttempts) {
+                console.error('❌ Auth timeout after', attempts, 'attempts');
+                resolve(false);
+                return;
+            }
+            
+            // Check again in 100ms
+            setTimeout(checkAuth, 100);
+        }
+        
+        checkAuth();
+    });
+}
 
-    // Main Content Sections (UPDATED: Separate sections for Add Products and Your Products)
-    const dashboardOverviewSection = document.getElementById('dashboard-overview-section');
-    const storeManagementSection = document.getElementById('store-management-section');
-    const categoryManagementSection = document.getElementById('category-management-section');
-    const addProductsSection = document.getElementById('add-products-section'); // NEW
-    const yourProductsSection = document.getElementById('your-products-section'); // NEW
+async function initializeAdminDashboard() {
+    console.log('🚀 Starting admin dashboard initialization...');
+    
+    try {
+        // SIMPLIFIED: Just wait for auth, don't try to set active user first
+        console.log('🔐 Waiting for authentication...');
+        const isAuthenticated = await waitForAuth();
+        
+        if (!isAuthenticated) {
+            console.error('❌ Authentication failed, stopping initialization');
+            return;
+        }
+        
+        console.log('✅ Authentication confirmed, loading data...');
+        
+        // Check current user
+        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        console.log('👤 Current user:', userData ? `${userData.email} (${userData.role})` : 'none');
+        
+        // Update admin name in header
+        updateAdminHeader();
+        
+        // Load data based on user role
+        if (userData && userData.role === 'superadmin') {
+            console.log('👑 Superadmin detected - loading admin dashboard with full access');
+            await loadSuperadminData();
+        } else {
+            // Regular admin - load everything
+            console.log('👤 Regular admin - loading store data');
+            await loadAdminData();
+        }
+        
+        // Initialize event listeners
+        initializeEventListeners();
+        
+        console.log('✅ Admin dashboard initialized successfully');
+        
+    } catch (error) {
+        console.error('❌ Initialization failed:', error);
+        showMessageModal('Error', `Initialization failed: ${error.message}`, true);
+    }
+}
 
-    // Dashboard Overview
-    const totalProductsCount = document.getElementById('totalProductsCount');
-    const totalCategoriesCount = document.getElementById('totalCategoriesCount');
-    const categoryProductCountsList = document.getElementById('categoryProductCountsList');
+async function loadAdminData() {
+    try {
+        await Promise.all([
+            fetchStoreDetails(),
+            fetchCategories(),
+            fetchProductsForDisplay()
+        ]);
+        
+        await updateDashboardOverview();
+        
+    } catch (error) {
+        console.error('Error loading admin data:', error);
+        throw error;
+    }
+}
 
-    // Store Management
-    const storeForm = document.getElementById('storeForm');
-    const storeNameInput = document.getElementById('storeName');
-    const storeAddressInput = document.getElementById('storeAddress');
-    const storePhoneInput = document.getElementById('storePhone');
-    const storeDescriptionInput = document.getElementById('storeDescription');
-    const storeFacebookInput = document.getElementById('storeFacebook');
-    const storeTelegramInput = document.getElementById('storeTelegram');
-    const storeTikTokInput = document.getElementById('storeTikTok');
-    const storeWebsiteInput = document.getElementById('storeWebsite');
-    const storeLogoInput = document.getElementById('storeLogo');
-    const currentLogoImg = document.getElementById('currentLogo');
-    const removeLogoContainer = document.getElementById('removeLogoContainer');
-    const removeStoreLogoCheckbox = document.getElementById('removeStoreLogo');
-    const storeBannerInput = document.getElementById('storeBanner');
-    const currentBannersPreview = document.getElementById('currentBannersPreview');
-    const removeBannerContainer = document.getElementById('removeBannerContainer');
-    const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
-    const qrCodeContainer = document.getElementById('qrCodeContainer');
-    const downloadQrBtn = document.getElementById('downloadQrBtn');
-    const publicMenuLinkInput = document.getElementById('publicMenuLink');
-    const copyMenuLinkBtn = document.getElementById('copyMenuLinkBtn');
+async function loadSuperadminData() {
+    try {
+        // Superadmin can access all admin functions
+        await Promise.all([
+            fetchStoreDetails(),
+            fetchCategories(),
+            fetchProductsForDisplay()
+        ]);
+        
+        await updateDashboardOverview();
+        
+        // Show superadmin badge
+        const dashboardHeader = document.querySelector('h1');
+        if (dashboardHeader) {
+            const badge = document.createElement('span');
+            badge.className = 'ml-2 bg-purple-600 text-white text-xs px-2 py-1 rounded-full';
+            badge.textContent = 'Superadmin Mode';
+            dashboardHeader.appendChild(badge);
+        }
+        
+    } catch (error) {
+        console.error('Error loading superadmin data:', error);
+        throw error;
+    }
+}
+
+function updateAdminHeader() {
+    const adminNameElement = document.getElementById('adminName');
+    const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+    
+    if (adminNameElement && userData) {
+        if (userData.role === 'superadmin') {
+            adminNameElement.innerHTML = `${userData.name} <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded-full ml-2">Superadmin</span>`;
+        } else {
+            adminNameElement.textContent = userData.name;
+        }
+    }
+}
+
+// --- Store Management Functions ---
+async function fetchStoreDetails() {
     const copyMessage = document.getElementById('copyMessage');
+    clearMessage(copyMessage);
+    try {
+        console.log('🏪 Fetching store details...');
+        
+        // Check current user
+        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        console.log('👤 Fetching store as:', userData ? userData.role : 'unknown');
+        
+        currentStore = await apiRequest('/stores/my-store', 'GET', null, true);
+        
+        if (currentStore && currentStore._id) {
+            const storeNameInput = document.getElementById('storeName');
+            const storeAddressInput = document.getElementById('storeAddress');
+            const storePhoneInput = document.getElementById('storePhone');
+            const storeDescriptionInput = document.getElementById('storeDescription');
+            const storeFacebookInput = document.getElementById('storeFacebook');
+            const storeTelegramInput = document.getElementById('storeTelegram');
+            const storeTikTokInput = document.getElementById('storeTikTok');
+            const storeWebsiteInput = document.getElementById('storeWebsite');
+            const currentLogoImg = document.getElementById('currentLogo');
+            const removeLogoContainer = document.getElementById('removeLogoContainer');
+            const removeStoreLogoCheckbox = document.getElementById('removeStoreLogo');
+            const currentBannersPreview = document.getElementById('currentBannersPreview');
+            const removeBannerContainer = document.getElementById('removeBannerContainer');
+            const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+            const qrCodeContainer = document.getElementById('qrCodeContainer');
+            const downloadQrBtn = document.getElementById('downloadQrBtn');
+            const publicMenuLinkInput = document.getElementById('publicMenuLink');
+            const copyMenuLinkBtn = document.getElementById('copyMenuLinkBtn');
 
-    // Category Management
-    const categoryForm = document.getElementById('categoryForm');
-    const categoryNameInput = document.getElementById('categoryName');
+            // Populate store form
+            storeNameInput.value = currentStore.name;
+            storeAddressInput.value = currentStore.address || '';
+            storePhoneInput.value = currentStore.phone || '';
+            storeDescriptionInput.value = currentStore.description || '';
+            storeFacebookInput.value = currentStore.facebookUrl || '';
+            storeTelegramInput.value = currentStore.telegramUrl || '';
+            storeTikTokInput.value = currentStore.tiktokUrl || '';
+            storeWebsiteInput.value = currentStore.websiteUrl || '';
+
+            // Handle logo
+            if (currentStore.logo) {
+                currentLogoImg.src = currentStore.logo;
+                currentLogoImg.style.display = 'block';
+                removeLogoContainer.style.display = 'block';
+                removeStoreLogoCheckbox.checked = false;
+            } else {
+                currentLogoImg.src = '';
+                currentLogoImg.style.display = 'none';
+                removeLogoContainer.style.display = 'none';
+                removeStoreLogoCheckbox.checked = false;
+            }
+
+            // Handle banners
+            currentBannersPreview.innerHTML = '';
+            if (Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
+                currentStore.banner.forEach(url => {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Store Banner';
+                    img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
+                    currentBannersPreview.appendChild(img);
+                });
+                removeBannerContainer.style.display = 'block';
+                removeStoreBannerCheckbox.checked = false;
+            } else {
+                currentBannersPreview.innerHTML = '';
+                removeBannerContainer.style.display = 'none';
+                removeStoreBannerCheckbox.checked = false;
+            }
+
+            // Handle QR code and menu link
+            if (currentStore.slug) {
+                const publicMenuUrl = `${window.location.origin}/menu/${currentStore.slug}`;
+                const qrCanvas = window.generateQRCode(publicMenuUrl, qrCodeContainer, 256);
+                if (qrCanvas) {
+                    downloadQrBtn.style.display = 'inline-block';
+                    downloadQrBtn.onclick = () => {
+                        window.downloadCanvasAsPNG(qrCanvas, `${currentStore.name}_menu_qr.png`);
+                    };
+                }
+
+                publicMenuLinkInput.value = publicMenuUrl;
+                copyMenuLinkBtn.style.display = 'inline-block';
+
+            } else {
+                qrCodeContainer.innerHTML = '<p class="text-gray-500">Save store info to generate QR.</p>';
+                downloadQrBtn.style.display = 'none';
+                publicMenuLinkInput.value = 'Link will appear here after saving store info.';
+                copyMenuLinkBtn.style.display = 'none';
+            }
+            console.log('✅ Store details loaded:', currentStore.name);
+            return currentStore;
+        } else {
+            throw new Error('Invalid store data received');
+        }
+    } catch (error) {
+        console.error('❌ Error fetching store details:', error);
+        
+        // If it's an auth error, don't throw - let the auth system handle it
+        if (error.message.includes('Authentication') || error.message.includes('401')) {
+            console.log('🔐 Auth error in store fetch, waiting for redirect...');
+            return null;
+        }
+        
+        showMessageModal('Error', `Error fetching store details: ${error.message}`, true);
+        const currentLogoImg = document.getElementById('currentLogo');
+        const removeLogoContainer = document.getElementById('removeLogoContainer');
+        const currentBannersPreview = document.getElementById('currentBannersPreview');
+        const removeBannerContainer = document.getElementById('removeBannerContainer');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const downloadQrBtn = document.getElementById('downloadQrBtn');
+        const publicMenuLinkInput = document.getElementById('publicMenuLink');
+        const copyMenuLinkBtn = document.getElementById('copyMenuLinkBtn');
+
+        currentLogoImg.src = '';
+        currentLogoImg.style.display = 'none';
+        removeLogoContainer.style.display = 'none';
+        currentBannersPreview.innerHTML = '';
+        removeBannerContainer.style.display = 'none';
+        qrCodeContainer.innerHTML = '<p class="text-gray-500">Failed to load QR code.</p>';
+        downloadQrBtn.style.display = 'none';
+        publicMenuLinkInput.value = 'Failed to load menu link.';
+        copyMenuLinkBtn.style.display = 'none';
+        return null;
+    }
+}
+
+// --- Category Management Functions ---
+async function fetchCategories() {
     const categoryListTableBody = document.getElementById('categoryList');
+    const productCategorySelect = document.getElementById('productCategory');
+    const editProductCategorySelect = document.getElementById('editProductCategory');
+    const productFilterCategorySelect = document.getElementById('productFilterCategory');
+
+    categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Loading categories...</td></tr>';
+    try {
+        console.log('📂 Fetching categories...');
+        const categories = await apiRequest('/categories/my-store', 'GET', null, true);
+
+        categoryListTableBody.innerHTML = '';
+
+        // Clear all existing options before repopulating
+        productCategorySelect.innerHTML = '<option value="">Select a Category</option>';
+        editProductCategorySelect.innerHTML = '';
+        productFilterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
+
+        // Enable dropdowns
+        productCategorySelect.disabled = false;
+        editProductCategorySelect.disabled = false;
+        productFilterCategorySelect.disabled = false;
+
+        if (categories.length === 0) {
+            categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">No categories added yet.</td></tr>';
+            return;
+        }
+
+        categories.forEach(category => {
+            const row = categoryListTableBody.insertRow();
+            row.innerHTML = `
+                <td class="py-2 px-4 border-b border-gray-200">${category.name}</td>
+                <td class="py-2 px-4 border-b border-gray-200">
+                    <button data-id="${category._id}" data-name="${category.name}" class="edit-category-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
+                    <button data-id="${category._id}" class="delete-category-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
+                </td>
+            `;
+
+            // Populating the 'Add Product' category select
+            const optionAdd = document.createElement('option');
+            optionAdd.value = category._id;
+            optionAdd.textContent = category.name;
+            productCategorySelect.appendChild(optionAdd);
+
+            // Populating the 'Edit Product' category select
+            const optionEdit = document.createElement('option');
+            optionEdit.value = category._id;
+            optionEdit.textContent = category.name;
+            editProductCategorySelect.appendChild(optionEdit);
+
+            // Populating the 'Filter by Category' select
+            const optionFilter = document.createElement('option');
+            optionFilter.value = category._id;
+            optionFilter.textContent = category.name;
+            productFilterCategorySelect.appendChild(optionFilter);
+        });
+
+        // Re-select the previously chosen filter category after repopulating
+        const currentFilterValue = productFilterCategorySelect.dataset.currentFilter || 'all';
+        productFilterCategorySelect.value = currentFilterValue;
+
+        document.querySelectorAll('.edit-category-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                openEditCategoryModal(e.target.dataset.id, e.target.dataset.name);
+            });
+        });
+
+        document.querySelectorAll('.delete-category-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const categoryIdToDelete = e.target.dataset.id;
+                const categoryName = e.target.closest('tr').querySelector('td:first-child').textContent;
+                
+                showConfirmationModal(
+                    'Confirm Deletion',
+                    `Are you sure you want to delete the category "${categoryName}"? Products in this category will become uncategorized.`,
+                    () => deleteCategory(categoryIdToDelete)
+                );
+            });
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching categories:', error);
+        showMessageModal('Error', `Error fetching categories: ${error.message}`, true);
+        categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Failed to load categories.</td></tr>';
+    }
+}
+
+function openEditCategoryModal(id, name) {
     const editCategoryModal = document.getElementById('editCategoryModal');
-    const editCategoryForm = document.getElementById('editCategoryForm');
     const editCategoryIdInput = document.getElementById('editCategoryId');
     const editCategoryNameInput = document.getElementById('editCategoryName');
-    const cancelEditCategoryBtn = document.getElementById('cancelEditCategoryBtn');
 
-    // Product Management (UPDATED: Now separate for Add Products and Your Products)
-    const productForm = document.getElementById('productForm');
-    const productNameInput = document.getElementById('productName');
-    const productCategorySelect = document.getElementById('productCategory');
-    const productDescriptionInput = document.getElementById('productDescription');
-    const productPriceInput = document.getElementById('productPrice');
-    const productImageUrlInput = document.getElementById('productImageUrl');
-    const productImageInput = document.getElementById('productImage');
-    const newProductImagePreview = document.getElementById('newProductImagePreview');
-    
-    // Your Products Section
+    editCategoryIdInput.value = id;
+    editCategoryNameInput.value = name;
+    editCategoryModal.classList.remove('hidden');
+}
+
+async function deleteCategory(id) {
+    try {
+        // Send confirmation flag in the request body
+        await apiRequest(`/categories/${id}`, 'DELETE', { confirmDelete: true }, true);
+        showMessageModal('Success', 'Category deleted successfully!', false);
+        await fetchCategories();
+        await fetchProductsForDisplay();
+        updateDashboardOverview();
+    } catch (error) {
+        showMessageModal('Error', `Error deleting category: ${error.message}`, true);
+    }
+}
+
+// --- Product Management Functions ---
+async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
     const productListTableBody = document.getElementById('productListTableBody');
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
     const productSearchInput = document.getElementById('productSearchInput');
-    
-    // Edit Product Modal (shared between sections)
+
+    productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading products...</td></tr>';
+    try {
+        console.log('📦 Fetching products...');
+        let url = '/products/my-store';
+        const queryParams = new URLSearchParams();
+
+        if (categoryId && categoryId !== 'all') {
+            queryParams.append('category', categoryId);
+        }
+        if (searchTerm) {
+            queryParams.append('search', searchTerm);
+        }
+
+        if (queryParams.toString()) {
+            url += `?${queryParams.toString()}`;
+        }
+
+        console.log('Frontend: Fetching products with URL:', url);
+        const response = await apiRequest(url, 'GET', null, true);
+        
+        // Extract products array from response
+        allProducts = response.products || response || [];
+        
+        console.log('Frontend: Received products for rendering:', allProducts.length);
+
+        renderProductsTable(allProducts);
+
+    } catch (error) {
+        console.error('❌ Error fetching products:', error);
+        showMessageModal('Error', `Error fetching products: ${error.message}`, true);
+        productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Failed to load products.</td></tr>';
+    }
+}
+
+// Render products table
+function renderProductsTable(products) {
+    const productListTableBody = document.getElementById('productListTableBody');
+    productListTableBody.innerHTML = '';
+
+    if (products.length === 0) {
+        productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No products found.</td></tr>';
+        return;
+    }
+
+    products.forEach(product => {
+        const row = productListTableBody.insertRow();
+        const displayImage =
+            (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+            (product.image && product.image.trim() !== '' ? product.image : null) ||
+            `https://placehold.co/300x300?text=No+Img`;
+
+        row.innerHTML = `
+            <td class="py-2 px-4 border-b border-gray-200">
+                <div class="product-list-image-container cursor-pointer" data-image="${displayImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
+                    <img src="${displayImage}" alt="${product.title}" class="product-list-image">
+                </div>
+            </td>
+            <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
+            <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
+            <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
+            <td class="py-2 px-4 border-b border-gray-200">
+                <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
+                <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
+            </td>
+        `;
+    });
+
+    // Add event listeners for the newly created buttons
+    document.querySelectorAll('.edit-product-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const productId = e.target.dataset.id;
+            const product = allProducts.find(p => p._id === productId);
+            if (product) {
+                openEditProductModal(product);
+            }
+        });
+    });
+
+    document.querySelectorAll('.delete-product-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const productIdToDelete = e.target.dataset.id;
+            showConfirmationModal(
+                'Confirm Deletion',
+                'Are you sure you want to delete this product?',
+                () => deleteProduct(productIdToDelete)
+            );
+        });
+    });
+
+    document.querySelectorAll('.product-list-image-container').forEach(container => {
+        container.addEventListener('click', (e) => {
+            const imageUrl = e.currentTarget.dataset.image;
+            const title = e.currentTarget.dataset.title;
+            const description = e.currentTarget.dataset.description;
+            const price = e.currentTarget.dataset.price;
+            openProductImagePopup(imageUrl, title, description, price);
+        });
+    });
+}
+
+function openEditProductModal(product) {
     const editProductModal = document.getElementById('editProductModal');
-    const editProductForm = document.getElementById('editProductForm');
     const editProductIdInput = document.getElementById('editProductId');
     const editProductNameInput = document.getElementById('editProductName');
     const editProductCategorySelect = document.getElementById('editProductCategory');
@@ -89,101 +537,300 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editProductPriceInput = document.getElementById('editProductPrice');
     const editProductAvailabilityCheckbox = document.getElementById('editProductAvailabilityCheckbox');
     const editProductImageUrlInput = document.getElementById('editProductImageUrl');
-    const editProductImageInput = document.getElementById('editProductImage');
     const currentProductImageImg = document.getElementById('currentProductImage');
     const removeProductImageContainer = document.getElementById('removeProductImageContainer');
     const removeProductImageCheckbox = document.getElementById('removeProductImage');
-    const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
 
-    // Product Image Popup Modal
+    editProductIdInput.value = product._id;
+    editProductNameInput.value = product.title;
+    editProductCategorySelect.value = product.category ? product.category._id : '';
+    editProductDescriptionInput.value = product.description || '';
+    editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
+    editProductImageUrlInput.value = product.imageUrl || '';
+    editProductAvailabilityCheckbox.checked = product.isAvailable !== false;
+
+    const displayImage =
+        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+        (product.image && product.image.trim() !== '' ? product.image : null) ||
+        `https://placehold.co/300x300?text=No+Img`;
+    
+    if (displayImage) {
+        currentProductImageImg.src = displayImage;
+        currentProductImageImg.style.display = 'block';
+        removeProductImageContainer.style.display = 'block';
+    } else {
+        currentProductImageImg.src = '';
+        currentProductImageImg.style.display = 'none';
+        removeProductImageContainer.style.display = 'none';
+    }
+    
+    const editProductImageInput = document.getElementById('editProductImage');
+    editProductImageInput.value = '';
+    removeProductImageCheckbox.checked = false;
+
+    editProductModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+async function deleteProduct(id) {
+    try {
+        await apiRequest(`/products/${id}`, 'DELETE', null, true);
+        showMessageModal('Success', 'Product deleted successfully!', false);
+        const productFilterCategorySelect = document.getElementById('productFilterCategory');
+        const productSearchInput = document.getElementById('productSearchInput');
+        await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
+        updateDashboardOverview();
+    } catch (error) {
+        showMessageModal('Error', `Error deleting product: ${error.message}`, true);
+    }
+}
+
+// --- Dashboard Overview Functions ---
+async function updateDashboardOverview() {
+    try {
+        console.log('🔄 Updating dashboard overview...');
+        
+        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        
+        // Update the UI elements
+        const totalProductsCount = document.getElementById('totalProductsCount');
+        const totalCategoriesCount = document.getElementById('totalCategoriesCount');
+        const categoryProductCountsList = document.getElementById('categoryProductCountsList');
+
+        // Fetch and display actual data
+        const productsResponse = await apiRequest('/products/my-store', 'GET', null, true);
+        const categoriesResponse = await apiRequest('/categories/my-store', 'GET', null, true);
+        
+        // Extract products array - handle different response formats
+        let products = [];
+        if (Array.isArray(productsResponse)) {
+            products = productsResponse;
+        } else if (productsResponse && Array.isArray(productsResponse.products)) {
+            products = productsResponse.products;
+        } else if (productsResponse && productsResponse.data) {
+            products = productsResponse.data;
+        } else {
+            products = productsResponse || [];
+        }
+
+        // Extract categories array - handle different response formats
+        let categories = [];
+        if (Array.isArray(categoriesResponse)) {
+            categories = categoriesResponse;
+        } else if (categoriesResponse && Array.isArray(categoriesResponse.categories)) {
+            categories = categoriesResponse.categories;
+        } else if (categoriesResponse && categoriesResponse.data) {
+            categories = categoriesResponse.data;
+        } else {
+            categories = categoriesResponse || [];
+        }
+
+        console.log('🔍 DEBUG - Final Products Count:', products.length);
+        console.log('🔍 DEBUG - Final Categories Count:', categories.length);
+
+        if (totalProductsCount) {
+            totalProductsCount.textContent = products.length;
+        }
+        
+        if (totalCategoriesCount) {
+            totalCategoriesCount.textContent = categories.length;
+        }
+
+        // Calculate and display products per category
+        const categoryCounts = {};
+        categories.forEach(cat => {
+            if (cat && cat._id && cat.name) {
+                categoryCounts[cat._id] = { name: cat.name, count: 0 };
+            }
+        });
+
+        products.forEach(product => {
+            if (product.category) {
+                const categoryId = product.category._id || product.category;
+                if (categoryCounts[categoryId]) {
+                    categoryCounts[categoryId].count++;
+                }
+            }
+        });
+
+        if (categoryProductCountsList) {
+            categoryProductCountsList.innerHTML = '';
+            if (categories.length === 0) {
+                categoryProductCountsList.innerHTML = '<li class="text-gray-200">No categories added yet.</li>';
+            } else {
+                categories.sort((a, b) => a.name.localeCompare(b.name)).forEach(cat => {
+                    if (cat && cat._id && cat.name) {
+                        const count = categoryCounts[cat._id] ? categoryCounts[cat._id].count : 0;
+                        const li = document.createElement('li');
+                        li.classList.add('flex', 'justify-between', 'items-center', 'py-1');
+                        li.innerHTML = `
+                            <span>${cat.name}:</span>
+                            <span class="font-bold">${count}</span>
+                        `;
+                        categoryProductCountsList.appendChild(li);
+                    }
+                });
+            }
+        }
+
+        console.log('✅ Dashboard overview updated successfully');
+
+    } catch (error) {
+        console.error('❌ Error fetching dashboard overview:', error.message);
+        const totalProductsCount = document.getElementById('totalProductsCount');
+        const totalCategoriesCount = document.getElementById('totalCategoriesCount');
+        const categoryProductCountsList = document.getElementById('categoryProductCountsList');
+
+        if (totalProductsCount) totalProductsCount.textContent = 'N/A';
+        if (totalCategoriesCount) totalCategoriesCount.textContent = 'N/A';
+        if (categoryProductCountsList) {
+            categoryProductCountsList.innerHTML = '<li class="text-red-200">Failed to load counts.</li>';
+        }
+    }
+}
+
+// --- Product Image Popup Functions ---
+function openProductImagePopup(imageUrl, title, description, price) {
     const productImagePopupModal = document.getElementById('productImagePopupModal');
     const popupProductImage = document.getElementById('popupProductImage');
     const popupProductTitle = document.getElementById('popupProductTitle');
     const popupProductDescriptionDetail = document.getElementById('popupProductDescriptionDetail');
     const popupProductPriceDetail = document.getElementById('popupProductPriceDetail');
-    const closeProductImagePopupBtn = document.getElementById('closeProductImagePopupBtn');
 
-    // Custom Message/Confirmation Modal References
+    const displayImageUrl = getProxiedImageUrl(imageUrl);
+    popupProductImage.src = displayImageUrl;
+    popupProductTitle.textContent = title;
+    popupProductDescriptionDetail.textContent = description || '';
+
+    if (price !== undefined && price !== null && price !== '') {
+        popupProductPriceDetail.textContent = `Price: ${price}`;
+        popupProductPriceDetail.classList.remove('hidden');
+    } else {
+        popupProductPriceDetail.textContent = '';
+        popupProductPriceDetail.classList.add('hidden');
+    }
+
+    productImagePopupModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeProductImagePopup() {
+    const productImagePopupModal = document.getElementById('productImagePopupModal');
+    const popupProductImage = document.getElementById('popupProductImage');
+    const popupProductTitle = document.getElementById('popupProductTitle');
+    const popupProductDescriptionDetail = document.getElementById('popupProductDescriptionDetail');
+    const popupProductPriceDetail = document.getElementById('popupProductPriceDetail');
+
+    productImagePopupModal.classList.add('hidden');
+    popupProductImage.src = '';
+    popupProductTitle.textContent = '';
+    popupProductDescriptionDetail.textContent = '';
+    popupProductPriceDetail.textContent = '';
+    popupProductPriceDetail.classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+// --- Utility Functions ---
+
+// Function to prepend CORS proxy if the URL is external and not already proxied
+function getProxiedImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('https://corsproxy.io/?')) {
+        return url;
+    }
+    const isCloudinary = url.includes('res.cloudinary.com');
+    const isPlaceholder = url.includes('placehold.co');
+    const isSameOrigin = url.startsWith(window.location.origin);
+
+    if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
+        return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    }
+    return url;
+}
+
+/**
+ * Displays a custom message modal.
+ */
+function showMessageModal(title, message, isError = false, okButtonText = 'OK') {
     const customMessageModal = document.getElementById('customMessageModal');
     const customMessageTitle = document.getElementById('customMessageTitle');
     const customMessageBody = document.getElementById('customMessageBody');
     const customMessageButtons = document.getElementById('customMessageButtons');
 
-    let currentStore = null;
-    let allProducts = []; // Store all products for filtering
+    customMessageTitle.textContent = title;
+    customMessageBody.textContent = message;
+    customMessageButtons.innerHTML = '';
 
-    // --- Utility Functions ---
+    const okBtn = document.createElement('button');
+    okBtn.textContent = okButtonText;
+    okBtn.classList.add('modal-button', 'ok-btn');
+    okBtn.addEventListener('click', () => {
+        customMessageModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    });
+    customMessageButtons.appendChild(okBtn);
 
-    // Function to prepend CORS proxy if the URL is external and not already proxied
-    function getProxiedImageUrl(url) {
-        if (!url) return '';
-        if (url.startsWith('https://corsproxy.io/?')) {
-            return url;
-        }
-        const isCloudinary = url.includes('res.cloudinary.com');
-        const isPlaceholder = url.includes('placehold.co');
-        const isSameOrigin = url.startsWith(window.location.origin);
+    customMessageModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
 
-        if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
-            return `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        }
-        return url;
+/**
+ * Displays a custom confirmation modal.
+ */
+function showConfirmationModal(title, message, onConfirm, onCancel = () => {}, confirmButtonText = 'Yes', cancelButtonText = 'No') {
+    const customMessageModal = document.getElementById('customMessageModal');
+    const customMessageTitle = document.getElementById('customMessageTitle');
+    const customMessageBody = document.getElementById('customMessageBody');
+    const customMessageButtons = document.getElementById('customMessageButtons');
+
+    customMessageTitle.textContent = title;
+    customMessageBody.textContent = message;
+    customMessageButtons.innerHTML = '';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = cancelButtonText;
+    cancelBtn.classList.add('modal-button', 'cancel-btn');
+    cancelBtn.addEventListener('click', () => {
+        customMessageModal.classList.add('hidden');
+        document.body.style.overflow = '';
+        onCancel();
+    });
+    customMessageButtons.appendChild(cancelBtn);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = confirmButtonText;
+    confirmBtn.classList.add('modal-button', 'confirm-btn');
+    confirmBtn.addEventListener('click', () => {
+        customMessageModal.classList.add('hidden');
+        document.body.style.overflow = '';
+        onConfirm();
+    });
+    customMessageButtons.appendChild(confirmBtn);
+
+    customMessageModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+// A simple utility function for clearing messages that are NOT handled by the new modal
+function clearMessage(element) {
+    if (element) {
+        element.textContent = '';
+        element.classList.add('hidden');
     }
+}
 
-    /**
-     * Displays a custom message modal.
-     */
-    function showMessageModal(title, message, isError = false, okButtonText = 'OK') {
-        customMessageTitle.textContent = title;
-        customMessageBody.textContent = message;
-        customMessageButtons.innerHTML = '';
-
-        const okBtn = document.createElement('button');
-        okBtn.textContent = okButtonText;
-        okBtn.classList.add('modal-button', 'ok-btn');
-        okBtn.addEventListener('click', () => {
-            customMessageModal.classList.add('hidden');
-            document.body.style.overflow = '';
-        });
-        customMessageButtons.appendChild(okBtn);
-
-        customMessageModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
-    /**
-     * Displays a custom confirmation modal.
-     */
-    function showConfirmationModal(title, message, onConfirm, onCancel = () => {}, confirmButtonText = 'Yes', cancelButtonText = 'No') {
-        customMessageTitle.textContent = title;
-        customMessageBody.textContent = message;
-        customMessageButtons.innerHTML = '';
-
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = cancelButtonText;
-        cancelBtn.classList.add('modal-button', 'cancel-btn');
-        cancelBtn.addEventListener('click', () => {
-            customMessageModal.classList.add('hidden');
-            document.body.style.overflow = '';
-            onCancel();
-        });
-        customMessageButtons.appendChild(cancelBtn);
-
-        const confirmBtn = document.createElement('button');
-        confirmBtn.textContent = confirmButtonText;
-        confirmBtn.classList.add('modal-button', 'confirm-btn');
-        confirmBtn.addEventListener('click', () => {
-            customMessageModal.classList.add('hidden');
-            document.body.style.overflow = '';
-            onConfirm();
-        });
-        customMessageButtons.appendChild(confirmBtn);
-
-        customMessageModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
+// Initialize event listeners after auth is confirmed
+function initializeEventListeners() {
+    console.log('🔧 Initializing event listeners...');
+    
+    // Check user role
+    const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+    console.log('👤 Initializing event listeners for:', userData ? userData.role : 'unknown');
+    
     // --- Mobile Menu Toggle ---
+    const mobileMenuButton = document.getElementById('mobileMenuButton');
+    const sidebar = document.getElementById('sidebar');
+
     if (mobileMenuButton) {
         mobileMenuButton.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
@@ -203,7 +850,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Section Visibility Management (UPDATED) ---
+    // --- Section Visibility Management ---
     const allSections = document.querySelectorAll('main section[id$="-section"]');
 
     function hideAllSections() {
@@ -224,11 +871,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Event listeners for sidebar links (UPDATED: Simple section switching)
+    // Event listeners for sidebar links
     document.querySelectorAll('.sidebar-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const targetSectionId = e.currentTarget.dataset.target;
+            
+            // Both superadmin and admin can access all sections
             showSection(targetSectionId);
 
             // Update active state for sidebar links
@@ -241,136 +890,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // --- Dashboard Overview Functions ---
-    async function updateDashboardOverview() {
-        try {
-            const products = await apiRequest('/products/my-store', 'GET');
-            const categories = await apiRequest('/categories/my-store', 'GET');
-
-            totalProductsCount.textContent = products.length;
-            totalCategoriesCount.textContent = categories.length;
-
-            // Calculate and display products per category
-            const categoryCounts = {};
-            categories.forEach(cat => {
-                categoryCounts[cat._id] = { name: cat.name, count: 0 };
-            });
-
-            products.forEach(product => {
-                if (product.category && categoryCounts[product.category._id]) {
-                    categoryCounts[product.category._id].count++;
-                }
-            });
-
-            categoryProductCountsList.innerHTML = '';
-            if (categories.length === 0) {
-                categoryProductCountsList.innerHTML = '<li class="text-gray-200">No categories added yet.</li>';
-            } else {
-                categories.sort((a, b) => a.name.localeCompare(b.name)).forEach(cat => {
-                    const li = document.createElement('li');
-                    li.classList.add('flex', 'justify-between', 'items-center', 'py-1');
-                    li.innerHTML = `
-                        <span>${categoryCounts[cat._id].name}:</span>
-                        <span class="font-bold">${categoryCounts[cat._id].count}</span>
-                    `;
-                    categoryProductCountsList.appendChild(li);
-                });
-            }
-
-        } catch (error) {
-            console.error('Error fetching dashboard overview:', error.message);
-            totalProductsCount.textContent = 'N/A';
-            totalCategoriesCount.textContent = 'N/A';
-            categoryProductCountsList.innerHTML = '<li class="text-red-200">Failed to load counts.</li>';
-        }
-    }
-
-    // --- Store Management Functions ---
-    async function fetchStoreDetails() {
-        clearMessage(copyMessage);
-        try {
-            currentStore = await apiRequest('/stores/my-store', 'GET');
-            storeNameInput.value = currentStore.name;
-            storeAddressInput.value = currentStore.address || '';
-            storePhoneInput.value = currentStore.phone || '';
-            storeDescriptionInput.value = currentStore.description || '';
-            storeFacebookInput.value = currentStore.facebookUrl || '';
-            storeTelegramInput.value = currentStore.telegramUrl || '';
-            storeTikTokInput.value = currentStore.tiktokUrl || '';
-            storeWebsiteInput.value = currentStore.websiteUrl || '';
-
-            if (currentStore.logo) {
-                currentLogoImg.src = currentStore.logo;
-                currentLogoImg.style.display = 'block';
-                removeLogoContainer.style.display = 'block';
-                removeStoreLogoCheckbox.checked = false;
-            } else {
-                currentLogoImg.src = '';
-                currentLogoImg.style.display = 'none';
-                removeLogoContainer.style.display = 'none';
-                removeStoreLogoCheckbox.checked = false;
-            }
-
-            currentBannersPreview.innerHTML = '';
-            if (Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
-                currentStore.banner.forEach(url => {
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = 'Store Banner';
-                    img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
-                    currentBannersPreview.appendChild(img);
-                });
-                removeBannerContainer.style.display = 'block';
-                removeStoreBannerCheckbox.checked = false;
-            } else {
-                currentBannersPreview.innerHTML = '';
-                removeBannerContainer.style.display = 'none';
-                removeStoreBannerCheckbox.checked = false;
-            }
-
-            if (currentStore.slug) {
-                const publicMenuUrl = `${window.location.origin}/menu/${currentStore.slug}`;
-                const qrCanvas = window.generateQRCode(publicMenuUrl, qrCodeContainer, 256);
-                if (qrCanvas) {
-                    downloadQrBtn.style.display = 'inline-block';
-                    downloadQrBtn.onclick = () => {
-                        window.downloadCanvasAsPNG(qrCanvas, `${currentStore.name}_menu_qr.png`);
-                    };
-                }
-
-                publicMenuLinkInput.value = publicMenuUrl;
-                copyMenuLinkBtn.style.display = 'inline-block';
-
-            } else {
-                qrCodeContainer.innerHTML = '<p class="text-gray-500">Save store info to generate QR.</p>';
-                downloadQrBtn.style.display = 'none';
-                publicMenuLinkInput.value = 'Link will appear here after saving store info.';
-                copyMenuLinkBtn.style.display = 'none';
-            }
-
-        }
-        catch (error) {
-            showMessageModal('Error', `Error fetching store details: ${error.message}`, true);
-            currentLogoImg.src = '';
-            currentLogoImg.style.display = 'none';
-            removeLogoContainer.style.display = 'none';
-            currentBannersPreview.innerHTML = '';
-            removeBannerContainer.style.display = 'none';
-            qrCodeContainer.innerHTML = '<p class="text-gray-500">Failed to load QR code.</p>';
-            downloadQrBtn.style.display = 'none';
-            publicMenuLinkInput.value = 'Failed to load menu link.';
-            copyMenuLinkBtn.style.display = 'none';
-        }
-    }
-
+    // --- Store Management Event Listeners ---
+    const storeForm = document.getElementById('storeForm');
     if (storeForm) {
         storeForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const storeNameInput = document.getElementById('storeName');
+            const storeAddressInput = document.getElementById('storeAddress');
+            const storePhoneInput = document.getElementById('storePhone');
+            const storeDescriptionInput = document.getElementById('storeDescription');
+            const storeFacebookInput = document.getElementById('storeFacebook');
+            const storeTelegramInput = document.getElementById('storeTelegram');
+            const storeTikTokInput = document.getElementById('storeTikTok');
+            const storeWebsiteInput = document.getElementById('storeWebsite');
+            const storeLogoInput = document.getElementById('storeLogo');
+            const removeStoreLogoCheckbox = document.getElementById('removeStoreLogo');
+            const storeBannerInput = document.getElementById('storeBanner');
+            const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+
+            // Add phone validation check
+            const phone = storePhoneInput.value.trim();
+            
+            // Check length
+            if (phone && phone.length > 50) {
+                showMessageModal('Validation Error', 'Phone number cannot exceed 50 characters.', true);
+                return;
+            }
+
+            // More permissive phone format validation
+            if (phone && !/^[\+]?[0-9\s\-\(\)\.\/]{6,}$/.test(phone)) {
+                showMessageModal('Validation Error', 'Please enter a valid phone number (minimum 6 digits). You can use formats like: +85512345678, 012345678, 097 67 67 854, or 123-456-7890', true);
+                return;
+            }
+
             const formData = new FormData();
             formData.append('name', storeNameInput.value);
             formData.append('address', storeAddressInput.value);
-            formData.append('phone', storePhoneInput.value);
+            formData.append('phone', phone); // Use the validated phone
             formData.append('description', storeDescriptionInput.value);
             formData.append('facebookUrl', storeFacebookInput.value);
             formData.append('telegramUrl', storeTelegramInput.value);
@@ -402,8 +959,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Copy Menu Link functionality
+    const copyMenuLinkBtn = document.getElementById('copyMenuLinkBtn');
     if (copyMenuLinkBtn) {
         copyMenuLinkBtn.addEventListener('click', async () => {
+            const publicMenuLinkInput = document.getElementById('publicMenuLink');
             try {
                 publicMenuLinkInput.select();
                 document.execCommand('copy');
@@ -436,82 +995,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Category Management Functions ---
-    async function fetchCategories() {
-        categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Loading categories...</td></tr>';
-        try {
-            const categories = await apiRequest('/categories/my-store', 'GET');
-            categoryListTableBody.innerHTML = '';
-
-            // Clear all existing options before repopulating
-            productCategorySelect.innerHTML = '<option value="">Select a Category</option>';
-            editProductCategorySelect.innerHTML = '';
-            productFilterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
-
-            if (categories.length === 0) {
-                categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">No categories added yet.</td></tr>';
-                return;
-            }
-
-            categories.forEach(category => {
-                const row = categoryListTableBody.insertRow();
-                row.innerHTML = `
-                    <td class="py-2 px-4 border-b border-gray-200">${category.name}</td>
-                    <td class="py-2 px-4 border-b border-gray-200">
-                        <button data-id="${category._id}" data-name="${category.name}" class="edit-category-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
-                        <button data-id="${category._id}" class="delete-category-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
-                    </td>
-                `;
-
-                // Populating the 'Add Product' category select
-                const optionAdd = document.createElement('option');
-                optionAdd.value = category._id;
-                optionAdd.textContent = category.name;
-                productCategorySelect.appendChild(optionAdd);
-
-                // Populating the 'Edit Product' category select
-                const optionEdit = document.createElement('option');
-                optionEdit.value = category._id;
-                optionEdit.textContent = category.name;
-                editProductCategorySelect.appendChild(optionEdit);
-
-                // Populating the 'Filter by Category' select
-                const optionFilter = document.createElement('option');
-                optionFilter.value = category._id;
-                optionFilter.textContent = category.name;
-                productFilterCategorySelect.appendChild(optionFilter);
-            });
-
-            // Re-select the previously chosen filter category after repopulating
-            const currentFilterValue = productFilterCategorySelect.dataset.currentFilter || 'all';
-            productFilterCategorySelect.value = currentFilterValue;
-
-            document.querySelectorAll('.edit-category-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    openEditCategoryModal(e.target.dataset.id, e.target.dataset.name);
-                });
-            });
-
-            document.querySelectorAll('.delete-category-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const categoryIdToDelete = e.target.dataset.id;
-                    showConfirmationModal(
-                        'Confirm Deletion',
-                        'Are you sure you want to delete this category? Products in this category will become uncategorized.',
-                        () => deleteCategory(categoryIdToDelete)
-                    );
-                });
-            });
-
-        } catch (error) {
-            showMessageModal('Error', `Error fetching categories: ${error.message}`, true);
-            categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Failed to load categories.</td></tr>';
-        }
-    }
-
+    // --- Category Management Event Listeners ---
+    const categoryForm = document.getElementById('categoryForm');
     if (categoryForm) {
         categoryForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const categoryNameInput = document.getElementById('categoryName');
             const name = categoryNameInput.value.trim();
             if (!name) {
                 showMessageModal('Input Error', 'Category name cannot be empty.', true);
@@ -519,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             try {
-                await apiRequest('/categories', 'POST', { name });
+                await apiRequest('/categories', 'POST', { name }, true);
                 showMessageModal('Success', 'Category added successfully!', false);
                 categoryNameInput.value = '';
                 await fetchCategories();
@@ -531,21 +1020,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function openEditCategoryModal(id, name) {
-        editCategoryIdInput.value = id;
-        editCategoryNameInput.value = name;
-        editCategoryModal.classList.remove('hidden');
-    }
-
+    const cancelEditCategoryBtn = document.getElementById('cancelEditCategoryBtn');
     if (cancelEditCategoryBtn) {
         cancelEditCategoryBtn.addEventListener('click', () => {
+            const editCategoryModal = document.getElementById('editCategoryModal');
             editCategoryModal.classList.add('hidden');
         });
     }
 
+    const editCategoryForm = document.getElementById('editCategoryForm');
     if (editCategoryForm) {
         editCategoryForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const editCategoryIdInput = document.getElementById('editCategoryId');
+            const editCategoryNameInput = document.getElementById('editCategoryName');
             const id = editCategoryIdInput.value;
             const name = editCategoryNameInput.value.trim();
             if (!name) {
@@ -554,8 +1042,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             try {
-                await apiRequest(`/categories/${id}`, 'PUT', { name });
+                await apiRequest(`/categories/${id}`, 'PUT', { name }, true);
                 showMessageModal('Success', 'Category updated successfully!', false);
+                const editCategoryModal = document.getElementById('editCategoryModal');
                 editCategoryModal.classList.add('hidden');
                 await fetchCategories();
                 await fetchProductsForDisplay();
@@ -566,119 +1055,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    async function deleteCategory(id) {
-        try {
-            await apiRequest(`/categories/${id}`, 'DELETE');
-            showMessageModal('Success', 'Category deleted successfully!', false);
-            await fetchCategories();
-            await fetchProductsForDisplay();
-            updateDashboardOverview();
-        } catch (error) {
-            showMessageModal('Error', `Error deleting category: ${error.message}`, true);
-        }
-    }
-
-    // --- Product Management Functions ---
-
-    // Fetch products for display in "Your Products" section
-    async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
-        productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading products...</td></tr>';
-        try {
-            let url = '/products/my-store';
-            const queryParams = new URLSearchParams();
-
-            if (categoryId && categoryId !== 'all') {
-                queryParams.append('category', categoryId);
-            }
-            if (searchTerm) {
-                queryParams.append('search', searchTerm);
-            }
-
-            if (queryParams.toString()) {
-                url += `?${queryParams.toString()}`;
-            }
-
-            console.log('Frontend: Fetching products with URL:', url);
-            allProducts = await apiRequest(url, 'GET');
-            console.log('Frontend: Received products for rendering:', allProducts);
-
-            renderProductsTable(allProducts);
-
-        } catch (error) {
-            showMessageModal('Error', `Error fetching products: ${error.message}`, true);
-            productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Failed to load products.</td></tr>';
-        }
-    }
-
-    // Render products table
-    function renderProductsTable(products) {
-        productListTableBody.innerHTML = '';
-
-        if (products.length === 0) {
-            productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No products found.</td></tr>';
-            return;
-        }
-
-        products.forEach(product => {
-            const row = productListTableBody.insertRow();
-            const displayImage =
-                (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-                (product.image && product.image.trim() !== '' ? product.image : null) ||
-                `https://placehold.co/300x300?text=No+Img`;
-
-            row.innerHTML = `
-                <td class="py-2 px-4 border-b border-gray-200">
-                    <div class="product-list-image-container cursor-pointer" data-image="${displayImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
-                        <img src="${displayImage}" alt="${product.title}" class="product-list-image">
-                    </div>
-                </td>
-                <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
-                <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
-                <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
-                <td class="py-2 px-4 border-b border-gray-200">
-                    <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
-                    <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
-                </td>
-            `;
-        });
-
-        // Add event listeners for the newly created buttons
-        document.querySelectorAll('.edit-product-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productId = e.target.dataset.id;
-                const product = allProducts.find(p => p._id === productId);
-                if (product) {
-                    openEditProductModal(product);
-                }
-            });
-        });
-
-        document.querySelectorAll('.delete-product-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productIdToDelete = e.target.dataset.id;
-                showConfirmationModal(
-                    'Confirm Deletion',
-                    'Are you sure you want to delete this product?',
-                    () => deleteProduct(productIdToDelete)
-                );
-            });
-        });
-
-        document.querySelectorAll('.product-list-image-container').forEach(container => {
-            container.addEventListener('click', (e) => {
-                const imageUrl = e.currentTarget.dataset.image;
-                const title = e.currentTarget.dataset.title;
-                const description = e.currentTarget.dataset.description;
-                const price = e.currentTarget.dataset.price;
-                openProductImagePopup(imageUrl, title, description, price);
-            });
-        });
-    }
-
-    // Add Product Form
+    // --- Product Management Event Listeners ---
+    const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            const productNameInput = document.getElementById('productName');
+            const productCategorySelect = document.getElementById('productCategory');
+            const productDescriptionInput = document.getElementById('productDescription');
+            const productPriceInput = document.getElementById('productPrice');
+            const productImageUrlInput = document.getElementById('productImageUrl');
+            const productImageInput = document.getElementById('productImage');
+            const newProductImagePreview = document.getElementById('newProductImagePreview');
 
             const formData = new FormData();
             formData.append('title', productNameInput.value);
@@ -699,6 +1088,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 productImageUrlInput.value = '';
                 newProductImagePreview.src = '';
                 newProductImagePreview.classList.add('hidden');
+                const productFilterCategorySelect = document.getElementById('productFilterCategory');
+                const productSearchInput = document.getElementById('productSearchInput');
                 await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
                 updateDashboardOverview();
             } catch (error) {
@@ -708,9 +1099,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Handle preview for file input (for add product form)
+    const productImageInput = document.getElementById('productImage');
     if (productImageInput) {
         productImageInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
+            const newProductImagePreview = document.getElementById('newProductImagePreview');
+            const productImageUrlInput = document.getElementById('productImageUrl');
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -728,9 +1122,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Live preview for Product Image URL input (Add Product Form)
+    const productImageUrlInput = document.getElementById('productImageUrl');
     if (productImageUrlInput) {
         productImageUrlInput.addEventListener('input', () => {
             const url = productImageUrlInput.value.trim();
+            const newProductImagePreview = document.getElementById('newProductImagePreview');
+            const productImageInput = document.getElementById('productImage');
             if (url) {
                 const proxiedUrl = getProxiedImageUrl(url);
                 newProductImagePreview.src = proxiedUrl;
@@ -748,48 +1145,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Edit Product Modal Functions
-    function openEditProductModal(product) {
-        editProductIdInput.value = product._id;
-        editProductNameInput.value = product.title;
-        editProductCategorySelect.value = product.category ? product.category._id : '';
-        editProductDescriptionInput.value = product.description || '';
-        editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
-        editProductImageUrlInput.value = product.imageUrl || '';
-        editProductAvailabilityCheckbox.checked = product.isAvailable !== false;
-
-        const displayImage =
-            (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-            (product.image && product.image.trim() !== '' ? product.image : null) ||
-            `https://placehold.co/300x300?text=No+Img`;
-        
-        if (displayImage) {
-            currentProductImageImg.src = displayImage;
-            currentProductImageImg.style.display = 'block';
-            removeProductImageContainer.style.display = 'block';
-        } else {
-            currentProductImageImg.src = '';
-            currentProductImageImg.style.display = 'none';
-            removeProductImageContainer.style.display = 'none';
-        }
-        
-        editProductImageInput.value = '';
-        removeProductImageCheckbox.checked = false;
-
-        editProductModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
+    // Edit Product Modal Event Listeners
+    const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
     if (cancelEditProductBtn) {
         cancelEditProductBtn.addEventListener('click', () => {
+            const editProductModal = document.getElementById('editProductModal');
             editProductModal.classList.add('hidden');
             document.body.style.overflow = '';
         });
     }
 
+    const editProductForm = document.getElementById('editProductForm');
     if (editProductForm) {
         editProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            const editProductIdInput = document.getElementById('editProductId');
+            const editProductNameInput = document.getElementById('editProductName');
+            const editProductCategorySelect = document.getElementById('editProductCategory');
+            const editProductDescriptionInput = document.getElementById('editProductDescription');
+            const editProductPriceInput = document.getElementById('editProductPrice');
+            const editProductAvailabilityCheckbox = document.getElementById('editProductAvailabilityCheckbox');
+            const editProductImageUrlInput = document.getElementById('editProductImageUrl');
+            const editProductImageInput = document.getElementById('editProductImage');
+            const removeProductImageCheckbox = document.getElementById('removeProductImage');
 
             const formData = new FormData();
             formData.append('title', editProductNameInput.value);
@@ -809,8 +1188,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await apiRequest(`/products/${editProductIdInput.value}`, 'PUT', formData, true, true);
                 showMessageModal('Success', 'Product updated successfully!', false);
+                const editProductModal = document.getElementById('editProductModal');
                 editProductModal.classList.add('hidden');
                 document.body.style.overflow = '';
+                const productFilterCategorySelect = document.getElementById('productFilterCategory');
+                const productSearchInput = document.getElementById('productSearchInput');
                 await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
                 updateDashboardOverview();
             } catch (error) {
@@ -819,21 +1201,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    async function deleteProduct(id) {
-        try {
-            await apiRequest(`/products/${id}`, 'DELETE');
-            showMessageModal('Success', 'Product deleted successfully!', false);
-            await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
-            updateDashboardOverview();
-        } catch (error) {
-            showMessageModal('Error', `Error deleting product: ${error.message}`, true);
-        }
-    }
-
     // Event listener for product category filter
+    const productFilterCategorySelect = document.getElementById('productFilterCategory');
     if (productFilterCategorySelect) {
         productFilterCategorySelect.addEventListener('change', () => {
             const selectedCategoryId = productFilterCategorySelect.value;
+            const productSearchInput = document.getElementById('productSearchInput');
             const currentSearchTerm = productSearchInput.value.trim();
             productFilterCategorySelect.dataset.currentFilter = selectedCategoryId;
             console.log('Frontend: Category filter changed to:', selectedCategoryId);
@@ -842,47 +1215,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Event listener for product search input
+    const productSearchInput = document.getElementById('productSearchInput');
     if (productSearchInput) {
         productSearchInput.addEventListener('input', () => {
             const currentSearchTerm = productSearchInput.value.trim();
+            const productFilterCategorySelect = document.getElementById('productFilterCategory');
             const selectedCategoryId = productFilterCategorySelect.value;
             console.log('Frontend: Search term changed to:', currentSearchTerm);
             fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
         });
     }
 
-    // --- Product Image Popup Functions ---
-    function openProductImagePopup(imageUrl, title, description, price) {
-        const displayImageUrl = getProxiedImageUrl(imageUrl);
-        popupProductImage.src = displayImageUrl;
-        popupProductTitle.textContent = title;
-        popupProductDescriptionDetail.textContent = description || '';
-
-        if (price !== undefined && price !== null && price !== '') {
-            popupProductPriceDetail.textContent = `Price: ${price}`;
-            popupProductPriceDetail.classList.remove('hidden');
-        } else {
-            popupProductPriceDetail.textContent = '';
-            popupProductPriceDetail.classList.add('hidden');
-        }
-
-        productImagePopupModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeProductImagePopup() {
-        productImagePopupModal.classList.add('hidden');
-        popupProductImage.src = '';
-        popupProductTitle.textContent = '';
-        popupProductDescriptionDetail.textContent = '';
-        popupProductPriceDetail.textContent = '';
-        popupProductPriceDetail.classList.add('hidden');
-        document.body.style.overflow = '';
-    }
-
+    // Product Image Popup Event Listeners
+    const closeProductImagePopupBtn = document.getElementById('closeProductImagePopupBtn');
     if (closeProductImagePopupBtn) {
         closeProductImagePopupBtn.addEventListener('click', closeProductImagePopup);
     }
+    const productImagePopupModal = document.getElementById('productImagePopupModal');
     if (productImagePopupModal) {
         productImagePopupModal.addEventListener('click', (e) => {
             if (e.target === productImagePopupModal) {
@@ -891,27 +1240,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Initial Data Load on Page Load ---
-    (async () => {
-        // Set initial active state for Dashboard Overview
-        const initialLink = document.querySelector('.sidebar-link[data-target="dashboard-overview-section"]');
-        if (initialLink) {
-            initialLink.classList.add('bg-gray-700', 'text-blue-300');
-            initialLink.classList.remove('hover:bg-gray-700', 'hover:text-blue-300');
+    // Logout functionality
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                console.log('🚪 Logging out from admin...');
+                await apiRequest('/auth/logout', 'POST', {}, true);
+            } catch (error) {
+                console.warn('Logout API call failed:', error.message);
+            } finally {
+                window.clearStoredAuth();
+                window.location.href = '/login';
+            }
+        });
+    }
+
+    // Set initial active state for Dashboard Overview
+    const initialLink = document.querySelector('.sidebar-link[data-target="dashboard-overview-section"]');
+    if (initialLink) {
+        initialLink.classList.add('bg-gray-700', 'text-blue-300');
+        initialLink.classList.remove('hover:bg-gray-700', 'hover:text-blue-300');
+    }
+
+    // Show only the dashboard overview section initially
+    showSection('dashboard-overview-section'); 
+}
+
+// Start the application when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 Admin page DOM loaded');
+    
+    // Wait a bit for auth.js to load, then initialize
+    setTimeout(() => {
+        if (window.getStoredToken && window.getStoredUserData) {
+            initializeAdminDashboard();
+        } else {
+            console.error('❌ Auth functions not available, retrying...');
+            // Retry after a delay
+            setTimeout(() => {
+                if (window.getStoredToken && window.getStoredUserData) {
+                    initializeAdminDashboard();
+                } else {
+                    console.error('❌ Auth functions still not available, page may not work properly');
+                    // Show error to user
+                    showMessageModal('Error', 'Authentication system not loaded. Please refresh the page.', true);
+                }
+            }, 1000);
         }
-
-        // Show only the dashboard overview section initially
-        showSection('dashboard-overview-section'); 
-
-        await fetchStoreDetails();
-        await fetchCategories();
-        await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
-        await updateDashboardOverview();
-    })();
+    }, 300);
 });
 
-// A simple utility function for clearing messages that are NOT handled by the new modal
-function clearMessage(element) {
-    element.textContent = '';
-    element.classList.add('hidden');
-}
+// Make functions globally available
+window.setActiveUserForAdminPage = setActiveUserForAdminPage;
+window.initializeAdminDashboard = initializeAdminDashboard;

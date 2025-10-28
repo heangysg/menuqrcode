@@ -112,6 +112,14 @@
                     <label for="adminPassword" class="block text-gray-700 text-sm font-semibold mb-2 font-bold">Password:</label>
                     <input type="password" id="adminPassword" name="password" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="••••••••">
                 </div>
+                <!-- In the Create New Admin section, add this field -->
+                    <div>
+                        <label for="adminSlug" class="block text-gray-700 text-sm font-semibold mb-2 font-bold">Store Slug URL:</label>
+                        <input type="text" id="adminSlug" name="slug" 
+                            class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" 
+                            placeholder="ysg (letters, numbers, hyphens only)">
+                        <p class="text-xs text-gray-500 mt-1">Unique URL for menu: yoursite.com/menu/<span id="slugPreview" class="font-mono">ysg</span></p>
+                    </div>
                 <div>
                     <label for="confirmAdminPassword" class="block text-gray-700 text-sm font-semibold mb-2 font-bold">Confirm Password:</label>
                     <input type="password" id="confirmAdminPassword" name="confirmPassword" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="••••••••">
@@ -388,10 +396,18 @@
                         <label for="editAdminEmail" class="block text-gray-700 text-sm font-semibold mb-2 font-bold">Email:</label>
                         <input type="email" id="editAdminEmail" name="email" required class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200">
                     </div>
+                                <div>
+                <label for="editAdminSlug" class="block text-gray-700 text-sm font-semibold mb-2 font-bold">Store Slug URL:</label>
+                <input type="text" id="editAdminSlug" name="slug" 
+                    class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                    placeholder="ysg">
+                <p class="text-xs text-gray-500 mt-1">Unique URL for menu: yoursite.com/menu/<span id="editSlugPreview" class="font-mono">ysg</span></p>
+            </div>
                     <div>
                         <label for="editAdminPassword" class="block text-gray-700 text-sm font-semibold mb-2 font-bold">New Password (optional):</label>
                         <input type="password" id="editAdminPassword" name="password" class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="Leave blank to keep current password">
                     </div>
+                    
                     <div class="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
                         <button type="button" id="cancelEditBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 transform hover:scale-105">
                             Cancel
@@ -1299,6 +1315,24 @@
                 });
             }
         });
+
+        document.addEventListener('DOMContentLoaded', function() {
+    console.log('🛡️ Superadmin page loaded, checking authentication...');
+    
+    // Wait a bit for all scripts to load
+    setTimeout(() => {
+        const requiredRole = 'superadmin';
+        console.log('📄 Page authentication requirement:', requiredRole);
+        
+        // Check authentication
+        if (window.checkAuthAndRedirect) {
+            window.checkAuthAndRedirect(requiredRole);
+        } else {
+            console.error('❌ Auth functions not loaded, redirecting to login');
+            window.location.href = '/login';
+        }
+    }, 200);
+});
     </script>
 
     <!-- Corrected order: api.js BEFORE auth.js and superadmin.js -->

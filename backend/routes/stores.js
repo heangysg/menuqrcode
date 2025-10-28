@@ -25,7 +25,7 @@ const upload = multer({
 // @desc    Get store details for the authenticated admin
 // @route   GET /api/stores/my-store
 // @access  Private (Admin only)
-router.get('/my-store', protect, authorizeRoles('admin'), async (req, res) => {
+router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (req, res) => {
     try {
         const store = await Store.findOne({ admin: req.user._id });
         if (!store) {
@@ -42,7 +42,7 @@ router.get('/my-store', protect, authorizeRoles('admin'), async (req, res) => {
 // @route   PUT /api/stores/my-store
 // @access  Private (Admin only)
 // Using .fields() for multiple file uploads (logo and multiple banners)
-router.put('/my-store', protect, authorizeRoles('admin'), upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 3 }]), async (req, res) => {
+                router.put('/my-store', protect, authorizeRoles('admin', 'superadmin'), upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 3 }]), async (req, res) => {
     try {
         let store = await Store.findOne({ admin: req.user._id });
 
@@ -53,7 +53,8 @@ router.put('/my-store', protect, authorizeRoles('admin'), upload.fields([{ name:
         // Destructure all fields, including new ones
         const { name, address, phone, description, facebookUrl, telegramUrl, tiktokUrl, websiteUrl } = req.body;
 
-        // Update basic text fields
+        // IMPORTANT: Store name can be updated by admin, but slug remains unchanged
+        // The slug is now controlled only by superadmin through the users.js routes
         store.name = name !== undefined ? name : store.name;
         store.address = address !== undefined ? address : store.address;
         store.phone = phone !== undefined ? phone : store.phone;
@@ -63,7 +64,8 @@ router.put('/my-store', protect, authorizeRoles('admin'), upload.fields([{ name:
         store.tiktokUrl = tiktokUrl !== undefined ? tiktokUrl : store.tiktokUrl;
         store.websiteUrl = websiteUrl !== undefined ? websiteUrl : store.websiteUrl;
 
-        // The pre-save hook in the Store model will handle updating the slug if 'name' is modified.
+        // NOTE: The slug field is NOT updated here - it remains as set by superadmin
+        // This ensures the URL stays consistent even if admin changes store name
 
         // Handle logo upload or removal
         if (req.files && req.files.logo && req.files.logo[0]) {
@@ -199,6 +201,111 @@ router.get('/public/slug/:slug', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching public store by slug:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Get all stores (Superadmin only - for managing slugs)
+// @route   GET /api/stores
+// @access  Private (Superadmin only)
+router.get('/', protect, authorizeRoles('superadmin'), async (req, res) => {
+    try {
+        const stores = await Store.find()
+            .populate('admin', 'name email')
+            .sort({ createdAt: -1 });
+        
+        res.json({
+            stores,
+            total: stores.length
+        });
+    } catch (error) {
+        console.error('Error fetching stores:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Update store slug (Superadmin only)
+// @route   PUT /api/stores/:id/slug
+// @access  Private (Superadmin only)
+router.put('/:id/slug', protect, authorizeRoles('superadmin'), async (req, res) => {
+    try {
+        const { slug } = req.body;
+        
+        if (!slug) {
+            return res.status(400).json({ message: 'Slug is required' });
+        }
+
+        // Validate slug format
+        const slugRegex = /^[a-z0-9-]+$/;
+        if (!slugRegex.test(slug)) {
+            return res.status(400).json({ 
+                message: 'Slug can only contain lowercase letters, numbers, and hyphens' 
+            });
+        }
+
+        if (slug.length < 2 || slug.length > 50) {
+            return res.status(400).json({ 
+                message: 'Slug must be between 2 and 50 characters' 
+            });
+        }
+
+        const store = await Store.findById(req.params.id);
+        
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        // Check if slug is already in use by another store
+        if (slug !== store.slug) {
+            const existingStore = await Store.findOne({ 
+                slug: slug,
+                _id: { $ne: store._id }
+            });
+            
+            if (existingStore) {
+                return res.status(409).json({ message: 'Slug is already in use by another store' });
+            }
+        }
+
+        // Update the slug
+        store.slug = slug.toLowerCase().trim();
+        await store.save();
+
+        res.json({
+            _id: store._id,
+            name: store.name,
+            slug: store.slug,
+            admin: store.admin,
+            message: 'Store slug updated successfully'
+        });
+
+    } catch (error) {
+        console.error('Error updating store slug:', error);
+        
+        if (error.name === 'ValidationError') {
+            const errors = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({ message: `Validation error: ${errors.join(', ')}` });
+        }
+        
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Get store by ID (Superadmin only)
+// @route   GET /api/stores/:id
+// @access  Private (Superadmin only)
+router.get('/:id', protect, authorizeRoles('superadmin'), async (req, res) => {
+    try {
+        const store = await Store.findById(req.params.id)
+            .populate('admin', 'name email');
+        
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        res.json(store);
+    } catch (error) {
+        console.error('Error fetching store:', error);
         res.status(500).json({ message: error.message });
     }
 });

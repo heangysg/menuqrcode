@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - QR Digital Menu</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -714,6 +713,11 @@
                 </div>
         </div>
     </div>
+
+    <script>
+    // Suppress Tailwind CSS warning
+    window.tailwind = { config: { suppress: true } };
+</script>
 
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>

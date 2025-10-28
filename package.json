@@ -1,17 +1,19 @@
-    {
-      "name": "qr-digital-menu-system",
-      "version": "1.0.0",
-      "description": "QR Digital Menu Display System - Root Project",
-      "main": "index.html",
-      "scripts": {
-        "tailwind:build": "npx tailwindcss -i ./frontend/css/style.css -o ./frontend/css/dist.css --minify",
-        "tailwind:watch": "npx tailwindcss -i ./frontend/css/style.css -o ./frontend/css/dist.css --watch"
-      },
-      "keywords": [],
-      "author": "",
-      "license": "ISC",
-      "devDependencies": {
-        "tailwindcss": "^3.x.x"
-      }
-    }
-    
+{
+  "name": "qr-digital-menu-system",
+  "version": "1.0.0",
+  "description": "QR Digital Menu Display System - Root Project",
+  "main": "index.html",
+  "scripts": {
+    "tailwind:build": "npx tailwindcss -i ./frontend/css/style.css -o ./frontend/css/dist.css --minify",
+    "tailwind:watch": "npx tailwindcss -i ./frontend/css/style.css -o ./frontend/css/dist.css --watch",
+    "install-backend": "cd backend && npm install",
+    "dev": "cd backend && npm run dev",
+    "start": "cd backend && npm start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

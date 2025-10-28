@@ -854,18 +854,18 @@
                 <p id="popupProductPrice" class="text-lg font-bold text-orange-600"></p> <!-- Price element with orange color -->
             </div>
             
-            <!-- UPDATED: Only Social Media Icons (Facebook, TikTok, Telegram) -->
-            <div class="social-media-icons">
-                <a href="https://www.facebook.com/profile.php?id=61560948651091" class="social-icon-modal facebook" title="Share on Facebook">
-                    <i class="fab fa-facebook-f"></i>
-                </a>
-                <a href="https://www.tiktok.com/@spare_part_center" class="social-icon-modal tiktok" title="Follow on TikTok">
-                    <i class="fab fa-tiktok"></i>
-                </a>
-                <a href="https://t.me/sparepartcenter" class="social-icon-modal telegram" title="Message on Telegram">
-                    <i class="fab fa-telegram"></i>
-                </a>
-            </div>
+                                        <!-- Replace the hardcoded social media section in menu.html -->
+<div class="social-media-icons">
+    <a href="#" class="social-icon-modal facebook" title="Follow on Facebook" style="display: none;">
+        <i class="fab fa-facebook-f"></i>
+    </a>
+    <a href="#" class="social-icon-modal tiktok" title="Follow on TikTok" style="display: none;">
+        <i class="fab fa-tiktok"></i>
+    </a>
+    <a href="#" class="social-icon-modal telegram" title="Message on Telegram" style="display: none;">
+        <i class="fab fa-telegram"></i>
+    </a>
+</div>
         </div>
     </div>
 
@@ -962,6 +962,24 @@
     <button id="fabScrollTop" class="fab-top hidden" aria-label="Scroll to top">
         <i class="fas fa-chevron-up"></i>
     </button>
-
+<!-- NEW: Bottom Nav Toggle Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const navToggleBtn = document.getElementById('navToggleBtn');
+        const bottomNav = document.querySelector('.bottom-nav');
+        
+        if (navToggleBtn && bottomNav) {
+            navToggleBtn.addEventListener('click', function() {
+                bottomNav.classList.toggle('hidden');
+                this.classList.toggle('rotated');
+                
+                // Update tooltip text
+                const isHidden = bottomNav.classList.contains('hidden');
+                this.setAttribute('title', isHidden ? 'Show Navigation' : 'Hide Navigation');
+            });
+        }
+    });
+</script>
 </body>
+
 </html>
