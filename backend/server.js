@@ -116,9 +116,24 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static assets
+// ---- CLEAN URL HANDLING ----
+
+// Redirect .html URLs to clean URLs (EXCEPT index.html which we handle separately)
+app.use((req, res, next) => {
+    if (req.path.endsWith('.html') && req.path !== '/index.html') {
+        const newPath = req.path.slice(0, -5);
+        return res.redirect(301, newPath);
+    }
+    next();
+});
+
+// Redirect index.html to root
+app.get('/index.html', (req, res) => {
+    res.redirect(301, '/');
+});
+
+// Serve static assets (CSS, JS, images)
 app.use(express.static(path.join(__dirname, '../frontend')));
-app.use('/menu', express.static(path.join(__dirname, '../frontend')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -127,23 +142,9 @@ app.use('/api/stores', storeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 
-// ---- CLEAN URL HANDLING ----
+// ---- PAGE ROUTES ----
 
-// Redirect requests ending with .html to clean URLs
-app.use((req, res, next) => {
-    if (req.path.endsWith('.html')) {
-        const newPath = req.path.slice(0, -5);
-        return res.redirect(301, newPath);
-    }
-    next();
-});
-
-// Pretty URL for menu with slug
-app.get('/menu/:slug', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/menu.html'));
-});
-
-// Serve specific pages
+// Serve specific pages with clean URLs
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
@@ -160,7 +161,12 @@ app.get('/superadmin', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/superadmin.html'));
 });
 
-app.get('/menu_display', (req, res) => {
+app.get('/menu', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/menu.html'));
+});
+
+// Pretty URL for menu with slug
+app.get('/menu/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/menu.html'));
 });
 
@@ -204,4 +210,5 @@ app.listen(PORT, () => {
     console.log(`🔗 API: http://localhost:${PORT}/api`);
     console.log(`⚙️  Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✅ Rate limiting: DISABLED (Development mode)`);
+    console.log(`✅ Clean URLs enabled: .html extensions are automatically redirected`);
 });

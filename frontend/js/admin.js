@@ -12,8 +12,242 @@ function getOptimizedImageUrl(url) {
 // Global variables
 let currentStore = null;
 let allProducts = []; // Store all products for filtering
+let currentPage = 1; // 🆕 Pagination current page
+let productsPerPage = 8; // 🆕 8 products per page
 
-    // SIMPLIFIED - Remove the complex multi-user logic
+// 🆕 Pagination Functions
+function updatePaginationControls(pagination) {
+    const paginationContainer = document.getElementById('paginationContainer');
+    
+    if (!paginationContainer) {
+        createPaginationContainer();
+        return;
+    }
+
+    const { page, pages, total } = pagination || {};
+    
+    if (!page || !pages || pages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+
+    paginationContainer.innerHTML = `
+        <div class="flex items-center justify-between mt-6">
+            <div class="text-sm text-gray-700">
+                Showing ${((page - 1) * productsPerPage) + 1} to ${Math.min(page * productsPerPage, total)} of ${total} products
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''} 
+                    class="px-3 py-1 rounded border ${page <= 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+                    Previous
+                </button>
+                
+                ${generatePageNumbers(page, pages)}
+                
+                <button onclick="changePage(${page + 1})" ${page >= pages ? 'disabled' : ''} 
+                    class="px-3 py-1 rounded border ${page >= pages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+                    Next
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function generatePageNumbers(currentPage, totalPages) {
+    let pages = [];
+    
+    // Always show first page
+    pages.push(1);
+    
+    // Calculate range around current page
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+    
+    // Add ellipsis if needed
+    if (start > 2) pages.push('...');
+    
+    // Add pages in range
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    
+    // Add ellipsis if needed
+    if (end < totalPages - 1) pages.push('...');
+    
+    // Always show last page if there's more than one page
+    if (totalPages > 1) pages.push(totalPages);
+    
+    return pages.map(page => {
+        if (page === '...') {
+            return '<span class="px-2 py-1">...</span>';
+        }
+        return `
+            <button onclick="changePage(${page})" 
+                class="px-3 py-1 rounded border ${page === currentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+                ${page}
+            </button>
+        `;
+    }).join('');
+}
+
+function changePage(newPage) {
+    if (newPage === currentPage) return;
+    
+    currentPage = newPage;
+    const productFilterCategorySelect = document.getElementById('productFilterCategory');
+    const productSearchInput = document.getElementById('productSearchInput');
+    
+    fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
+    
+    // Scroll to top of products section
+    document.getElementById('your-products-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function createPaginationContainer() {
+    const productsSection = document.getElementById('your-products-section');
+    if (!productsSection) return;
+    
+    // Add pagination container after the products table
+    const table = productsSection.querySelector('table');
+    if (table) {
+        const paginationDiv = document.createElement('div');
+        paginationDiv.id = 'paginationContainer';
+        paginationDiv.className = 'mt-6';
+        table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+    }
+}
+
+function clearPaginationControls() {
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer) {
+        paginationContainer.innerHTML = '';
+    }
+}
+
+// 🆕 Reset to page 1 when filtering or searching
+function resetToFirstPage() {
+    currentPage = 1;
+}
+
+// ADD: Improved Telegram Links Management Functions
+function initializeTelegramLinks() {
+    const container = document.getElementById('telegramLinksContainer');
+    const addBtn = document.getElementById('addTelegramLinkBtn');
+    
+    if (!container || !addBtn) {
+        console.log('❌ Telegram links container or add button not found');
+        return;
+    }
+    
+    // Clear existing content
+    container.innerHTML = '';
+    
+    // Add event listener for add button
+    addBtn.addEventListener('click', addTelegramLinkField);
+    
+    // Load existing Telegram links from currentStore
+    if (currentStore && currentStore.telegramLinks && currentStore.telegramLinks.length > 0) {
+        console.log('📱 Loading existing Telegram links:', currentStore.telegramLinks);
+        currentStore.telegramLinks.forEach(link => {
+            addTelegramLinkField(link.name, link.url);
+        });
+    } else {
+        console.log('📱 No existing Telegram links found');
+        // Add one empty field by default
+        addTelegramLinkField();
+    }
+}
+
+function addTelegramLinkField(name = '', url = '') {
+    const container = document.getElementById('telegramLinksContainer');
+    if (!container) return;
+    
+    // Check if we've reached the maximum (5 links)
+    const existingLinks = container.querySelectorAll('.telegram-link-item');
+    if (existingLinks.length >= 5) {
+        showMessageModal('Limit Reached', 'You can only add up to 5 Telegram links.', true);
+        return;
+    }
+    
+    const linkId = Date.now(); // Simple unique ID
+    const linkItem = document.createElement('div');
+    linkItem.className = 'telegram-link-item';
+    linkItem.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+            <div>
+                <label class="block text-gray-700 text-sm font-semibold mb-2">Agent Name:</label>
+                <input type="text" class="telegram-link-name telegram-link-input" 
+                    placeholder="e.g., Sales Agent 1" value="${name}" maxlength="50" required>
+                <p class="text-xs text-gray-500 mt-1">Name to display for this agent</p>
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-semibold mb-2">Telegram URL:</label>
+                <input type="url" class="telegram-link-url telegram-link-input" 
+                    placeholder="https://t.me/username" value="${url}" required>
+                <p class="text-xs text-gray-500 mt-1">Full Telegram profile URL (https://t.me/username)</p>
+            </div>
+        </div>
+        <button type="button" class="remove-telegram-link">
+            <i class="fas fa-trash mr-1"></i>Remove Link
+        </button>
+    `;
+    
+    container.appendChild(linkItem);
+    
+    // Add event listener for remove button
+    const removeBtn = linkItem.querySelector('.remove-telegram-link');
+    removeBtn.addEventListener('click', function() {
+        linkItem.remove();
+        updateAddButtonVisibility();
+    });
+
+    updateAddButtonVisibility();
+}
+
+function updateAddButtonVisibility() {
+    const container = document.getElementById('telegramLinksContainer');
+    const addBtn = document.getElementById('addTelegramLinkBtn');
+    
+    if (!container || !addBtn) return;
+    
+    const existingLinks = container.querySelectorAll('.telegram-link-item');
+    if (existingLinks.length >= 5) {
+        addBtn.style.display = 'none';
+    } else {
+        addBtn.style.display = 'inline-block';
+    }
+}
+
+function getTelegramLinksData() {
+    const container = document.getElementById('telegramLinksContainer');
+    if (!container) return [];
+    
+    const linkItems = container.querySelectorAll('.telegram-link-item');
+    const links = [];
+    
+    linkItems.forEach(item => {
+        const nameInput = item.querySelector('.telegram-link-name');
+        const urlInput = item.querySelector('.telegram-link-url');
+        
+        const name = nameInput ? nameInput.value.trim() : '';
+        const url = urlInput ? urlInput.value.trim() : '';
+        
+        // Only include links that have both name and URL
+        if (name && url) {
+            // Validate URL format
+            if (url.startsWith('https://t.me/') || url.startsWith('https://telegram.me/')) {
+                links.push({ name, url });
+            } else {
+                console.warn('Invalid Telegram URL format:', url);
+            }
+        }
+    });
+    
+    console.log('📱 Collected Telegram links:', links);
+    return links;
+}
+
+// SIMPLIFIED version - remove the complex multi-user logic
 function setActiveUserForAdminPage() {
     try {
         console.log('🔄 Setting active user for admin page...');
@@ -199,7 +433,6 @@ async function fetchStoreDetails() {
             const storePhoneInput = document.getElementById('storePhone');
             const storeDescriptionInput = document.getElementById('storeDescription');
             const storeFacebookInput = document.getElementById('storeFacebook');
-            const storeTelegramInput = document.getElementById('storeTelegram');
             const storeTikTokInput = document.getElementById('storeTikTok');
             const storeWebsiteInput = document.getElementById('storeWebsite');
             const currentLogoImg = document.getElementById('currentLogo');
@@ -219,9 +452,11 @@ async function fetchStoreDetails() {
             storePhoneInput.value = currentStore.phone || '';
             storeDescriptionInput.value = currentStore.description || '';
             storeFacebookInput.value = currentStore.facebookUrl || '';
-            storeTelegramInput.value = currentStore.telegramUrl || '';
             storeTikTokInput.value = currentStore.tiktokUrl || '';
             storeWebsiteInput.value = currentStore.websiteUrl || '';
+
+            // ADD: Initialize Telegram links
+            initializeTelegramLinks();
 
             // Handle logo
             if (currentStore.logo) {
@@ -382,7 +617,7 @@ async function fetchCategories() {
         document.querySelectorAll('.delete-category-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 const categoryIdToDelete = e.target.dataset.id;
-                const categoryName = e.target.closest('tr').querySelector('td:first-child').textContent;
+                                const categoryName = e.target.closest('tr').querySelector('td:first-child').textContent;
                 
                 showConfirmationModal(
                     'Confirm Deletion',
@@ -441,6 +676,10 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
             queryParams.append('search', searchTerm);
         }
 
+        // 🆕 Add pagination parameters
+        queryParams.append('page', currentPage);
+        queryParams.append('limit', productsPerPage);
+
         if (queryParams.toString()) {
             url += `?${queryParams.toString()}`;
         }
@@ -454,11 +693,17 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
         console.log('Frontend: Received products for rendering:', allProducts.length);
 
         renderProductsTable(allProducts);
+        
+        // 🆕 Update pagination controls
+        updatePaginationControls(response.pagination);
 
     } catch (error) {
         console.error('❌ Error fetching products:', error);
         showMessageModal('Error', `Error fetching products: ${error.message}`, true);
         productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Failed to load products.</td></tr>';
+        
+        // 🆕 Clear pagination on error
+        clearPaginationControls();
     }
 }
 
@@ -901,7 +1146,6 @@ function initializeEventListeners() {
             const storePhoneInput = document.getElementById('storePhone');
             const storeDescriptionInput = document.getElementById('storeDescription');
             const storeFacebookInput = document.getElementById('storeFacebook');
-            const storeTelegramInput = document.getElementById('storeTelegram');
             const storeTikTokInput = document.getElementById('storeTikTok');
             const storeWebsiteInput = document.getElementById('storeWebsite');
             const storeLogoInput = document.getElementById('storeLogo');
@@ -930,9 +1174,12 @@ function initializeEventListeners() {
             formData.append('phone', phone); // Use the validated phone
             formData.append('description', storeDescriptionInput.value);
             formData.append('facebookUrl', storeFacebookInput.value);
-            formData.append('telegramUrl', storeTelegramInput.value);
             formData.append('tiktokUrl', storeTikTokInput.value);
             formData.append('websiteUrl', storeWebsiteInput.value);
+            
+            // ADD: Telegram links
+            const telegramLinks = getTelegramLinksData();
+            formData.append('telegramLinks', JSON.stringify(telegramLinks));
 
             if (storeLogoInput.files[0]) {
                 formData.append('logo', storeLogoInput.files[0]);
@@ -1210,6 +1457,9 @@ function initializeEventListeners() {
             const currentSearchTerm = productSearchInput.value.trim();
             productFilterCategorySelect.dataset.currentFilter = selectedCategoryId;
             console.log('Frontend: Category filter changed to:', selectedCategoryId);
+            
+            // 🆕 Reset to first page when filtering
+            resetToFirstPage();
             fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
         });
     }
@@ -1222,6 +1472,9 @@ function initializeEventListeners() {
             const productFilterCategorySelect = document.getElementById('productFilterCategory');
             const selectedCategoryId = productFilterCategorySelect.value;
             console.log('Frontend: Search term changed to:', currentSearchTerm);
+            
+            // 🆕 Reset to first page when searching
+            resetToFirstPage();
             fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
         });
     }
@@ -1294,3 +1547,5 @@ document.addEventListener('DOMContentLoaded', function() {
 // Make functions globally available
 window.setActiveUserForAdminPage = setActiveUserForAdminPage;
 window.initializeAdminDashboard = initializeAdminDashboard;
+window.changePage = changePage;
+window.resetToFirstPage = resetToFirstPage;

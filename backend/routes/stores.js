@@ -5,14 +5,14 @@ const router = express.Router();
 const Store = require('../models/Store');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const cloudinary = require('cloudinary').v2;
-const multer = require('multer'); // For handling file uploads
-const slugify = require('slugify'); // Import slugify
+const multer = require('multer');
+const slugify = require('slugify');
 
 // Set up Multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB file size limit per file
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -41,8 +41,7 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
 // @desc    Update store details and logo/banner for the authenticated admin
 // @route   PUT /api/stores/my-store
 // @access  Private (Admin only)
-// Using .fields() for multiple file uploads (logo and multiple banners)
-                router.put('/my-store', protect, authorizeRoles('admin', 'superadmin'), upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 3 }]), async (req, res) => {
+router.put('/my-store', protect, authorizeRoles('admin', 'superadmin'), upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 3 }]), async (req, res) => {
     try {
         let store = await Store.findOne({ admin: req.user._id });
 
@@ -50,29 +49,59 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
             return res.status(404).json({ message: 'Store not found.' });
         }
 
-        // Destructure all fields, including new ones
-        const { name, address, phone, description, facebookUrl, telegramUrl, tiktokUrl, websiteUrl } = req.body;
+        // Destructure all fields, including telegramLinks
+        const { name, address, phone, description, facebookUrl, telegramLinks, tiktokUrl, websiteUrl } = req.body;
 
-        // IMPORTANT: Store name can be updated by admin, but slug remains unchanged
-        // The slug is now controlled only by superadmin through the users.js routes
+        // Update basic fields
         store.name = name !== undefined ? name : store.name;
         store.address = address !== undefined ? address : store.address;
         store.phone = phone !== undefined ? phone : store.phone;
-        store.description = description !== undefined ? description : store.description; // Update description
-        store.facebookUrl = facebookUrl !== undefined ? facebookUrl : store.facebookUrl; // Update social links
-        store.telegramUrl = telegramUrl !== undefined ? telegramUrl : store.telegramUrl;
+        store.description = description !== undefined ? description : store.description;
+        store.facebookUrl = facebookUrl !== undefined ? facebookUrl : store.facebookUrl;
         store.tiktokUrl = tiktokUrl !== undefined ? tiktokUrl : store.tiktokUrl;
         store.websiteUrl = websiteUrl !== undefined ? websiteUrl : store.websiteUrl;
 
-        // NOTE: The slug field is NOT updated here - it remains as set by superadmin
-        // This ensures the URL stays consistent even if admin changes store name
+        // UPDATE: Handle telegramLinks (parse JSON array)
+        if (telegramLinks !== undefined) {
+            try {
+                // Parse the telegramLinks if it's a JSON string
+                const parsedTelegramLinks = typeof telegramLinks === 'string' 
+                    ? JSON.parse(telegramLinks) 
+                    : telegramLinks;
+                
+                // Validate the structure
+                if (Array.isArray(parsedTelegramLinks)) {
+                    // Basic validation - only include links with both name and URL
+                    const validLinks = parsedTelegramLinks
+                        .filter(link => 
+                            link && 
+                            typeof link.name === 'string' && 
+                            link.name.trim() !== '' &&
+                            typeof link.url === 'string' && 
+                            link.url.trim() !== ''
+                        )
+                        .map(link => ({
+                            name: link.name.trim(),
+                            url: link.url.trim()
+                        }))
+                        .slice(0, 5); // Limit to 5 links
+                    
+                    store.telegramLinks = validLinks;
+                } else {
+                    // If not an array, set empty array
+                    store.telegramLinks = [];
+                }
+            } catch (parseError) {
+                console.error('Error parsing telegramLinks:', parseError);
+                // If parsing fails, keep existing links
+            }
+        }
 
         // Handle logo upload or removal
         if (req.files && req.files.logo && req.files.logo[0]) {
             console.log('New logo file detected. Uploading...');
-            // A new file is provided, delete old one and upload new
             if (store.logo) {
-                const publicId = store.logo.split('/').pop().split('.')[0]; // Extract public ID from URL
+                const publicId = store.logo.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(publicId);
                 console.log('Old logo deleted from Cloudinary.');
             }
@@ -85,24 +114,22 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
                     fetch_format: 'auto'
                 }
             );
-            store.logo = uploadRes.secure_url; // Save the secure URL
+            store.logo = uploadRes.secure_url;
             console.log('New logo uploaded:', store.logo);
-        } else if (req.body.removeLogo === 'true') { // Check for explicit removal flag from frontend
+        } else if (req.body.removeLogo === 'true') {
             console.log('Remove logo flag detected. Removing...');
             if (store.logo) {
                 const publicId = store.logo.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(publicId);
                 console.log('Existing logo deleted from Cloudinary.');
             }
-            store.logo = ''; // Set logo field to empty string in DB
+            store.logo = '';
             console.log('Logo field set to empty.');
         }
-        // If no new logo file and no remove flag, logo remains unchanged.
 
-        // Handle banner upload or removal with optimized compression (800x800 + auto compression)
+        // Handle banner upload or removal
         if (req.files && req.files.banner && req.files.banner.length > 0) {
             console.log(`New banner files detected: ${req.files.banner.length}. Uploading and optimizing to 800x800...`);
-            // New banner files are provided. Delete all existing banners and upload new ones.
             if (store.banner && store.banner.length > 0) {
                 console.log(`Deleting ${store.banner.length} existing banners.`);
                 for (const bannerUrl of store.banner) {
@@ -122,15 +149,15 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
                     const uploadRes = await cloudinary.uploader.upload(
                         `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
                         {
-                            folder: 'ysgstore/banners', // Dedicated folder for banners
+                            folder: 'ysgstore/banners',
                             resource_type: 'image',
                             transformation: [
                                 {
                                     width: 800,
                                     height: 800,
-                                    crop: 'limit', // 'limit' maintains aspect ratio and ensures dimensions don't exceed 800x800
-                                    quality: 'auto:good', // Optimized compression (reduces 3MB to ~100-300KB)
-                                    fetch_format: 'auto' // Converts to WebP/AVIF for better compression
+                                    crop: 'limit',
+                                    quality: 'auto:good',
+                                    fetch_format: 'auto'
                                 }
                             ]
                         }
@@ -139,12 +166,11 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
                     console.log('Uploaded and optimized new banner (800x800):', uploadRes.secure_url);
                 } catch (uploadError) {
                     console.error(`Failed to upload banner file: ${file.originalname}:`, uploadError.message);
-                    // Decide whether to throw or continue. For now, continue and log.
                 }
             }
-            store.banner = newBannerUrls; // Save the array of new banner URLs
+            store.banner = newBannerUrls;
             console.log('All new banners uploaded, optimized, and assigned to store.');
-        } else if (req.body.removeBanner === 'true') { // Check for explicit removal flag from frontend
+        } else if (req.body.removeBanner === 'true') {
             console.log('Remove banner flag detected. Removing all banners...');
             if (store.banner && store.banner.length > 0) {
                 console.log(`Deleting ${store.banner.length} existing banners.`);
@@ -158,10 +184,9 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
                     }
                 }
             }
-            store.banner = []; // Set banner field to empty array in DB
+            store.banner = [];
             console.log('Banner field set to empty array.');
         }
-        // If no new banner files and no remove flag, banners remain unchanged.
 
         const updatedStore = await store.save();
         res.json(updatedStore);
@@ -177,27 +202,27 @@ router.get('/my-store', protect, authorizeRoles('admin', 'superadmin'), async (r
 // @access  Public
 router.get('/public/slug/:slug', async (req, res) => {
     try {
-        // Find store by slug instead of publicUrlId
         const store = await Store.findOne({ slug: req.params.slug });
 
         if (!store) {
             return res.status(404).json({ message: 'Store not found.' });
         }
-        // Return all relevant public fields, including new ones
+        
+        // Return all relevant public fields, including telegramLinks
         res.json({
-            _id: store._id, // Keep _id for internal use if needed by frontend
+            _id: store._id,
             name: store.name,
             address: store.address,
             phone: store.phone,
             logo: store.logo,
-            description: store.description, // Include description
-            facebookUrl: store.facebookUrl, // Include social links
-            telegramUrl: store.telegramUrl,
+            description: store.description,
+            facebookUrl: store.facebookUrl,
+            telegramLinks: store.telegramLinks, // UPDATED: Return telegramLinks array
             tiktokUrl: store.tiktokUrl,
             websiteUrl: store.websiteUrl,
-            banner: store.banner, // MODIFIED: Include banner (now an array)
-            publicUrlId: store.publicUrlId, // Still return this, though not used for public URL
-            slug: store.slug // Include the slug
+            banner: store.banner,
+            publicUrlId: store.publicUrlId,
+            slug: store.slug
         });
     } catch (error) {
         console.error('Error fetching public store by slug:', error);
@@ -235,7 +260,6 @@ router.put('/:id/slug', protect, authorizeRoles('superadmin'), async (req, res) 
             return res.status(400).json({ message: 'Slug is required' });
         }
 
-        // Validate slug format
         const slugRegex = /^[a-z0-9-]+$/;
         if (!slugRegex.test(slug)) {
             return res.status(400).json({ 
@@ -255,7 +279,6 @@ router.put('/:id/slug', protect, authorizeRoles('superadmin'), async (req, res) 
             return res.status(404).json({ message: 'Store not found' });
         }
 
-        // Check if slug is already in use by another store
         if (slug !== store.slug) {
             const existingStore = await Store.findOne({ 
                 slug: slug,
@@ -267,7 +290,6 @@ router.put('/:id/slug', protect, authorizeRoles('superadmin'), async (req, res) 
             }
         }
 
-        // Update the slug
         store.slug = slug.toLowerCase().trim();
         await store.save();
 

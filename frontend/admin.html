@@ -313,6 +313,46 @@
         .font-semibold {
             font-weight: 600 !important; /* Ensure Tailwind's font-semibold is respected */
         }
+
+        /* ADD: Telegram Links Styles */
+        .telegram-link-item {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .remove-telegram-link {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 600;
+        }
+
+        .remove-telegram-link:hover {
+            background-color: #dc2626;
+        }
+
+        .telegram-link-input {
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+            font-size: 0.875rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .telegram-link-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans leading-normal tracking-normal flex flex-col lg:flex-row min-h-screen text-gray-800">
@@ -427,11 +467,6 @@
                             class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
                     </div>
                     <div>
-                        <label for="storeTelegram" class="block text-gray-700 text-base font-semibold mb-2">Telegram URL (Optional):</label>
-                        <input type="url" id="storeTelegram" name="telegramUrl" placeholder="https://t.me/yourstore"
-                            class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
-                    </div>
-                    <div>
                         <label for="storeTikTok" class="block text-gray-700 text-base font-semibold mb-2">TikTok URL (Optional):</label>
                         <input type="url" id="storeTikTok" name="tiktokUrl" placeholder="https://tiktok.com/@yourstore"
                             class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
@@ -442,6 +477,25 @@
                             class="shadow-sm appearance-none border-2 border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 text-base">
                     </div>
                 </div>
+
+                <!-- ADD: Multiple Telegram Links Section -->
+                <div class="space-y-4">
+                    <label class="block text-gray-700 text-base font-semibold mb-2">Telegram Sales Links (Max 5):</label>
+                    
+                    <div id="telegramLinksContainer" class="space-y-3">
+                        <!-- Telegram links will be dynamically added here -->
+                    </div>
+                    
+                    <button type="button" id="addTelegramLinkBtn" 
+                        class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300 text-sm">
+                        <i class="fas fa-plus mr-2"></i>Add Telegram Link
+                    </button>
+                    
+                    <p class="text-xs text-gray-500">
+                        Add up to 5 Telegram links for different sales agents. Each link should have a name (e.g., "Sales Agent 1") and a valid Telegram URL (e.g., https://t.me/username).
+                    </p>
+                </div>
+
                 <div class="space-y-4">
                     <label for="storeLogo" class="block text-gray-700 text-base font-semibold mb-2">Store Logo (PNG, JPG):</label>
                     <input type="file" id="storeLogo" name="logo" accept="image/*"
@@ -452,7 +506,7 @@
                         <label for="removeStoreLogo" class="text-base text-gray-700">Remove current logo</label>
                     </div>
                 </div>
-                <!-- MODIFIED: Store Banner Upload to accept multiple files -->
+
                 <div class="space-y-4">
                     <label for="storeBanner" class="block text-gray-700 text-base font-semibold mb-2">Store Banners (Optional, Max 3, PNG, JPG):</label>
                     <input type="file" id="storeBanner" name="banner" accept="image/*" multiple

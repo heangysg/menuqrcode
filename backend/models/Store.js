@@ -19,10 +19,8 @@ const storeSchema = mongoose.Schema(
             trim: true,
             minlength: [1, 'Store name must be at least 1 character long'],
             maxlength: [100, 'Store name cannot be more than 100 characters'],
-            // MUCH MORE PERMISSIVE VALIDATION
             validate: {
                 validator: function(v) {
-                    // Allow almost all characters except script tags and extreme cases
                     return v && v.trim().length > 0 && 
                            !/<script|javascript:|onload=|onerror=/gi.test(v.toLowerCase());
                 },
@@ -55,25 +53,21 @@ const storeSchema = mongoose.Schema(
             maxlength: [50, 'Phone number cannot be more than 50 characters'],
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
+                    if (!v || v.trim() === '') return true;
                     
-                    // VERY FLEXIBLE PHONE VALIDATION
-                    // Allow any format with numbers, spaces, hyphens, parentheses, dots, plus
                     const cleaned = v.replace(/[^\d+]/g, '');
                     
-                    // Minimum 6 digits after cleaning (very permissive)
                     return cleaned.length >= 6 && /^[\+]?[0-9\s\-\(\)\.\/]{6,}$/.test(v);
                 },
                 message: 'Please provide a valid phone number (minimum 6 digits). Formats allowed: +85512345678, 012345678, 123-456-7890, 097 67 67 854'
             }
         },
-    
         logo: {
             type: String,
             default: '',
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
+                    if (!v || v.trim() === '') return true;
                     return validator.isURL(v, {
                         protocols: ['http', 'https'],
                         require_protocol: true,
@@ -91,7 +85,7 @@ const storeSchema = mongoose.Schema(
             maxlength: [500, 'Description cannot be more than 500 characters'],
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
+                    if (!v || v.trim() === '') return true;
                     return v.length >= 10 && v.length <= 500;
                 },
                 message: 'Description must be between 10 and 500 characters'
@@ -103,7 +97,7 @@ const storeSchema = mongoose.Schema(
             default: '',
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
+                    if (!v || v.trim() === '') return true;
                     return validator.isURL(v, {
                         protocols: ['http', 'https'],
                         require_protocol: true,
@@ -113,20 +107,38 @@ const storeSchema = mongoose.Schema(
                 message: 'Please provide a valid Facebook URL'
             }
         },
-        telegramUrl: {
-            type: String,
-            trim: true,
-            default: '',
+        // REMOVED: Single telegramUrl field
+        // ADD: Multiple telegramLinks array
+        telegramLinks: {
+            type: [{
+                name: {
+                    type: String,
+                    trim: true,
+                    required: [true, 'Telegram link name is required'],
+                    maxlength: [50, 'Telegram link name cannot be more than 50 characters']
+                },
+                url: {
+                    type: String,
+                    trim: true,
+                    required: [true, 'Telegram URL is required'],
+                    validate: {
+                        validator: function(v) {
+                            return validator.isURL(v, {
+                                protocols: ['http', 'https'],
+                                require_protocol: true,
+                                host_whitelist: ['t.me', 'telegram.me']
+                            });
+                        },
+                        message: 'Please provide a valid Telegram URL'
+                    }
+                }
+            }],
+            default: [],
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
-                    return validator.isURL(v, {
-                        protocols: ['http', 'https'],
-                        require_protocol: true,
-                        host_whitelist: ['t.me', 'telegram.me']
-                    });
+                    return v.length <= 5;
                 },
-                message: 'Please provide a valid Telegram URL'
+                message: 'Cannot have more than 5 Telegram links'
             }
         },
         tiktokUrl: {
@@ -135,7 +147,7 @@ const storeSchema = mongoose.Schema(
             default: '',
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
+                    if (!v || v.trim() === '') return true;
                     return validator.isURL(v, {
                         protocols: ['http', 'https'],
                         require_protocol: true,
@@ -151,7 +163,7 @@ const storeSchema = mongoose.Schema(
             default: '',
             validate: {
                 validator: function(v) {
-                    if (!v || v.trim() === '') return true; // Empty is allowed
+                    if (!v || v.trim() === '') return true;
                     return validator.isURL(v, {
                         protocols: ['http', 'https'],
                         require_protocol: true,
@@ -166,12 +178,10 @@ const storeSchema = mongoose.Schema(
             default: [],
             validate: {
                 validator: function(v) {
-                    // Check array length
                     if (v.length > 5) {
                         return false;
                     }
                     
-                    // Validate each URL in the array
                     return v.every(url => {
                         if (!url || url.trim() === '') return false;
                         return validator.isURL(url, {
@@ -226,7 +236,6 @@ const storeSchema = mongoose.Schema(
         toJSON: {
             virtuals: true,
             transform: function(doc, ret) {
-                // Remove sensitive/internal fields from JSON output
                 delete ret.__v;
                 delete ret.publicUrlId;
                 return ret;
@@ -256,14 +265,30 @@ storeSchema.virtual('ageInDays').get(function() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
+// ADD: Pre-save hook to migrate old single telegramUrl to new telegramLinks array
+storeSchema.pre('save', function (next) {
+    // If we have old telegramUrl but no telegramLinks, migrate it
+    if (this.telegramUrl && this.telegramUrl.trim() !== '' && 
+        (!this.telegramLinks || this.telegramLinks.length === 0)) {
+        
+        this.telegramLinks = [{
+            name: 'Telegram',
+            url: this.telegramUrl
+        }];
+        
+        // Clear the old field
+        this.telegramUrl = '';
+    }
+    
+    next();
+});
+
 // Pre-save hook to validate slug and ensure uniqueness
 storeSchema.pre('save', async function (next) {
-    // Ensure slug is lowercase and trimmed
     if (this.slug) {
         this.slug = this.slug.toLowerCase().trim();
     }
     
-    // Check for slug uniqueness (only if slug is being set/modified)
     if (this.isModified('slug') || this.isNew) {
         try {
             const existingStore = await mongoose.model('Store').findOne({ 
@@ -284,8 +309,7 @@ storeSchema.pre('save', async function (next) {
 
 // Pre-save hook to sanitize and validate data
 storeSchema.pre('save', function (next) {
-    // Trim all string fields
-    const stringFields = ['name', 'address', 'phone', 'description', 'facebookUrl', 'telegramUrl', 'tiktokUrl', 'websiteUrl'];
+    const stringFields = ['name', 'address', 'phone', 'description', 'facebookUrl', 'tiktokUrl', 'websiteUrl'];
     
     stringFields.forEach(field => {
         if (this[field] && typeof this[field] === 'string') {
@@ -293,8 +317,7 @@ storeSchema.pre('save', function (next) {
         }
     });
 
-    // Ensure URLs are properly formatted
-    const urlFields = ['facebookUrl', 'telegramUrl', 'tiktokUrl', 'websiteUrl', 'logo'];
+    const urlFields = ['facebookUrl', 'tiktokUrl', 'websiteUrl', 'logo'];
     
     urlFields.forEach(field => {
         if (this[field] && this[field].trim() !== '' && !this[field].startsWith('http')) {
@@ -302,17 +325,25 @@ storeSchema.pre('save', function (next) {
         }
     });
     
-    // Sanitize banner URLs
+    // Sanitize telegramLinks URLs
+    if (this.telegramLinks && Array.isArray(this.telegramLinks)) {
+        this.telegramLinks = this.telegramLinks.map(link => {
+            if (link && link.url && link.url.trim() !== '' && !link.url.startsWith('http')) {
+                link.url = `https://${link.url}`;
+            }
+            return link;
+        }).filter(link => link && link.name && link.url);
+    }
+    
     if (this.banner && Array.isArray(this.banner)) {
         this.banner = this.banner.map(url => {
             if (url && url.trim() !== '' && !url.startsWith('http')) {
                 return `https://${url}`;
             }
             return url && url.trim() !== '' ? url : null;
-        }).filter(url => url); // Remove empty values
+        }).filter(url => url);
     }
     
-    // Sanitize phone number - remove extra spaces
     if (this.phone && typeof this.phone === 'string') {
         this.phone = this.phone.trim().replace(/\s+/g, ' ');
     }
@@ -322,8 +353,7 @@ storeSchema.pre('save', function (next) {
 
 // Pre-validate hook for better error handling
 storeSchema.pre('validate', function(next) {
-    // Set default empty strings for optional fields if they're null/undefined
-    const optionalFields = ['address', 'phone', 'description', 'facebookUrl', 'telegramUrl', 'tiktokUrl', 'websiteUrl', 'logo'];
+    const optionalFields = ['address', 'phone', 'description', 'facebookUrl', 'tiktokUrl', 'websiteUrl', 'logo'];
     
     optionalFields.forEach(field => {
         if (this[field] == null || this[field] === undefined) {
@@ -331,9 +361,12 @@ storeSchema.pre('validate', function(next) {
         }
     });
 
-    // Ensure banner is always an array
     if (!Array.isArray(this.banner)) {
         this.banner = [];
+    }
+
+    if (!Array.isArray(this.telegramLinks)) {
+        this.telegramLinks = [];
     }
 
     next();
@@ -345,10 +378,7 @@ storeSchema.pre('remove', async function (next) {
         const Product = mongoose.model('Product');
         const Category = mongoose.model('Category');
         
-        // Delete all products associated with this store
         await Product.deleteMany({ store: this._id });
-        
-        // Delete all categories associated with this store
         await Category.deleteMany({ store: this._id });
         
         console.log(`Cleaned up data for store: ${this.name} (${this._id})`);
@@ -376,7 +406,6 @@ storeSchema.methods.isRecentlyActive = function(days = 7) {
 storeSchema.methods.getFormattedPhone = function() {
     if (!this.phone || this.phone.trim() === '') return '';
     
-    // Basic formatting for display
     const cleaned = this.phone.replace(/\D/g, '');
     if (cleaned.startsWith('855')) {
         return `+${cleaned}`;
@@ -413,7 +442,7 @@ storeSchema.statics.getStats = async function() {
     const totalStores = await this.countDocuments();
     const activeStores = await this.countDocuments({ isActive: true });
     const recentStores = await this.countDocuments({
-        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     });
     
     return {
@@ -426,7 +455,7 @@ storeSchema.statics.getStats = async function() {
 
 // Static method to validate phone number format
 storeSchema.statics.validatePhoneFormat = function(phone) {
-    if (!phone || phone.trim() === '') return true; // Empty is allowed
+    if (!phone || phone.trim() === '') return true;
     
     const cleaned = phone.replace(/\D/g, '');
     return cleaned.length >= 8 && /^[\+]?[0-9\s\-\(\)\.]{8,}$/.test(phone);
@@ -506,7 +535,6 @@ storeSchema.post('save', function(error, doc, next) {
             next(new Error('Store with this information already exists'));
         }
     } else if (error.name === 'ValidationError') {
-        // Format validation errors for better client response
         const messages = Object.values(error.errors).map(val => val.message);
         next(new Error(messages.join(', ')));
     } else {

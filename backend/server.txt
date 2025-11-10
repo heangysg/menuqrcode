@@ -1,12 +1,15 @@
 // qr-digital-menu-system/backend/server.js
 
 const express = require('express');
-const dotenv = require('dotenv').config(); // Load environment variables from .env file
-const cors = require('cors'); // For handling Cross-Origin Resource Sharing
-const connectDB = require('./config/db'); // MongoDB connection
-const connectCloudinary = require('./config/cloudinary'); // Cloudinary connection
-const path = require('path'); // Node.js built-in module for path manipulation
-const helmet = require('helmet'); // For setting security-related HTTP headers
+const dotenv = require('dotenv').config();
+const cors = require('cors');
+const connectDB = require('./config/db');
+const { connectCloudinary } = require('./config/cloudinary');
+const path = require('path');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
+const xss = require('xss-clean');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -18,100 +21,187 @@ const productRoutes = require('./routes/products');
 // Connect to database
 connectDB();
 
-// Connect to Cloudinary
-connectCloudinary();
+// Connect to Cloudinary asynchronously
+(async () => {
+    try {
+        await connectCloudinary();
+        console.log('✅ Cloudinary Connected Successfully');
+    } catch (error) {
+        console.error('❌ Cloudinary Connection Failed:', error.message);
+        // Continue without Cloudinary in production
+        if (process.env.NODE_ENV === 'production') {
+            console.warn('⚠️  Continuing without Cloudinary in production');
+        } else {
+            process.exit(1); // Exit in development
+        }
+    }
+})();
 
 const app = express();
 
-// --- Middleware ---
+// --- Security Middleware ---
 
-// NEW: Global request logger - This will log every incoming request to the console
-app.use((req, res, next) => {
-    console.log(`Incoming Request: ${req.method} ${req.originalUrl}`);
-    next();
-});
+// Security headers with proper CSP
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
+            imgSrc: [
+                "'self'", 
+                "data:", 
+                "https:",
+                "http:",
+                "blob:"
+            ],
+            connectSrc: ["'self'", "https://generativelanguage.googleapis.com"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'self'", "https://www.google.com"],
+            workerSrc: ["'self'"],
+        },
+    },
+    crossOriginEmbedderPolicy: false
+}));
 
-// Configure CORS for specific origins and methods
+// Prevent NoSQL injection
+app.use(mongoSanitize());
+
+// Prevent XSS attacks
+app.use(xss());
+
+// Prevent parameter pollution
+app.use(hpp());
+
+// Secure CORS configuration
 const corsOptions = {
-    origin: [
-        'http://localhost:5000', // Your local development frontend
-        'https://menu-qr-61oz.onrender.com', // Your deployed Render frontend URL
-        // Add any other domains that need to access your API
-    ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true, // Allow cookies to be sent
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'http://localhost:5000',
+            'http://localhost:3000',
+            'https://menuqrcode.onrender.com',
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.warn('CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
     optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
 
-// Implement Helmet for comprehensive security headers, especially CSP
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"], // Only allow resources from the same origin by default
-            scriptSrc: [
-                "'self'",
-                "'unsafe-inline'", // Required for inline scripts (e.g., Tailwind CDN's JIT mode)
-                "https://cdn.tailwindcss.com", // Tailwind CSS CDN
-                "https://cdn.jsdelivr.net",    // QRious library CDN
-                "https://cdnjs.cloudflare.com" // Font Awesome JS (if you ever use it directly)
-            ],
-            styleSrc: [
-                "'self'",
-                "'unsafe-inline'", // Required for inline styles
-                "https://fonts.googleapis.com", // Google Fonts CSS
-                "https://cdnjs.cloudflare.com"  // Font Awesome CSS
-            ],
-            fontSrc: [
-                "'self'",
-                "https://fonts.gstatic.com",    // Google Fonts actual font files
-                "https://cdnjs.cloudflare.com", // Font Awesome webfonts (woff2, ttf etc.)
-                "data:"                      // Allow data URIs (e.g., for some inline SVG/base64 icons)
-            ],
-            imgSrc: [
-                "'self'",
-                "data:",                     // Allow data URIs for images
-                "https://res.cloudinary.com",  // Cloudinary images (for logos, banners, products)
-                "https://placehold.co",      // Placeholder images
-                "https://corsproxy.io"       // ADD THIS DOMAIN for external image proxy
-            ],
-            connectSrc: [
-                "'self'",
-                "https://generativelanguage.googleapis.com", // Gemini API calls
-                "https://menu-qr-61oz.onrender.com", // Explicitly allow connections to your own backend domain
-                "http://localhost:5000" // NEW: Allow frontend to connect to local backend
-            ],
-            objectSrc: ["'none'"], // Disallow <object>, <embed>, <applet>
-            mediaSrc: ["'self'"], // Allow media from same origin
-            // IMPORTANT: Allow iframes from Google Maps for the embedded map
-            frameSrc: ["'self'", "https://www.google.com"], 
-            workerSrc: ["'self'"], // Allow web workers from same origin
-            // upgradeInsecureRequests: [], // Automatically convert HTTP to HTTPS - keep this if you want
-        },
-    },
-    // You can disable specific headers if they cause issues, e.g.:
-    // crossOriginEmbedderPolicy: false,
-    // crossOriginOpenerPolicy: false,
-    // crossOriginResourcePolicy: false,
+// Body parsing with limits
+app.use(express.json({
+    limit: '10kb'
+}));
+app.use(express.urlencoded({
+    extended: false,
+    limit: '10kb'
 }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`Incoming Request: ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    next();
+});
 
-app.use(express.json()); // Body parser for raw JSON
-app.use(express.urlencoded({ extended: false })); // Body parser for URL-encoded data
+// Serve static assets
+app.use(express.static(path.join(__dirname, '../frontend')));
+// app.use('/menu', express.static(path.join(__dirname, '../frontend')));
 
-// API Routes - These should be placed before static file serving
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 
-// --- Serve Frontend Static Files ---
-// This middleware will serve all your HTML, CSS, JS, and other static assets
-// It should come AFTER your API routes to ensure API calls are not intercepted by static files
-app.use(express.static(path.join(__dirname, '../frontend')));
+// ---- CLEAN URL HANDLING ----
 
+// Redirect requests ending with .html to clean URLs
+app.use((req, res, next) => {
+    if (req.path.endsWith('.html')) {
+        const newPath = req.path.slice(0, -5);
+        return res.redirect(301, newPath);
+    }
+    next();
+});
 
+// Pretty URL for menu with slug
+app.get('/menu/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/menu.html'));
+});
+
+// Serve specific pages
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/admin.html'));
+});
+
+app.get('/superadmin', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/superadmin.html'));
+});
+
+app.get('/menu_display', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/menu.html'));
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+    res.status(404).json({
+        status: 'fail',
+        message: `API route ${req.originalUrl} not found`
+    });
+});
+
+// 404 handler for frontend routes
+app.use('*', (req, res) => {
+    res.status(404).sendFile(path.join(__dirname, '../frontend/404.html'));
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Global Error Handler:', err);
+
+    // CORS errors
+    if (err.message === 'Not allowed by CORS') {
+        return res.status(403).json({
+            status: 'fail',
+            message: 'CORS policy: Origin not allowed'
+        });
+    }
+
+    // Default error
+    res.status(err.status || 500).json({
+        status: 'error',
+        message: process.env.NODE_ENV === 'production' ? 'Something went wrong!' : err.message
+    });
+});
+
+// ---- START SERVER ----
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 Frontend: http://localhost:${PORT}`);
+    console.log(`🔗 API: http://localhost:${PORT}/api`);
+    console.log(`⚙️  Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`✅ Rate limiting: DISABLED (Development mode)`);
+});
