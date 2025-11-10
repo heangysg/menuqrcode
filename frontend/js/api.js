@@ -19,19 +19,25 @@ const requestCache = new Map();
  * Enhanced response handler to handle different API response formats
  */
 function handleApiResponse(data, endpoint) {
+    console.log('🔍 handleApiResponse - Raw data:', data);
+    console.log('🔍 handleApiResponse - Endpoint:', endpoint);
+    
+    // For paginated product endpoints, return the FULL response (including pagination)
+    if (endpoint.includes('/products/my-store') || endpoint.includes('/products/superadmin')) {
+        console.log('🔍 Preserving full paginated response for:', endpoint);
+        return data; // Return the complete response object
+    }
+    
     // For public endpoints like /website, return data directly
     if (endpoint.includes('/website')) {
         return data;
     }
     
-    // For admin/superadmin endpoints, extract arrays from response objects
+    // For other admin endpoints, extract arrays from response objects
     if (data && typeof data === 'object' && !Array.isArray(data)) {
         // Handle paginated responses
         if (endpoint.includes('/categories')) {
             return data.categories || data;
-        }
-        if (endpoint.includes('/products')) {
-            return data.products || data;
         }
         if (endpoint.includes('/users')) {
             return data.admins || data;

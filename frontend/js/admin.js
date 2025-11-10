@@ -15,42 +15,79 @@ let allProducts = []; // Store all products for filtering
 let currentPage = 1; // 🆕 Pagination current page
 let productsPerPage = 8; // 🆕 8 products per page
 
-// 🆕 Pagination Functions
 function updatePaginationControls(pagination) {
+    console.log('🔄 updatePaginationControls called with:', pagination);
+    
     const paginationContainer = document.getElementById('paginationContainer');
     
     if (!paginationContainer) {
+        console.log('❌ Pagination container not found, creating it...');
         createPaginationContainer();
         return;
     }
 
     const { page, pages, total } = pagination || {};
     
+    console.log(`📄 Page: ${page}, Pages: ${pages}, Total: ${total}`);
+    
     if (!page || !pages || pages <= 1) {
+        console.log('📄 No pagination needed (only one page)');
         paginationContainer.innerHTML = '';
         return;
     }
 
+    console.log('📄 Generating pagination UI...');
+    
+    // Generate page numbers HTML
+    const pageNumbersHTML = generatePageNumbers(page, pages);
+    
     paginationContainer.innerHTML = `
         <div class="flex items-center justify-between mt-6">
             <div class="text-sm text-gray-700">
                 Showing ${((page - 1) * productsPerPage) + 1} to ${Math.min(page * productsPerPage, total)} of ${total} products
             </div>
-            <div class="flex space-x-2">
-                <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''} 
-                    class="px-3 py-1 rounded border ${page <= 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+            <div class="flex space-x-2" id="paginationButtons">
+                <button data-page="${page - 1}" class="pagination-btn prev-btn px-3 py-1 rounded border ${page <= 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}" ${page <= 1 ? 'disabled' : ''}>
                     Previous
                 </button>
                 
-                ${generatePageNumbers(page, pages)}
+                ${pageNumbersHTML}
                 
-                <button onclick="changePage(${page + 1})" ${page >= pages ? 'disabled' : ''} 
-                    class="px-3 py-1 rounded border ${page >= pages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+                <button data-page="${page + 1}" class="pagination-btn next-btn px-3 py-1 rounded border ${page >= pages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}" ${page >= pages ? 'disabled' : ''}>
                     Next
                 </button>
             </div>
         </div>
     `;
+    
+    // Add event listeners to pagination buttons
+    setupPaginationEventListeners();
+    
+    console.log('✅ Pagination controls updated');
+}
+
+// 🆕 New function to handle pagination button clicks
+function setupPaginationEventListeners() {
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (!paginationContainer) return;
+    
+    // Use event delegation for pagination buttons
+    paginationContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+            const newPage = parseInt(e.target.dataset.page);
+            if (!isNaN(newPage) && newPage !== currentPage) {
+                changePage(newPage);
+            }
+        }
+        
+        // Also handle page number buttons
+        if (e.target.classList.contains('page-btn') && !e.target.disabled) {
+            const newPage = parseInt(e.target.dataset.page);
+            if (!isNaN(newPage) && newPage !== currentPage) {
+                changePage(newPage);
+            }
+        }
+    });
 }
 
 function generatePageNumbers(currentPage, totalPages) {
@@ -82,8 +119,7 @@ function generatePageNumbers(currentPage, totalPages) {
             return '<span class="px-2 py-1">...</span>';
         }
         return `
-            <button onclick="changePage(${page})" 
-                class="px-3 py-1 rounded border ${page === currentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}">
+            <button data-page="${page}" class="page-btn px-3 py-1 rounded border ${page === currentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}">
                 ${page}
             </button>
         `;
@@ -93,28 +129,49 @@ function generatePageNumbers(currentPage, totalPages) {
 function changePage(newPage) {
     if (newPage === currentPage) return;
     
+    console.log(`🔄 Changing page from ${currentPage} to ${newPage}`);
+    
     currentPage = newPage;
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
     const productSearchInput = document.getElementById('productSearchInput');
     
-    fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
-    
-    // Scroll to top of products section
-    document.getElementById('your-products-section').scrollIntoView({ behavior: 'smooth' });
+    fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim())
+        .then(() => {
+            // 🆕 Scroll to TOP of products section (search/filter area)
+            const productsSection = document.getElementById('your-products-section');
+            if (productsSection) {
+                productsSection.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' // This scrolls to the TOP of the section
+                });
+            }
+        });
 }
 
 function createPaginationContainer() {
     const productsSection = document.getElementById('your-products-section');
     if (!productsSection) return;
     
-    // Add pagination container after the products table
-    const table = productsSection.querySelector('table');
-    if (table) {
-        const paginationDiv = document.createElement('div');
-        paginationDiv.id = 'paginationContainer';
-        paginationDiv.className = 'mt-6';
-        table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+    // Check if pagination container already exists
+    let paginationContainer = document.getElementById('paginationContainer');
+    
+    if (!paginationContainer) {
+        // Create pagination container if it doesn't exist
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'paginationContainer';
+        paginationContainer.className = 'mt-6';
+        
+        // Add it after the products table
+        const table = productsSection.querySelector('table');
+        if (table) {
+            table.parentNode.insertBefore(paginationContainer, table.nextSibling);
+        } else {
+            // Fallback: add to the end of the section
+            productsSection.appendChild(paginationContainer);
+        }
     }
+    
+    return paginationContainer;
 }
 
 function clearPaginationControls() {
@@ -127,6 +184,7 @@ function clearPaginationControls() {
 // 🆕 Reset to page 1 when filtering or searching
 function resetToFirstPage() {
     currentPage = 1;
+    clearPaginationControls(); // Also clear the display when resetting
 }
 
 // ADD: Improved Telegram Links Management Functions
@@ -657,7 +715,6 @@ async function deleteCategory(id) {
     }
 }
 
-// --- Product Management Functions ---
 async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
     const productListTableBody = document.getElementById('productListTableBody');
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
@@ -687,15 +744,33 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
         console.log('Frontend: Fetching products with URL:', url);
         const response = await apiRequest(url, 'GET', null, true);
         
-        // Extract products array from response
-        allProducts = response.products || response || [];
+        console.log('🔍 Full API Response:', response);
         
-        console.log('Frontend: Received products for rendering:', allProducts.length);
+        // 🆕 FIX: Handle the response properly - don't extract just products
+        // The response should already contain both products and pagination
+        const products = response.products || [];
+        const pagination = response.pagination;
+        
+        console.log('Frontend: Products received:', products.length);
+        console.log('Frontend: Pagination data:', pagination);
 
-        renderProductsTable(allProducts);
+        renderProductsTable(products);
         
-        // 🆕 Update pagination controls
-        updatePaginationControls(response.pagination);
+        // 🆕 Update pagination controls with the actual pagination data
+        if (pagination) {
+            console.log('✅ Updating pagination controls with:', pagination);
+            updatePaginationControls(pagination);
+        } else {
+            console.log('❌ No pagination data received');
+            // Fallback: create basic pagination info
+            const total = products.length;
+            updatePaginationControls({
+                page: currentPage,
+                limit: productsPerPage,
+                total: total,
+                pages: Math.ceil(total / productsPerPage)
+            });
+        }
 
     } catch (error) {
         console.error('❌ Error fetching products:', error);
@@ -1549,3 +1624,9 @@ window.setActiveUserForAdminPage = setActiveUserForAdminPage;
 window.initializeAdminDashboard = initializeAdminDashboard;
 window.changePage = changePage;
 window.resetToFirstPage = resetToFirstPage;
+
+// Temporary test - add this at the bottom of admin.js
+console.log('🔧 Testing pagination functions...');
+console.log('changePage function exists:', typeof changePage);
+console.log('updatePaginationControls function exists:', typeof updatePaginationControls);
+console.log('resetToFirstPage function exists:', typeof resetToFirstPage);
