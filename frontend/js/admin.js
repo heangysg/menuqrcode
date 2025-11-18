@@ -1343,52 +1343,70 @@ function renderProductsTable(products) {
         return;
     }
 
-    products.forEach(product => {
-        const row = productListTableBody.insertRow();
-        const displayImage =
-            (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-            (product.image && product.image.trim() !== '' ? product.image : null) ||
-            `https://placehold.co/300x300?text=No+Img`;
+    // In the renderProductsTable function, update the row creation part:
+products.forEach(product => {
+    const row = productListTableBody.insertRow();
+    const displayImage =
+        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+        (product.image && product.image.trim() !== '' ? product.image : null) ||
+        `https://placehold.co/300x300?text=No+Img`;
 
-        row.innerHTML = `
-            <td class="py-2 px-4 border-b border-gray-200">
-                <div class="product-list-image-container cursor-pointer" data-image="${displayImage}" data-title="${product.title}" data-description="${product.description || ''}" data-price="${product.price || ''}">
-                    <img src="${displayImage}" alt="${product.title}" class="product-list-image">
-                </div>
-            </td>
-            <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
-            <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
-            <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
-            <td class="py-2 px-4 border-b border-gray-200">
-                <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
-                <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
-            </td>
-        `;
-    });
+    row.innerHTML = `
+        <td class="py-2 px-4 border-b border-gray-200">
+            <div class="product-list-image-container cursor-pointer" 
+                 data-image="${displayImage}" 
+                 data-title="${product.title}" 
+                 data-description="${product.description || ''}" 
+                 data-price="${product.price || ''}"
+                 data-category-id="${product.category ? product.category._id : ''}"
+                 data-is-available="${product.isAvailable !== false}">
+                <img src="${displayImage}" alt="${product.title}" class="product-list-image">
+            </div>
+        </td>
+        <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
+        <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
+        <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
+        <td class="py-2 px-4 border-b border-gray-200">
+            <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
+            <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
+        </td>
+    `;
+});
 
-    // Add event listeners for the newly created buttons
-    document.querySelectorAll('.edit-product-btn').forEach(button => {
-        button.addEventListener('click', async (e) => {
-            const productId = e.target.dataset.id;
-            console.log('🔄 Edit button clicked for product:', productId);
+// Replace the edit button event listener with this:
+document.querySelectorAll('.edit-product-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const productId = e.target.dataset.id;
+        console.log('🔄 Edit button clicked for product:', productId);
+        
+        // Find the product in the current displayed products
+        const row = e.target.closest('tr');
+        if (row) {
+            const imageContainer = row.querySelector('.product-list-image-container');
             
-            try {
-                // Fetch the full product details first
-                const product = await apiRequest(`/products/${productId}`, 'GET', null, true);
-                console.log('📦 Product data fetched:', product);
-                
-                if (product) {
-                    openEditProductModal(product);
-                } else {
-                    console.error('❌ Product not found');
-                    showMessageModal('Error', 'Product not found.', true);
-                }
-            } catch (error) {
-                console.error('❌ Error fetching product details:', error);
-                showMessageModal('Error', `Error fetching product: ${error.message}`, true);
-            }
-        });
+            // Extract ALL product data from DOM attributes (super fast!)
+            const product = {
+                _id: productId,
+                title: imageContainer.dataset.title,
+                category: { 
+                    _id: imageContainer.dataset.categoryId,
+                    name: row.cells[2].textContent 
+                },
+                description: imageContainer.dataset.description,
+                price: imageContainer.dataset.price,
+                imageUrl: imageContainer.dataset.image,
+                image: imageContainer.dataset.image,
+                isAvailable: imageContainer.dataset.isAvailable === 'true'
+            };
+            
+            console.log('📦 Product data extracted from DOM:', product);
+            openEditProductModal(product);
+        } else {
+            console.error('❌ Could not find product row');
+            showMessageModal('Error', 'Could not find product data.', true);
+        }
     });
+});
 
     document.querySelectorAll('.delete-product-btn').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -1427,18 +1445,18 @@ function openEditProductModal(product) {
 
     editProductIdInput.value = product._id;
     editProductNameInput.value = product.title;
-    editProductCategorySelect.value = product.category ? product.category._id : '';
+    
+    // Now we have the exact category ID from data attributes!
+    editProductCategorySelect.value = product.category._id || '';
+    
     editProductDescriptionInput.value = product.description || '';
     editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
     editProductImageUrlInput.value = product.imageUrl || '';
-    editProductAvailabilityCheckbox.checked = product.isAvailable !== false;
+    editProductAvailabilityCheckbox.checked = product.isAvailable;
 
-    const displayImage =
-        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-        (product.image && product.image.trim() !== '' ? product.image : null) ||
-        `https://placehold.co/300x300?text=No+Img`;
+    const displayImage = product.image || `https://placehold.co/300x300?text=No+Img`;
     
-    if (displayImage) {
+    if (displayImage && !displayImage.includes('placehold.co')) {
         currentProductImageImg.src = displayImage;
         currentProductImageImg.style.display = 'block';
         removeProductImageContainer.style.display = 'block';
@@ -1454,6 +1472,8 @@ function openEditProductModal(product) {
 
     editProductModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    
+    console.log('✅ Edit modal opened instantly with accurate data');
 }
 
 async function deleteProduct(id) {
