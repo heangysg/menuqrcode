@@ -82,18 +82,87 @@ const validateProduct = (req, res, next) => {
 
 // Extract Cloudinary public_id safely from a Cloudinary URL
 function getCloudinaryPublicId(url) {
-    if (!url) return null;
+    if (!url) {
+        console.log('❌ URL is empty or undefined');
+        return null;
+    }
+    
+    if (!url.includes('cloudinary.com')) {
+        console.log('❌ Not a Cloudinary URL:', url);
+        return null;
+    }
+    
     try {
-        const parts = url.split('/');
-        const fileWithExt = parts.pop();
-        const folderPath = parts.slice(parts.indexOf('upload') + 1).join('/');
-        const fileName = fileWithExt.split('.')[0];
-        return folderPath + '/' + fileName;
+        console.log('🔍 Parsing Cloudinary URL:', url);
+        
+        // Method 1: Simple regex approach
+        const regex = /\/upload\/(?:v\d+\/)?([^\.]+)/;
+        const match = url.match(regex);
+        
+        if (match && match[1]) {
+            const publicId = match[1];
+            console.log('✅ Extracted public_id (method 1):', publicId);
+            return publicId;
+        }
+        
+        // Method 2: URL parsing approach
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/');
+        const uploadIndex = pathParts.indexOf('upload');
+        
+        if (uploadIndex !== -1) {
+            let publicIdParts = [];
+            for (let i = uploadIndex + 1; i < pathParts.length; i++) {
+                // Skip version numbers (v1234567890)
+                if (pathParts[i].startsWith('v') && /^v\d+$/.test(pathParts[i])) {
+                    continue;
+                }
+                publicIdParts.push(pathParts[i]);
+            }
+            
+            if (publicIdParts.length > 0) {
+                let publicId = publicIdParts.join('/');
+                // Remove file extension
+                publicId = publicId.replace(/\.[^/.]+$/, "");
+                console.log('✅ Extracted public_id (method 2):', publicId);
+                return publicId;
+            }
+        }
+        
+        console.log('❌ Could not extract public_id from URL');
+        return null;
     } catch (err) {
         console.error('Failed to parse Cloudinary public_id:', err);
         return null;
     }
 }
+
+// Secure Cloudinary delete function
+const deleteFromCloudinary = async (url) => {
+    try {
+        console.log('🗑️ Starting Cloudinary deletion for URL:', url);
+        const publicId = getCloudinaryPublicId(url);
+        
+        if (!publicId) {
+            console.log('❌ No public_id extracted, skipping Cloudinary deletion');
+            return;
+        }
+        
+        console.log('🔑 Deleting from Cloudinary with public_id:', publicId);
+        
+        const result = await cloudinary.uploader.destroy(publicId);
+        console.log('✅ Cloudinary deletion result:', result);
+        
+        if (result.result === 'ok') {
+            console.log('🎉 Successfully deleted image from Cloudinary');
+        } else {
+            console.log('⚠️ Cloudinary deletion result not "ok":', result.result);
+        }
+    } catch (error) {
+        console.error('❌ Cloudinary delete error:', error);
+        // Don't throw error here as it shouldn't block the main operation
+    }
+};
 
 // Enhanced Multer configuration with better security
 const storage = multer.memoryStorage();
@@ -169,19 +238,6 @@ const uploadToCloudinary = async (file, options) => {
     } catch (error) {
         console.error('Cloudinary upload error:', error);
         throw new Error('Failed to upload image to cloud storage');
-    }
-};
-
-// Secure Cloudinary delete function
-const deleteFromCloudinary = async (url) => {
-    try {
-        const publicId = getCloudinaryPublicId(url);
-        if (publicId) {
-            await cloudinary.uploader.destroy(publicId);
-        }
-    } catch (error) {
-        console.error('Cloudinary delete error:', error);
-        // Don't throw error here as it shouldn't block the main operation
     }
 };
 
@@ -404,8 +460,26 @@ router.delete('/superadmin/:id', protect, authorizeRoles('superadmin'), async (r
             return res.status(404).json({ message: 'Superadmin product not found' });
         }
 
+        // DEBUG: Log the image details
+        console.log('🔄 DEBUG: Superadmin product deletion started');
+        console.log('📸 Product image URL:', product.image);
+        console.log('📸 Product imageUrl:', product.imageUrl);
+
+        // Delete image from Cloudinary if it exists
         if (product.image) {
+            console.log('🗑️ Attempting to delete Cloudinary image...');
+            
+            // Test the public_id extraction
+            const publicId = getCloudinaryPublicId(product.image);
+            console.log('🔑 Extracted Public ID:', publicId);
+            
+            // Test if it's a valid Cloudinary URL
+            console.log('🌐 Is Cloudinary URL:', product.image.includes('cloudinary.com'));
+            
             await deleteFromCloudinary(product.image);
+            console.log('✅ Cloudinary deletion attempted');
+        } else {
+            console.log('ℹ️ No product.image to delete from Cloudinary');
         }
 
         await Product.deleteOne({ _id: req.params.id });
@@ -499,7 +573,8 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
         res.status(500).json({ message: 'Server error while creating product' });
     }
 });
-        // @desc    Get all products for the authenticated admin's store
+
+// @desc    Get all products for the authenticated admin's store
 // @route   GET /api/products/my-store
 // @access  Private (Admin only)
 router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
@@ -619,7 +694,6 @@ router.get('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (req
         res.status(500).json({ message: 'Server error while fetching product' });
     }
 });
-
 
 // @desc    EMERGENCY: Fix invalid category references
 // @route   POST /api/products/fix-invalid-categories
@@ -842,9 +916,26 @@ router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (
             return res.status(404).json({ message: 'Product not found or you do not own this product.' });
         }
 
+        // DEBUG: Log the image details
+        console.log('🔄 DEBUG: Product deletion started');
+        console.log('📸 Product image URL:', product.image);
+        console.log('📸 Product imageUrl:', product.imageUrl);
+
         // Delete image from Cloudinary if it exists
         if (product.image) {
+            console.log('🗑️ Attempting to delete Cloudinary image...');
+            
+            // Test the public_id extraction
+            const publicId = getCloudinaryPublicId(product.image);
+            console.log('🔑 Extracted Public ID:', publicId);
+            
+            // Test if it's a valid Cloudinary URL
+            console.log('🌐 Is Cloudinary URL:', product.image.includes('cloudinary.com'));
+            
             await deleteFromCloudinary(product.image);
+            console.log('✅ Cloudinary deletion attempted');
+        } else {
+            console.log('ℹ️ No product.image to delete from Cloudinary');
         }
 
         await Product.deleteOne({ _id: req.params.id });
@@ -871,6 +962,5 @@ const sanitizeInput = (req, res, next) => {
     }
     next();
 };
-
 
 module.exports = router;
