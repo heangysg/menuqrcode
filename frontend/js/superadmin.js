@@ -1,5 +1,14 @@
 // qr-digital-menu-system/frontend/js/superadmin.js
 
+// ==================== GLOBAL VARIABLES ====================
+let wallpaperManagement = {};
+let productManagement = {};
+let adminManagement = {};
+let adminToDeleteId = null;
+let adminToDeleteName = null;
+
+// ==================== UTILITY FUNCTIONS ====================
+
 // Set the active user for superadmin page
 function setActiveUserForSuperadminPage() {
     try {
@@ -70,6 +79,8 @@ function waitForAuth() {
     });
 }
 
+// ==================== INITIALIZATION ====================
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('👑 Superadmin page loading...');
     
@@ -110,7 +121,6 @@ async function initializeSuperadminDashboard() {
     }
 }
 
-// Main initialization function
 async function initializeSuperadminDashboardContent() {
     try {
         // Update admin header with current user info
@@ -124,8 +134,11 @@ async function initializeSuperadminDashboardContent() {
         
         // Initialize category management
         await initializeCategoryManagement();
+
+        // Initialize wallpaper management BEFORE product management
+        await initializeWallpaperManagement();
         
-        // Initialize product management
+        // Initialize product management (now this comes after wallpaper)
         await initializeProductManagement();
         
     } catch (error) {
@@ -172,6 +185,10 @@ function initializeTabs() {
                 case 'products':
                     fetchProducts();
                     break;
+                case 'wallpapers':
+                    loadWallpapers();
+                    updateWallpaperCount();
+                    break;
             }
         });
     });
@@ -179,11 +196,7 @@ function initializeTabs() {
 
 // ==================== ADMIN MANAGEMENT ====================
 
-let adminManagement = {};
-let adminToDeleteId = null;
-let adminToDeleteName = null;
-
-    async function initializeAdminManagement() {
+async function initializeAdminManagement() {
     // Cache DOM elements
     adminManagement = {
         form: document.getElementById('createAdminForm'),
@@ -813,9 +826,505 @@ async function deleteCategory(categoryId) {
     }
 }
 
-// ==================== PRODUCT MANAGEMENT ====================
+// ==================== WALLPAPER MANAGEMENT ====================
 
-let productManagement = {};
+async function initializeWallpaperManagement() {
+    try {
+        console.log('🖼️ Initializing wallpaper management...');
+        
+        // Initialize wallpaperManagement object
+        wallpaperManagement = {
+            form: document.getElementById('uploadWallpaperForm'),
+            status: document.getElementById('wallpaperUploadStatus'),
+            message: document.getElementById('wallpaperUploadMessage'),
+            grid: document.getElementById('wallpapersGrid'),
+            previewContainer: document.getElementById('wallpaperPreviewContainer'),
+            preview: document.getElementById('wallpaperPreview'),
+            countInfo: document.getElementById('wallpaperCount'),
+            limitInfo: document.getElementById('wallpaperLimitInfo'),
+            loading: document.getElementById('wallpapersLoading'),
+            noWallpapersMessage: document.getElementById('noWallpapersMessage'),
+            removeWallpaperBtn: document.getElementById('removeWallpaperBtn')
+        };
+
+        // DEBUG: Log all found elements
+        console.log('🔍 Wallpaper management elements found:');
+        Object.keys(wallpaperManagement).forEach(key => {
+            console.log(`- ${key}:`, !!wallpaperManagement[key]);
+        });
+
+        // Check if all required elements exist
+        const requiredElements = ['form', 'grid', 'loading', 'noWallpapersMessage'];
+        const missingElements = requiredElements.filter(key => !wallpaperManagement[key]);
+        
+        if (missingElements.length > 0) {
+            console.error('❌ Missing required wallpaper elements:', missingElements);
+            return;
+        }
+
+        // Initialize event listeners
+        if (wallpaperManagement.form) {
+            wallpaperManagement.form.addEventListener('submit', handleUploadWallpaper);
+        }
+        
+        // Preview wallpaper before upload
+        const wallpaperFileInput = document.getElementById('wallpaperFile');
+        if (wallpaperFileInput && wallpaperManagement.preview) {
+            wallpaperFileInput.addEventListener('change', previewWallpaper);
+        }
+
+        // Load initial data
+        await loadWallpapers();
+        await updateWallpaperCount();
+        
+        console.log('✅ Wallpaper management initialized successfully');
+    } catch (error) {
+        console.error('❌ Error initializing wallpaper management:', error);
+    }
+}
+
+function previewWallpaper(e) {
+    const file = e.target.files[0];
+    const preview = wallpaperManagement.preview;
+    const container = wallpaperManagement.previewContainer;
+    
+    if (!preview || !container) {
+        console.error('Preview elements not found');
+        return;
+    }
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            container.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    } else {
+        container.classList.add('hidden');
+    }
+}
+
+async function handleUploadWallpaper(e) {
+    e.preventDefault();
+    
+    const nameInput = document.getElementById('wallpaperName');
+    const fileInput = document.getElementById('wallpaperFile');
+    
+    if (!nameInput || !fileInput) {
+        showWallpaperMessage('Form elements not found', 'error');
+        return;
+    }
+    
+    const name = nameInput.value.trim();
+    const file = fileInput.files[0];
+    
+    if (!name) {
+        showWallpaperMessage('Please enter a wallpaper name', 'error');
+        return;
+    }
+    
+    if (!file) {
+        showWallpaperMessage('Please select a wallpaper image', 'error');
+        return;
+    }
+    
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+        showWallpaperMessage('File size too large. Maximum size is 5MB.', 'error');
+        return;
+    }
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+        showWallpaperMessage('Please select a valid image file', 'error');
+        return;
+    }
+    
+    const submitBtn = wallpaperManagement.form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    setButtonLoading(submitBtn, true);
+    
+    try {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('wallpaper', file);
+        
+        console.log('📤 Uploading wallpaper...', { name, file: file.name });
+        
+        const response = await apiRequest('/wallpapers', 'POST', formData, true, true);
+        
+        console.log('✅ Wallpaper upload successful:', response);
+        showWallpaperMessage('Wallpaper uploaded successfully!', 'success');
+        
+        // Reset form
+        wallpaperManagement.form.reset();
+        if (wallpaperManagement.previewContainer) {
+            wallpaperManagement.previewContainer.classList.add('hidden');
+        }
+        
+        // Reload data
+        await loadWallpapers();
+        await updateWallpaperCount();
+        
+    } catch (error) {
+        console.error('❌ Error uploading wallpaper:', error);
+        showWallpaperMessage(`Error uploading wallpaper: ${error.message}`, 'error');
+    } finally {
+        setButtonLoading(submitBtn, false, originalText);
+    }
+}
+
+function showWallpaperMessage(message, type = 'info') {
+    const status = wallpaperManagement.status;
+    const messageEl = wallpaperManagement.message;
+    
+    if (!status || !messageEl) {
+        console.error('Wallpaper message elements not found');
+        return;
+    }
+    
+    // Reset classes
+    status.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'bg-blue-100', 'border-green-200', 'border-red-200', 'border-blue-200');
+    messageEl.classList.remove('text-green-800', 'text-red-800', 'text-blue-800');
+    
+    // Set new classes based on type
+    if (type === 'success') {
+        status.classList.add('bg-green-100', 'border-green-200');
+        messageEl.classList.add('text-green-800');
+    } else if (type === 'error') {
+        status.classList.add('bg-red-100', 'border-red-200');
+        messageEl.classList.add('text-red-800');
+    } else {
+        status.classList.add('bg-blue-100', 'border-blue-200');
+        messageEl.classList.add('text-blue-800');
+    }
+    
+    messageEl.textContent = message;
+    status.classList.remove('hidden');
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            status.classList.add('hidden');
+        }, 5000);
+    }
+}
+
+async function loadWallpapers() {
+    const grid = wallpaperManagement.grid;
+    const loading = wallpaperManagement.loading;
+    const noWallpapers = wallpaperManagement.noWallpapersMessage;
+    
+    if (!grid || !loading || !noWallpapers) {
+        console.error('❌ Wallpaper management elements not found');
+        return;
+    }
+    
+    // SHOW LOADING STATE
+    loading.classList.remove('hidden');
+    grid.classList.add('hidden');
+    noWallpapers.classList.add('hidden');
+    
+    try {
+        console.log('📥 Loading wallpapers...');
+        const response = await apiRequest('/wallpapers', 'GET', null, true);
+        
+        console.log('🔍 Full wallpapers response:', response);
+        
+        // Handle different response structures
+        let wallpapers = [];
+        
+        if (response && Array.isArray(response.wallpapers)) {
+            wallpapers = response.wallpapers;
+        } else if (response && Array.isArray(response)) {
+            wallpapers = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+            wallpapers = response.data;
+        }
+        
+        console.log(`✅ Processed ${wallpapers.length} wallpapers from response`);
+        console.log('🔍 Wallpapers data:', wallpapers);
+        
+        renderWallpapersGrid(wallpapers);
+        
+    } catch (error) {
+        console.error('❌ Error loading wallpapers:', error);
+        
+        // HIDE LOADING AND SHOW ERROR
+        loading.classList.add('hidden');
+        grid.classList.add('hidden');
+        
+        noWallpapers.classList.remove('hidden');
+        noWallpapers.innerHTML = `
+            <div class="col-span-full text-center py-12 text-red-500">
+                <i class="fas fa-exclamation-triangle text-3xl mb-3"></i>
+                <p class="text-lg font-semibold">Failed to load wallpapers</p>
+                <p class="text-sm">${error.message}</p>
+                <button onclick="loadWallpapers()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition duration-200">
+                    <i class="fas fa-redo mr-2"></i>Try Again
+                </button>
+            </div>
+        `;
+    }
+}
+
+function renderWallpapersGrid(wallpapers) {
+    const grid = wallpaperManagement.grid;
+    const loading = wallpaperManagement.loading;
+    const noWallpapers = wallpaperManagement.noWallpapersMessage;
+    
+    if (!grid || !loading || !noWallpapers) {
+        console.error('❌ Missing required elements');
+        return;
+    }
+    
+    // Hide loading state
+    loading.classList.add('hidden');
+    noWallpapers.classList.add('hidden');
+    
+    console.log('🎨 Rendering wallpapers grid with:', wallpapers.length, 'items');
+    
+    if (!wallpapers || wallpapers.length === 0) {
+        console.log('📭 No wallpapers to display');
+        noWallpapers.classList.remove('hidden');
+        grid.classList.add('hidden');
+        return;
+    }
+    
+    // Show the grid
+    grid.classList.remove('hidden');
+    grid.innerHTML = '';
+    
+    wallpapers.forEach((wallpaper, index) => {
+        console.log(`🖼️ Processing wallpaper ${index + 1}:`, wallpaper);
+        
+        const wallpaperId = wallpaper._id || wallpaper.id || `temp-${index}`;
+        const wallpaperName = wallpaper.name || 'Unnamed Wallpaper';
+        const wallpaperUrl = wallpaper.imageUrl || wallpaper.url || '';
+        const uploadedByName = wallpaper.uploadedBy?.name || 'Superadmin';
+        const createdAt = wallpaper.createdAt ? new Date(wallpaper.createdAt).toLocaleDateString() : 'Unknown date';
+        
+        if (!wallpaperUrl) {
+            console.warn('❌ Wallpaper missing image URL:', wallpaper);
+            return;
+        }
+        
+        const card = document.createElement('div');
+        card.className = 'wallpaper-card bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300';
+        
+        // USE PROPER EVENT LISTENERS INSTEAD OF ONCLICK ATTRIBUTES
+        card.innerHTML = `
+            <div class="relative group">
+                <img src="${wallpaperUrl}" alt="${wallpaperName}" 
+                     class="wallpaper-image w-full h-48 object-cover cursor-pointer transition-transform duration-300 group-hover:scale-105"
+                     data-preview-url="${wallpaperUrl}" data-preview-name="${wallpaperName}">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                <div class="absolute top-3 right-3">
+                    <span class="bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                        ${createdAt}
+                    </span>
+                </div>
+                <div class="absolute bottom-3 left-3 right-3">
+                    <span class="bg-gradient-to-r from-black to-transparent text-white text-sm font-medium px-3 py-1 rounded-full backdrop-blur-sm">
+                        ${wallpaperName}
+                    </span>
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-user mr-1"></i>
+                        ${uploadedByName}
+                    </p>
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        HD Wallpaper
+                    </span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <button class="preview-btn bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition duration-200 flex items-center"
+                            data-preview-url="${wallpaperUrl}" data-preview-name="${wallpaperName}">
+                        <i class="fas fa-eye mr-1"></i>Preview
+                    </button>
+                    <button class="delete-btn bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition duration-200 flex items-center"
+                            data-wallpaper-id="${wallpaperId}" data-wallpaper-name="${wallpaperName}">
+                        <i class="fas fa-trash mr-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        grid.appendChild(card);
+    });
+    
+    // ADD EVENT LISTENERS AFTER RENDERING
+    addWallpaperEventListeners();
+    
+    console.log('✅ Wallpapers grid rendered successfully');
+}
+
+// ADD THIS FUNCTION TO HANDLE EVENT LISTENERS
+function addWallpaperEventListeners() {
+    const grid = wallpaperManagement.grid;
+    if (!grid) return;
+    
+    // Preview button click
+    grid.addEventListener('click', function(e) {
+        const previewBtn = e.target.closest('.preview-btn');
+        const wallpaperImage = e.target.closest('.wallpaper-image');
+        
+        if (previewBtn) {
+            const url = previewBtn.getAttribute('data-preview-url');
+            const name = previewBtn.getAttribute('data-preview-name');
+            console.log('👁️ Preview button clicked:', { url, name });
+            previewWallpaperLarge(url, name);
+        }
+        
+        if (wallpaperImage) {
+            const url = wallpaperImage.getAttribute('data-preview-url');
+            const name = wallpaperImage.getAttribute('data-preview-name');
+            console.log('👁️ Wallpaper image clicked:', { url, name });
+            previewWallpaperLarge(url, name);
+        }
+    });
+    
+    // Delete button click
+    grid.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+            const id = deleteBtn.getAttribute('data-wallpaper-id');
+            const name = deleteBtn.getAttribute('data-wallpaper-name');
+            console.log('🗑️ Delete button clicked:', { id, name });
+            deleteWallpaper(id, name);
+        }
+    });
+}
+
+function previewWallpaperLarge(imageUrl, name) {
+    console.log('🖼️ previewWallpaperLarge called with:', { imageUrl, name });
+    
+    // Remove any existing modal first
+    const existingModal = document.querySelector('.wallpaper-preview-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'wallpaper-preview-modal fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-6xl max-h-[90vh] w-full overflow-hidden shadow-2xl">
+            <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                <h3 class="text-2xl font-bold">${name}</h3>
+                <button class="close-preview-btn text-white hover:text-gray-200 text-2xl transition duration-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-8 flex justify-center items-center bg-gray-100">
+                <img src="${imageUrl}" alt="${name}" 
+                     class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg">
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Click outside to close
+                </div>
+                <button class="close-preview-btn bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-8 rounded-xl transition duration-200 flex items-center">
+                    <i class="fas fa-times mr-2"></i>Close Preview
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add close event listeners
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal || e.target.closest('.close-preview-btn')) {
+            closeWallpaperPreview();
+        }
+    });
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+    
+    console.log('✅ Preview modal created');
+}
+
+// ADD THIS FUNCTION - Close wallpaper preview modal
+function closeWallpaperPreview() {
+    console.log('🔒 closeWallpaperPreview called');
+    
+    const modal = document.querySelector('.wallpaper-preview-modal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+        console.log('✅ Preview modal closed');
+    }
+}
+
+async function deleteWallpaper(wallpaperId, wallpaperName = 'this wallpaper') {
+    console.log('🗑️ deleteWallpaper called with:', { wallpaperId, wallpaperName });
+    
+    if (!confirm(`Are you sure you want to delete "${wallpaperName}"? This action cannot be undone and will remove the wallpaper from all stores using it.`)) {
+        console.log('❌ Delete cancelled by user');
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ Deleting wallpaper: ${wallpaperId}`);
+        
+        await apiRequest(`/wallpapers/${wallpaperId}`, 'DELETE', null, true);
+        
+        showNotification(`Wallpaper "${wallpaperName}" deleted successfully!`, 'success');
+        
+        // Reload data
+        await loadWallpapers();
+        await updateWallpaperCount();
+        
+    } catch (error) {
+        console.error('❌ Error deleting wallpaper:', error);
+        showNotification(`Error deleting wallpaper: ${error.message}`, 'error');
+    }
+}
+
+async function updateWallpaperCount() {
+    try {
+        const response = await apiRequest('/wallpapers/count/my-wallpapers', 'GET', null, true);
+        const countInfo = wallpaperManagement.countInfo;
+        const limitInfo = wallpaperManagement.limitInfo;
+        
+        if (countInfo) {
+            countInfo.textContent = `${response.count}/${response.maxLimit}`;
+            
+            // Update styling based on count
+            if (response.count >= response.maxLimit) {
+                countInfo.classList.add('text-red-600', 'font-bold');
+                countInfo.classList.remove('text-gray-600');
+            } else if (response.count >= response.maxLimit - 1) {
+                countInfo.classList.add('text-orange-600', 'font-semibold');
+                countInfo.classList.remove('text-gray-600');
+            } else {
+                countInfo.classList.remove('text-red-600', 'text-orange-600', 'font-bold', 'font-semibold');
+                countInfo.classList.add('text-gray-600');
+            }
+        }
+        
+        if (limitInfo) {
+            if (response.count >= response.maxLimit) {
+                limitInfo.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Maximum limit reached!';
+                limitInfo.classList.add('text-red-600', 'font-semibold');
+                limitInfo.classList.remove('text-gray-600');
+            } else {
+                limitInfo.textContent = `Maximum ${response.maxLimit} wallpapers allowed`;
+                limitInfo.classList.remove('text-red-600', 'font-semibold');
+                limitInfo.classList.add('text-gray-600');
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Error updating wallpaper count:', error);
+    }
+}
+
+// ==================== PRODUCT MANAGEMENT ====================
 
 async function initializeProductManagement() {
     productManagement = {
@@ -944,7 +1453,7 @@ function attachProductEventListeners() {
     document.querySelectorAll('.delete-product-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const productId = e.target.closest('button').dataset.id;
-                        const productTitle = e.target.closest('tr').querySelector('td:nth-child(2) .font-medium').textContent;
+            const productTitle = e.target.closest('tr').querySelector('td:nth-child(2) .font-medium').textContent;
             if (confirm(`Are you sure you want to delete "${productTitle}"? This action cannot be undone.`)) {
                 deleteProduct(productId);
             }
@@ -1165,7 +1674,80 @@ function logout() {
     window.location.href = '/login';
 }
 
+// ==================== ANCHOR NAVIGATION HANDLER ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle anchor navigation for wallpaper section
+    const wallpaperLink = document.querySelector('a[href="#manage-wallpapers"]');
+    if (wallpaperLink) {
+        wallpaperLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Load wallpapers when the section is accessed
+            loadWallpapers();
+            updateWallpaperCount();
+        });
+    }
+});
+
+// ==================== DEBUG FUNCTIONS ====================
+
+// ADD THIS FUNCTION - Debug wallpaper functions
+function debugWallpapers() {
+    console.log('🔧 Debug wallpaper functions:');
+    console.log('- closeWallpaperPreview:', typeof closeWallpaperPreview);
+    console.log('- previewWallpaperLarge:', typeof previewWallpaperLarge);
+    console.log('- deleteWallpaper:', typeof deleteWallpaper);
+    console.log('- wallpaperManagement:', wallpaperManagement);
+}
+
+function debugWallpaperHTML() {
+    console.log('🔍 Searching for wallpaper-related elements in HTML:');
+    
+    // Check for exact IDs
+    const idsToCheck = [
+        'uploadWallpaperForm',
+        'wallpaperUploadStatus', 
+        'wallpaperUploadMessage',
+        'wallpapersGrid',
+        'wallpaperPreviewContainer',
+        'wallpaperPreview',
+        'wallpaperCount',
+        'wallpaperLimitInfo',
+        'wallpapersLoading',
+        'noWallpapersMessage',
+        'removeWallpaperBtn'
+    ];
+    
+    idsToCheck.forEach(id => {
+        const element = document.getElementById(id);
+        console.log(`- #${id}:`, element ? 'FOUND' : 'NOT FOUND');
+        if (element) {
+            console.log('  Classes:', element.className);
+            console.log('  Parent:', element.parentElement?.id || element.parentElement?.className);
+        }
+    });
+    
+    // Also check for elements with similar names
+    const allIds = Array.from(document.querySelectorAll('[id]')).map(el => el.id);
+    const wallpaperIds = allIds.filter(id => id.toLowerCase().includes('wallpaper') || id.toLowerCase().includes('wallpapers'));
+    console.log('🔍 All IDs containing "wallpaper":', wallpaperIds);
+}
+
+// Call this function temporarily to see what's happening
+debugWallpaperHTML();
+
+// ==================== GLOBAL EXPORTS ====================
+
 // Make functions globally available for HTML onclick events
 window.logout = logout;
 window.setActiveUserForSuperadminPage = setActiveUserForSuperadminPage;
 window.initializeSuperadminDashboard = initializeSuperadminDashboard;
+window.closeWallpaperPreview = closeWallpaperPreview;
+window.previewWallpaperLarge = previewWallpaperLarge;
+window.deleteWallpaper = deleteWallpaper;
+window.showWallpaperMessage = showWallpaperMessage;
+window.loadWallpapers = loadWallpapers;
+window.updateWallpaperCount = updateWallpaperCount;
+window.initializeWallpaperManagement = initializeWallpaperManagement;
+window.debugWallpapers = debugWallpapers;
+window.debugWallpaperHTML = debugWallpaperHTML;

@@ -17,7 +17,7 @@ const userRoutes = require('./routes/users');
 const storeRoutes = require('./routes/stores');
 const categoryRoutes = require('./routes/categories');
 const productRoutes = require('./routes/products');
-
+const wallpaperRoutes = require('./routes/wallpapers'); // ADD THIS LINE
 // Connect to database
 connectDB();
 
@@ -141,6 +141,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/wallpapers', wallpaperRoutes); // ADD THIS LINE
 
 // ---- PAGE ROUTES ----
 

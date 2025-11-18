@@ -499,8 +499,7 @@ router.post('/', protect, authorizeRoles('admin'), getAdminStoreId, upload.singl
         res.status(500).json({ message: 'Server error while creating product' });
     }
 });
-
-// @desc    Get all products for the authenticated admin's store
+        // @desc    Get all products for the authenticated admin's store
 // @route   GET /api/products/my-store
 // @access  Private (Admin only)
 router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
@@ -508,17 +507,27 @@ router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async
         const { category, search, page = 1, limit = 50 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
         
-        let filter = { store: req.storeId }; // Only products with store field
+        let filter = { store: req.storeId };
 
+        // Handle category filter
         if (category && category !== 'all') {
             if (mongoose.Types.ObjectId.isValid(category)) {
                 filter.category = new mongoose.Types.ObjectId(category);
             } else {
                 console.warn(`Invalid category ID received: ${category}`);
-                return res.json({ products: [], pagination: { page: 1, limit: 50, total: 0, pages: 0 } });
+                return res.json({ 
+                    products: [], 
+                    pagination: { 
+                        page: parseInt(page), 
+                        limit: parseInt(limit), 
+                        total: 0, 
+                        pages: 0 
+                    } 
+                });
             }
         }
 
+        // Handle search
         if (search) {
             const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
             filter.$or = [
@@ -527,13 +536,36 @@ router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async
             ];
         }
 
-        const products = await Product.find(filter)
-            .populate('category', 'name')
-            .sort('title')
-            .skip(skip)
-            .limit(parseInt(limit));
+        console.log('🔍 Product filter:', JSON.stringify(filter));
 
-        const total = await Product.countDocuments(filter);
+        // SIMPLE FIX: Use populate with proper error handling
+        let products = [];
+        let total = 0;
+
+        try {
+            // Get products with populated categories
+            products = await Product.find(filter)
+                .populate('category', 'name') // Populate category name
+                .sort('title')
+                .skip(skip)
+                .limit(parseInt(limit))
+                .lean();
+
+            total = await Product.countDocuments(filter);
+
+            // DEBUG: Check what we got
+            console.log('🔍 After populate - first product:', products[0] ? {
+                title: products[0].title,
+                category: products[0].category
+            } : 'No products');
+
+        } catch (dbError) {
+            console.error('Database query failed:', dbError);
+            products = [];
+            total = 0;
+        }
+
+        console.log(`✅ Found ${products.length} products`);
 
         res.json({
             products,
@@ -544,9 +576,136 @@ router.get('/my-store', protect, authorizeRoles('admin'), getAdminStoreId, async
                 pages: Math.ceil(total / parseInt(limit))
             }
         });
+
     } catch (error) {
-        console.error('Error fetching admin store products:', error);
-        res.status(500).json({ message: 'Server error while fetching products' });
+        console.error('❌ Critical error in products route:', error);
+        res.json({ 
+            products: [], 
+            pagination: { 
+                page: 1, 
+                limit: 50, 
+                total: 0, 
+                pages: 0 
+            } 
+        });
+    }
+});
+
+// @desc    Get single product for admin (store products only) - MUST COME BEFORE /my-store
+// @route   GET /api/products/:id
+// @access  Private (Admin only)
+router.get('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
+    try {
+        console.log('🔄 Fetching single product for admin:', req.params.id);
+        
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({ message: 'Invalid product ID format' });
+        }
+
+        // Only get products that belong to the admin's store
+        const product = await Product.findOne({
+            _id: req.params.id,
+            store: req.storeId
+        }).populate('category', 'name');
+        
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found or you do not own this product' });
+        }
+
+        console.log('✅ Single product found:', product.title);
+        res.json(product);
+    } catch (error) {
+        console.error('Error fetching admin product:', error);
+        res.status(500).json({ message: 'Server error while fetching product' });
+    }
+});
+
+
+// @desc    EMERGENCY: Fix invalid category references
+// @route   POST /api/products/fix-invalid-categories
+// @access  Private (Admin only)
+router.post('/fix-invalid-categories', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
+    try {
+        console.log('🛠️ Fixing invalid category references...');
+        
+        const products = await Product.find({ store: req.storeId });
+        let fixedCount = 0;
+        
+        for (const product of products) {
+            // Check if category is invalid
+            if (!product.category || !mongoose.Types.ObjectId.isValid(product.category)) {
+                console.log(`Fixing product: ${product.title} (${product._id}) - Invalid category: ${product.category}`);
+                
+                // Set to a valid category or null
+                const firstCategory = await Category.findOne({ store: req.storeId });
+                if (firstCategory) {
+                    product.category = firstCategory._id;
+                } else {
+                    product.category = null;
+                }
+                
+                await product.save();
+                fixedCount++;
+            }
+        }
+        
+        res.json({ 
+            message: `Fixed ${fixedCount} products with invalid category references`,
+            fixedCount 
+        });
+        
+    } catch (error) {
+        console.error('Error fixing categories:', error);
+        res.status(500).json({ message: 'Failed to fix categories' });
+    }
+});
+
+// @desc    Debug: Check for invalid category IDs
+// @route   GET /api/products/debug-invalid-categories
+// @access  Private (Admin only)
+router.get('/debug-invalid-categories', protect, authorizeRoles('admin'), getAdminStoreId, async (req, res) => {
+    try {
+        console.log('🔍 Debug: Checking for products with invalid category IDs...');
+        
+        const products = await Product.find({ store: req.storeId });
+        
+        const invalidProducts = [];
+        const validProducts = [];
+        
+        for (const product of products) {
+            if (!mongoose.Types.ObjectId.isValid(product.category)) {
+                invalidProducts.push({
+                    _id: product._id,
+                    title: product.title,
+                    category: product.category,
+                    issue: 'Invalid category ID format'
+                });
+            } else {
+                // Check if category exists
+                const categoryExists = await Category.findById(product.category);
+                if (!categoryExists) {
+                    invalidProducts.push({
+                        _id: product._id,
+                        title: product.title,
+                        category: product.category,
+                        issue: 'Category does not exist'
+                    });
+                } else {
+                    validProducts.push(product._id);
+                }
+            }
+        }
+        
+        res.json({
+            totalProducts: products.length,
+            validProducts: validProducts.length,
+            invalidProducts: invalidProducts.length,
+            invalidProductsDetails: invalidProducts
+        });
+        
+    } catch (error) {
+        console.error('Debug error:', error);
+        res.status(500).json({ message: 'Debug failed' });
     }
 });
 
@@ -712,5 +871,6 @@ const sanitizeInput = (req, res, next) => {
     }
     next();
 };
+
 
 module.exports = router;

@@ -9,105 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="icon" href="/public/img/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
     
     <style>
-        /* --- Google Fonts Imports (already handled by link tags above, but kept for clarity if needed elsewhere) --- */
-        /* For English (Inter) professional font */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-        /* For Khmer (Battambang) font */
-        @import url('https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&display=swap');
-
-        /* --- Tailwind CSS Directives --- */
-        /* These lines are essential for Tailwind to work */
-        @tailwind base;
-        @tailwind components;
-        @tailwind utilities;
-
-        /* --- Custom Global Styles --- */
-        /* This is where you put your custom CSS, which Tailwind will process */
-
-        /* Custom scrollbar for better aesthetics */
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        /* Product card image aspect ratio - square (used in grid view) */
-        .product-image-container {
-            position: relative;
-            width: 100%;
-            padding-top: 100%; /* Square aspect ratio */
-            overflow: hidden;
-            border-radius: 0.5rem; /* rounded-lg */
-        }
-        .product-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* Custom styles for list view */
-        .product-list-item {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 0; /* py-3 */
-            border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
-            cursor: pointer;
-        }
-        .product-list-item:last-child {
-            border-bottom: none;
-        }
-        .product-list-item .list-image-container {
-            position: relative;
-            width: 60px; /* Adjust size for list view */
-            height: 60px;
-            flex-shrink: 0;
-            overflow: hidden;
-            border-radius: 0.5rem; /* rounded-lg */
-            margin-right: 1rem; /* mr-4 */
-            border: 1px solid #e5e7eb; /* Subtle border for list view image */
-        }
-        .product-list-item .list-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .product-list-item .list-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .product-list-item .list-content h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 0.25rem;
-        }
-        .product-list-item .list-content p {
-            font-size: 0.75rem;
-            color: #6b7280;
-            line-height: 1.3;
-        }
-        .product-list-item .list-price {
-            flex-shrink: 0;
-            margin-left: 1rem;
-            font-size: 1rem;
-            font-weight: 700;
-            color: #ea580c;
-        }
-
-        /* Modal specific adjustments for better responsiveness and appearance */
+        /* Additional styles specific to admin.html */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -242,45 +147,39 @@
             background-color: #1d4ed8; /* hover:bg-blue-700 */
         }
 
-        /* Sidebar responsiveness */
-        #sidebar {
-            /* On small screens, it's full width and hidden by default */
-            width: 100%;
-            height: 100vh; /* Full viewport height on mobile for overlay */
-            position: fixed; /* Fix to top for mobile overlay */
-            top: 0; /* Align to top */
-            left: 0;
-            right: 0;
-            z-index: 40; /* Above main content, below modals */
-            padding-top: 4rem; /* Space for fixed mobile header */
-            padding-bottom: 1rem;
-            transition: transform 0.3s ease-out; /* Smooth slide in/out */
-            transform: translateX(-100%); /* Start off-screen to the left */
-            overflow-y: auto; /* Allow scrolling if content is long */
-        }
-        #sidebar.hidden {
-            transform: translateX(-100%); /* Keep hidden off-screen */
-        }
-        #sidebar:not(.hidden) { /* Use :not(.hidden) to apply styles when visible */
-            transform: translateX(0); /* Slide in */
-        }
+/* Make sure this is in your CSS */
+#sidebar {
+    width: 100%;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    padding-top: 4rem;
+    padding-bottom: 1rem;
+    transition: transform 0.3s ease-out;
+    transform: translateX(-100%); /* Hidden by default */
+    overflow-y: auto;
+}
 
-        @media (min-width: 1024px) { /* lg breakpoint */
-            #sidebar {
-                position: sticky; /* Sticky on desktop */
-                top: 0;
-                height: 100vh; /* Full viewport height on desktop */
-                width: 16rem; /* lg:w-64 */
-                transform: translateX(0); /* Always visible on desktop */
-                padding-top: 1.5rem; /* Reset padding for desktop */
-            }
-            #sidebar.hidden {
-                transform: translateX(0); /* Override hidden for desktop */
-            }
-            .lg\:flex {
-                display: flex !important; /* Ensure flex on desktop */
-            }
-        }
+#sidebar.mobile-open {
+    transform: translateX(0); /* Show when open */
+}
+
+@media (min-width: 1024px) {
+    #sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        width: 16rem;
+        transform: translateX(0) !important;
+        padding-top: 1.5rem;
+    }
+    
+    #mobileMenuButton {
+        display: none;
+    }
+}
 
         /* Apply Battambang font as primary for all text, with Inter as fallback, then generic sans-serif */
         body, h1, h2, h3, h4, p, a, span, div, input, select, textarea, button, th, td, li {
@@ -353,6 +252,23 @@
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
+
+        /* Wallpaper Styles */
+        .wallpaper-card {
+            transition: all 0.3s ease;
+        }
+        
+        .wallpaper-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .wallpaper-image {
+            transition: transform 0.3s ease;
+        }
+        
+        .wallpaper-preview-modal {
+            z-index: 60;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans leading-normal tracking-normal flex flex-col lg:flex-row min-h-screen text-gray-800">
@@ -360,55 +276,66 @@
         <h1 class="text-2xl font-extrabold text-blue-400">Admin Panel</h1>
         <button id="mobileMenuButton" class="text-white focus:outline-none">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-            </button>
+        </button>
     </header>
 
-    <aside id="sidebar" class="bg-gray-900 text-white p-6 space-y-8 flex-col lg:flex-shrink-0 shadow-lg lg:shadow-xl lg:sticky lg:top-0 lg:h-screen hidden lg:flex">
-        <h1 class="text-4xl font-extrabold mb-8 text-center lg:text-left text-blue-400">Admin Panel</h1>
-        <nav class="flex-grow">
-            <ul class="space-y-3">
-                <li>
-                    <a href="#dashboard-overview" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 active:bg-gray-700 font-medium text-lg" data-target="dashboard-overview-section">
-                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m0 0l-7 7m7-7v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                        Dashboard Overview
-                    </a>
-                </li>
-                <li>
-                    <a href="#store-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="store-management-section">
-                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                        Store Info & QR
-                    </a>
-                </li>
-                <li>
-                    <a href="#category-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="category-management-section">
-                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                        Categories
-                    </a>
-                </li>
-                <li>
-                    <a href="#add-products" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="add-products-section">
-                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                        Add Products
-                    </a>
-                </li>
-                <li>
-                    <a href="#your-products" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="your-products-section">
-                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                        Your Products
-                    </a>
-                </li>
-            </ul>
-        </nav>
-        <button id="logoutBtn" class="w-full text-left py-3 px-4 rounded-xl transition duration-300 hover:bg-red-700 bg-red-600 font-bold text-lg shadow-md hover:shadow-lg">
-            <svg class="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-            Logout
-        </button>
-    </aside>
+<aside id="sidebar" class="bg-gray-900 text-white p-6 space-y-8 flex-col lg:flex-shrink-0 shadow-lg lg:shadow-xl lg:sticky lg:top-0 lg:h-screen">
+    <h1 class="text-4xl font-extrabold mb-8 text-center lg:text-left text-blue-400">Admin Panel</h1>
+    <nav class="flex-grow">
+        <ul class="space-y-3">
+            <li>
+                <a href="#dashboard-overview" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 active:bg-gray-700 font-medium text-lg" data-target="dashboard-overview-section">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m0 0l-7 7m7-7v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard Overview
+                </a>
+            </li>
+            <li>
+                <a href="#wallpaper-selection" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="wallpaper-selection-section">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    Store Wallpaper
+                </a>
+            </li>
+            <li>
+                <a href="#store-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="store-management-section">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Store Info & QR
+                </a>
+            </li>
+            <li>
+                <a href="#category-management" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="category-management-section">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Categories
+                </a>
+            </li>
+            <li>
+                <a href="#add-products" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="add-products-section">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    Add Products
+                </a>
+            </li>
+            <li>
+                <a href="#your-products" class="sidebar-link flex items-center py-3 px-4 rounded-xl transition duration-300 hover:bg-gray-700 hover:text-blue-300 font-medium text-lg" data-target="your-products-section">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    Your Products
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <button id="logoutBtn" class="w-full text-left py-3 px-4 rounded-xl transition duration-300 hover:bg-red-700 bg-red-600 font-bold text-lg shadow-md hover:shadow-lg">
+        <svg class="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        Logout
+    </button>
+</aside>
 
     <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 lg:p-12">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 border-b-2 border-blue-500 pb-4">
             <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 sm:mb-0">Admin Dashboard</h2>
-            <img id="mainHeaderStoreLogo" src="" alt="Store Logo" class="h-12 w-12 object-contain rounded-full border border-gray-300 p-1 bg-white shadow-sm" style="display: none;">
+            <div class="flex items-center space-x-4">
+                <span id="adminName" class="text-lg font-semibold text-gray-700">Loading...</span>
+                <img id="mainHeaderStoreLogo" src="" alt="Store Logo" class="h-12 w-12 object-contain rounded-full border border-gray-300 p-1 bg-white shadow-sm" style="display: none;">
+            </div>
         </div>
 
         <section id="dashboard-overview-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200">
@@ -433,6 +360,51 @@
                     <ul id="categoryProductCountsList" class="space-y-2 text-lg">
                         <li class="text-gray-200">Loading...</li>
                     </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Wallpaper Selection Section -->
+        <section id="wallpaper-selection-section" class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl mb-12 border border-gray-200 hidden">
+            <h3 class="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 sm:mb-8 border-b border-gray-200 pb-4">Store Wallpaper</h3>
+            
+            <!-- Current Wallpaper Section -->
+            <div class="mb-8">
+                <h4 class="text-lg font-semibold mb-4">Current Wallpaper</h4>
+                <div id="currentWallpaperContainer" class="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300">
+                    <div id="noWallpaperText" class="text-center text-gray-500">
+                        <i class="fas fa-image text-4xl mb-3 text-gray-300"></i>
+                        <p class="text-lg font-semibold">No wallpaper selected</p>
+                        <p class="text-sm">Select a wallpaper from below to customize your menu background</p>
+                    </div>
+                    <img id="currentWallpaperPreview" src="" alt="Current Wallpaper" class="hidden w-full max-w-2xl mx-auto rounded-lg shadow-lg">
+                    <div class="mt-4 text-center">
+                       <button id="removeWallpaperBtn" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200 hidden">
+    <i class="fas fa-times mr-2"></i>Remove Wallpaper
+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available Wallpapers Section -->
+            <div>
+                <h4 class="text-lg font-semibold mb-4">Available Wallpapers</h4>
+                <p class="text-gray-600 mb-6">Select a wallpaper for your store menu. The selected wallpaper will appear as the background on your customer-facing menu page.</p>
+                
+                <!-- Loading State -->
+                <div id="wallpapersLoading" class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-3xl text-blue-500 mb-3"></i>
+                    <p class="text-lg font-semibold text-gray-600">Loading wallpapers...</p>
+                </div>
+
+                <!-- Wallpapers Grid -->
+                <div id="wallpapersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+                    <!-- Wallpapers will be loaded here dynamically -->
+                </div>
+
+                <!-- No Wallpapers Message -->
+                <div id="noWallpapersMessage" class="hidden">
+                    <!-- Message will be loaded here dynamically -->
                 </div>
             </div>
         </section>
@@ -770,15 +742,41 @@
         </div>
     </div>
 
-    <script>
-    // Suppress Tailwind CSS warning
-    window.tailwind = { config: { suppress: true } };
-</script>
-
-    <script src="/js/api.js"></script>
+      <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/admin.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
     <script src="/js/utils.js"></script>
+
+    <!-- DEBUG SCRIPT - Add this right here -->
+    <script>
+        console.log('🔍 DEBUG: Checking elements after scripts loaded');
+        console.log('Sidebar:', document.getElementById('sidebar'));
+        console.log('Mobile menu button:', document.getElementById('mobileMenuButton'));
+        console.log('All elements with IDs:', {
+            sidebar: document.getElementById('sidebar'),
+            mobileMenuButton: document.getElementById('mobileMenuButton'),
+            exists: {
+                sidebar: !!document.getElementById('sidebar'),
+                mobileMenuButton: !!document.getElementById('mobileMenuButton')
+            }
+        });
+        
+        // Test if we can manually make it work
+        const sidebar = document.getElementById('sidebar');
+        const button = document.getElementById('mobileMenuButton');
+        
+        if (sidebar && button) {
+            console.log('✅ Elements found! Setting up click handler...');
+            button.onclick = function() {
+                console.log('🎯 CLICKED! Toggling mobile-open class');
+                sidebar.classList.toggle('mobile-open');
+                console.log('Current classes:', sidebar.classList.toString());
+            };
+        } else {
+            console.error('❌ Elements still not found!');
+            console.log('Available elements:', document.querySelectorAll('*'));
+        }
+    </script>
 </body>
 </html>

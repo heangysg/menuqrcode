@@ -100,13 +100,31 @@ if (requiresAuth) {
     if (endpoint.includes('/superadmin')) {
         // For superadmin endpoints, try to get superadmin token
         token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
+        if (!token) token = localStorage.getItem('superadminToken');
     } else if (endpoint.includes('/users') && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
         // For user management, use superadmin token
         token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
+        if (!token) token = localStorage.getItem('superadminToken');
+    } else if (endpoint.includes('/wallpapers')) {
+        // For wallpaper endpoints, try both tokens
+        token = window.getStoredToken ? window.getStoredToken('admin') : null;
+        if (!token) token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
+        if (!token) token = localStorage.getItem('adminToken');
+        if (!token) token = localStorage.getItem('superadminToken');
+        if (!token) token = localStorage.getItem('token');
     } else {
         // For other endpoints, use any available token
-        token = window.getStoredToken ? window.getStoredToken() : localStorage.getItem('token');
+        token = window.getStoredToken ? window.getStoredToken() : null;
+        if (!token) token = localStorage.getItem('adminToken');
+        if (!token) token = localStorage.getItem('superadminToken');
+        if (!token) token = localStorage.getItem('token');
     }
+    
+    console.log('🔐 Token selection for', endpoint, ':', {
+        hasToken: !!token,
+        tokenSource: token ? 'Found' : 'Not found',
+        endpoint: endpoint
+    });
     
     if (!token) {
         console.error('❌ No valid token found for endpoint:', endpoint);
@@ -439,7 +457,37 @@ function handleFetchError(error, endpoint) {
 async function fetchPublicProducts() {
     return apiRequest('/products/website', 'GET', null, false);
 }
+function debugTokens() {
+    console.log('🔐 Token Debug Info:');
+    console.log('LocalStorage tokens:');
+    console.log('- adminToken:', localStorage.getItem('adminToken') ? 'EXISTS' : 'MISSING');
+    console.log('- superadminToken:', localStorage.getItem('superadminToken') ? 'EXISTS' : 'MISSING');
+    console.log('- token:', localStorage.getItem('token') ? 'EXISTS' : 'MISSING');
+    
+    console.log('Window.getStoredToken results:');
+    if (window.getStoredToken) {
+        console.log('- getStoredToken():', window.getStoredToken() ? 'EXISTS' : 'MISSING');
+        console.log('- getStoredToken("admin"):', window.getStoredToken('admin') ? 'EXISTS' : 'MISSING');
+        console.log('- getStoredToken("superadmin"):', window.getStoredToken('superadmin') ? 'EXISTS' : 'MISSING');
+    } else {
+        console.log('- getStoredToken function: NOT AVAILABLE');
+    }
+    
+    // Test the wallpaper API directly
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('superadminToken') || localStorage.getItem('token');
+    if (token) {
+        console.log('Testing API with token...');
+        fetch('/api/wallpapers', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(r => r.json())
+        .then(data => console.log('API Response:', data))
+        .catch(err => console.error('API Error:', err));
+    }
+}
 
+// Run the debug
+debugTokens();
 /**
  * Specialized function for superadmin data fetching
  */

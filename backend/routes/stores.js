@@ -197,18 +197,21 @@ router.put('/my-store', protect, authorizeRoles('admin', 'superadmin'), upload.f
     }
 });
 
-// @desc    Get store details by Slug (for customer facing menu)
+// @desc    Get store by slug (public endpoint)
 // @route   GET /api/stores/public/slug/:slug
 // @access  Public
 router.get('/public/slug/:slug', async (req, res) => {
     try {
-        const store = await Store.findOne({ slug: req.params.slug });
+        const store = await Store.findOne({ 
+            slug: req.params.slug,
+            isActive: true 
+        }).populate('admin', 'name email').select('-publicUrlId'); // Remove sensitive fields
 
         if (!store) {
             return res.status(404).json({ message: 'Store not found.' });
         }
-        
-        // Return all relevant public fields, including telegramLinks
+
+        // Return store with wallpaperUrl included
         res.json({
             _id: store._id,
             name: store.name,
@@ -217,15 +220,18 @@ router.get('/public/slug/:slug', async (req, res) => {
             logo: store.logo,
             description: store.description,
             facebookUrl: store.facebookUrl,
-            telegramLinks: store.telegramLinks, // UPDATED: Return telegramLinks array
             tiktokUrl: store.tiktokUrl,
             websiteUrl: store.websiteUrl,
+            telegramLinks: store.telegramLinks,
             banner: store.banner,
-            publicUrlId: store.publicUrlId,
-            slug: store.slug
+            wallpaperUrl: store.wallpaperUrl, // ADD THIS LINE
+            slug: store.slug,
+            settings: store.settings,
+            createdAt: store.createdAt
         });
+
     } catch (error) {
-        console.error('Error fetching public store by slug:', error);
+        console.error('Error fetching store by slug:', error);
         res.status(500).json({ message: error.message });
     }
 });
@@ -329,6 +335,150 @@ router.get('/:id', protect, authorizeRoles('superadmin'), async (req, res) => {
     } catch (error) {
         console.error('Error fetching store:', error);
         res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Update store wallpaper (Admin only)
+// @route   PATCH /api/stores/:id/wallpaper
+// @access  Private (Admin only)
+router.patch('/:id/wallpaper', protect, authorizeRoles('admin'), async (req, res) => {
+    try {
+        const { wallpaperUrl } = req.body;
+        
+        // Find store and verify admin ownership
+        const store = await Store.findById(req.params.id);
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found' });
+        }
+
+        // Check if the current user owns this store
+        if (store.admin.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to update this store' });
+        }
+
+        // Update wallpaper (can be empty string to remove)
+        store.wallpaperUrl = wallpaperUrl || '';
+        await store.save();
+
+        res.json({
+            message: 'Wallpaper updated successfully',
+            store: store
+        });
+
+    } catch (error) {
+        console.error('Error updating store wallpaper:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+// @desc    Update store wallpaper
+// @route   PATCH /api/stores/:id/wallpaper
+// @access  Private (Admin & Superadmin)
+router.patch('/:id/wallpaper', protect, authorizeRoles('admin', 'superadmin'), async (req, res) => {
+    try {
+        const { wallpaperUrl } = req.body;
+        
+        console.log('🎨 Updating store wallpaper:', { 
+            storeId: req.params.id, 
+            wallpaperUrl,
+            userId: req.user._id 
+        });
+
+        // Find store and check ownership
+        const store = await Store.findById(req.params.id);
+        
+        if (!store) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Store not found' 
+            });
+        }
+
+        // Check if user owns this store or is superadmin
+        if (store.admin.toString() !== req.user._id.toString() && req.user.role !== 'superadmin') {
+            return res.status(403).json({ 
+                success: false,
+                message: 'Not authorized to update this store' 
+            });
+        }
+
+        // Validate wallpaper URL if provided
+        if (wallpaperUrl && wallpaperUrl.trim() !== '') {
+            const validator = require('validator');
+            if (!validator.isURL(wallpaperUrl, {
+                protocols: ['http', 'https'],
+                require_protocol: true,
+                require_valid_protocol: true
+            })) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid wallpaper URL format'
+                });
+            }
+        }
+
+        // Update wallpaper
+        store.wallpaperUrl = wallpaperUrl || '';
+        await store.save();
+
+        console.log('✅ Store wallpaper updated successfully:', {
+            storeName: store.name,
+            wallpaperUrl: store.wallpaperUrl
+        });
+        
+        res.json({
+            success: true,
+            message: 'Store wallpaper updated successfully',
+            store: {
+                _id: store._id,
+                name: store.name,
+                wallpaperUrl: store.wallpaperUrl
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating store wallpaper:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating store wallpaper',
+            error: error.message
+        });
+    }
+});
+// @desc    Get all wallpapers (for admin selection)
+// @route   GET /api/wallpapers
+// @access  Private (Admin & Superadmin)
+router.get('/', protect, authorizeRoles('admin', 'superadmin'), async (req, res) => {
+    try {
+        console.log('📥 Fetching wallpapers for user:', {
+            userId: req.user._id,
+            role: req.user.role,
+            email: req.user.email
+        });
+
+        // Allow both admin and superadmin to see all wallpapers
+        const wallpapers = await Wallpaper.getAllWithUploader();
+        
+        console.log('✅ Found wallpapers:', {
+            count: wallpapers.length,
+            wallpapers: wallpapers.map(w => ({
+                id: w._id,
+                name: w.name,
+                imageUrl: w.imageUrl,
+                uploadedBy: w.uploadedBy?.name
+            }))
+        });
+        
+        res.json({
+            success: true,
+            wallpapers: wallpapers,
+            total: wallpapers.length
+        });
+    } catch (error) {
+        console.error('❌ Error fetching wallpapers:', error);
+        res.status(500).json({ 
+            success: false,
+            message: error.message 
+        });
     }
 });
 

@@ -107,8 +107,23 @@ const storeSchema = mongoose.Schema(
                 message: 'Please provide a valid Facebook URL'
             }
         },
-        // REMOVED: Single telegramUrl field
-        // ADD: Multiple telegramLinks array
+         // ADD THIS FIELD FOR WALLPAPER
+        wallpaperUrl: {
+            type: String,
+            default: '',
+            validate: {
+                validator: function(v) {
+                    if (!v || v.trim() === '') return true;
+                    return validator.isURL(v, {
+                        protocols: ['http', 'https'],
+                        require_protocol: true,
+                        require_valid_protocol: true,
+                        allow_underscores: true
+                    });
+                },
+                message: 'Wallpaper must be a valid URL'
+            }
+        },
         telegramLinks: {
             type: [{
                 name: {

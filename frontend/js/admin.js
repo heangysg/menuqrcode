@@ -1,4 +1,5 @@
 // qr-digital-menu-system/frontend/js/admin.js
+const MAX_PRODUCTS_UPDATE_PERCENT = 0.3; // 30% max
 
 // Optimize Cloudinary images for delivery (auto format, auto quality, max width 600px)
 function getOptimizedImageUrl(url) {
@@ -9,11 +10,93 @@ function getOptimizedImageUrl(url) {
     return url;
 }
 
+// ==================== MOBILE MENU SETUP ====================
+function initializeMobileMenu() {
+    console.log('📱 Initializing mobile menu...');
+    
+    const mobileMenuButton = document.getElementById('mobileMenuButton');
+    const sidebar = document.getElementById('sidebar');
+    
+    console.log('Mobile menu elements:', {
+        mobileMenuButton: !!mobileMenuButton,
+        sidebar: !!sidebar
+    });
+    
+    if (mobileMenuButton && sidebar) {
+        console.log('✅ Setting up mobile menu event listeners');
+        
+        // Remove any existing event listeners first
+        const newButton = mobileMenuButton.cloneNode(true);
+        mobileMenuButton.parentNode.replaceChild(newButton, mobileMenuButton);
+        
+        const freshButton = document.getElementById('mobileMenuButton');
+        
+        freshButton.addEventListener('click', function(e) {
+            console.log('🎯 Hamburger clicked!');
+            e.stopPropagation(); // Prevent event bubbling
+            sidebar.classList.toggle('mobile-open');
+            
+            if (sidebar.classList.contains('mobile-open')) {
+                document.body.style.overflow = 'hidden';
+                console.log('📱 Menu opened');
+            } else {
+                document.body.style.overflow = '';
+                console.log('📱 Menu closed');
+            }
+        });
+        
+        // Close menu when clicking on links
+        const sidebarLinks = sidebar.querySelectorAll('nav a, #logoutBtn');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth < 1024) {
+                    sidebar.classList.remove('mobile-open');
+                    document.body.style.overflow = '';
+                    console.log('📱 Menu closed via link click');
+                }
+            });
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth < 1024 && 
+                sidebar.classList.contains('mobile-open') &&
+                !sidebar.contains(e.target) &&
+                e.target !== freshButton && 
+                !freshButton.contains(e.target)) {
+                sidebar.classList.remove('mobile-open');
+                document.body.style.overflow = '';
+                console.log('📱 Menu closed via outside click');
+            }
+        });
+        
+        // Close menu on window resize to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 1024 && sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+                document.body.style.overflow = '';
+                console.log('📱 Menu closed via resize to desktop');
+            }
+        });
+        
+        console.log('✅ Mobile menu setup complete');
+        return true;
+    } else {
+        console.error('❌ Mobile menu elements not found');
+        return false;
+    }
+}
+
 // Global variables
 let currentStore = null;
 let allProducts = []; // Store all products for filtering
 let currentPage = 1; // 🆕 Pagination current page
 let productsPerPage = 8; // 🆕 8 products per page
+let currentStoreData = null;
+let currentStoreWallpaper = '';
+let wallpaperSelection = {};
+
+// ==================== PAGINATION FUNCTIONS ====================
 
 function updatePaginationControls(pagination) {
     console.log('🔄 updatePaginationControls called with:', pagination);
@@ -66,7 +149,6 @@ function updatePaginationControls(pagination) {
     console.log('✅ Pagination controls updated');
 }
 
-// 🆕 New function to handle pagination button clicks
 function setupPaginationEventListeners() {
     const paginationContainer = document.getElementById('paginationContainer');
     if (!paginationContainer) return;
@@ -187,7 +269,8 @@ function resetToFirstPage() {
     clearPaginationControls(); // Also clear the display when resetting
 }
 
-// ADD: Improved Telegram Links Management Functions
+// ==================== TELEGRAM LINKS MANAGEMENT ====================
+
 function initializeTelegramLinks() {
     const container = document.getElementById('telegramLinksContainer');
     const addBtn = document.getElementById('addTelegramLinkBtn');
@@ -305,6 +388,8 @@ function getTelegramLinksData() {
     return links;
 }
 
+// ==================== AUTHENTICATION & INITIALIZATION ====================
+
 // SIMPLIFIED version - remove the complex multi-user logic
 function setActiveUserForAdminPage() {
     try {
@@ -374,6 +459,27 @@ function waitForAuth() {
     });
 }
 
+// Initialize admin dashboard
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🏪 Admin dashboard loading...');
+    
+    try {
+        // Initialize mobile menu FIRST
+        console.log('📱 Initializing mobile menu...');
+        initializeMobileMenu();
+        
+        // Wait for authentication
+        await waitForAuth();
+        
+        // Initialize dashboard
+        await initializeAdminDashboard();
+        
+    } catch (error) {
+        console.error('Error initializing admin dashboard:', error);
+        showNotification('Error loading dashboard: ' + error.message, 'error');
+    }
+});
+
 async function initializeAdminDashboard() {
     console.log('🚀 Starting admin dashboard initialization...');
     
@@ -426,7 +532,7 @@ async function loadAdminData() {
         ]);
         
         await updateDashboardOverview();
-        
+        await initializeWallpaperSelection(); // This line should be here
     } catch (error) {
         console.error('Error loading admin data:', error);
         throw error;
@@ -472,7 +578,418 @@ function updateAdminHeader() {
     }
 }
 
-// --- Store Management Functions ---
+// ==================== WALLPAPER MANAGEMENT ====================
+
+async function initializeWallpaperSelection() {
+    try {
+        console.log('🎨 Initializing wallpaper selection...');
+        
+        wallpaperSelection = {
+            currentContainer: document.getElementById('currentWallpaperContainer'),
+            currentPreview: document.getElementById('currentWallpaperPreview'),
+            noWallpaperText: document.getElementById('noWallpaperText'),
+            loading: document.getElementById('wallpapersLoading'),
+            grid: document.getElementById('wallpapersGrid'),
+            noWallpapersMessage: document.getElementById('noWallpapersMessage'),
+            removeWallpaperBtn: document.getElementById('removeWallpaperBtn')
+        };
+
+        // Check if all required elements exist
+        if (!wallpaperSelection.currentContainer) {
+            console.error('❌ Wallpaper container elements not found');
+            return;
+        }
+
+        await loadAvailableWallpapers();
+        updateCurrentWallpaperDisplay();
+        
+        console.log('✅ Wallpaper selection initialized successfully');
+    } catch (error) {
+        console.error('❌ Error initializing wallpaper selection:', error);
+    }
+}
+
+function updateCurrentWallpaperDisplay() {
+    if (!currentStore || !wallpaperSelection.currentContainer) return;
+    
+    const currentWallpaper = currentStore.wallpaperUrl;
+    const removeBtn = wallpaperSelection.removeWallpaperBtn;
+    
+    console.log('🖼️ Current wallpaper URL:', currentWallpaper);
+    
+    if (currentWallpaper && currentWallpaper.trim() !== '') {
+        if (wallpaperSelection.currentPreview) {
+            wallpaperSelection.currentPreview.src = currentWallpaper;
+            wallpaperSelection.currentPreview.classList.remove('hidden');
+        }
+        if (wallpaperSelection.noWallpaperText) {
+            wallpaperSelection.noWallpaperText.classList.add('hidden');
+        }
+        if (removeBtn) {
+            removeBtn.classList.remove('hidden');
+        }
+    } else {
+        if (wallpaperSelection.currentPreview) {
+            wallpaperSelection.currentPreview.classList.add('hidden');
+        }
+        if (wallpaperSelection.noWallpaperText) {
+            wallpaperSelection.noWallpaperText.classList.remove('hidden');
+        }
+        if (removeBtn) {
+            removeBtn.classList.add('hidden');
+        }
+    }
+}
+
+async function loadAvailableWallpapers() {
+    if (!wallpaperSelection.loading || !wallpaperSelection.grid) return;
+    
+    wallpaperSelection.loading.classList.remove('hidden');
+    if (wallpaperSelection.grid) wallpaperSelection.grid.classList.add('hidden');
+    if (wallpaperSelection.noWallpapersMessage) wallpaperSelection.noWallpapersMessage.classList.add('hidden');
+    
+    try {
+        console.log('📥 Loading available wallpapers...');
+        
+        // Debug: Check all possible token sources
+        const token = window.getStoredToken ? window.getStoredToken('admin') : null;
+        const directToken = localStorage.getItem('adminToken');
+        const anyToken = localStorage.getItem('token');
+        
+        console.log('🔐 Token debug:', {
+            getStoredToken: token ? 'EXISTS' : 'NULL',
+            localStorageAdmin: directToken ? 'EXISTS' : 'NULL', 
+            localStorageAny: anyToken ? 'EXISTS' : 'NULL'
+        });
+        
+        // Use the first available token
+        const finalToken = token || directToken || anyToken;
+        
+        if (!finalToken) {
+            throw new Error('No authentication token found. Please log in again.');
+        }
+
+        console.log('🔐 Using token for wallpapers:', finalToken.substring(0, 20) + '...');
+        
+        // Use direct fetch to bypass the api.js token selection issue
+        const response = await fetch('/api/wallpapers', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${finalToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const wallpapers = data.wallpapers || data || [];
+        
+        console.log(`✅ Loaded ${wallpapers.length} wallpapers:`, wallpapers);
+        renderWallpapersSelection(wallpapers);
+        
+    } catch (error) {
+        console.error('❌ Error loading available wallpapers:', error);
+        
+        if (wallpaperSelection.loading) wallpaperSelection.loading.classList.add('hidden');
+        if (wallpaperSelection.noWallpapersMessage) {
+            wallpaperSelection.noWallpapersMessage.classList.remove('hidden');
+            wallpaperSelection.noWallpapersMessage.innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-triangle text-3xl mb-3"></i>
+                    <p class="text-lg font-semibold">Failed to load wallpapers</p>
+                    <p class="text-sm">${error.message}</p>
+                    <button onclick="loadAvailableWallpapers()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition duration-200">
+                        <i class="fas fa-redo mr-2"></i>Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
+}
+
+// Test the wallpaper API directly
+async function testWallpaperAPI() {
+    try {
+        const token = window.getStoredToken ? window.getStoredToken('admin') : null;
+        console.log('Token:', token);
+        
+        const response = await fetch('/api/wallpapers', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        console.log('Wallpaper API Response:', data);
+        return data;
+    } catch (error) {
+        console.error('API Test Error:', error);
+    }
+}
+
+// Run the test
+testWallpaperAPI();
+
+function renderWallpapersSelection(wallpapers) {
+    const grid = wallpaperSelection.grid;
+    const loading = wallpaperSelection.loading;
+    const noWallpapers = wallpaperSelection.noWallpapersMessage;
+    
+    if (!grid || !loading || !noWallpapers) return;
+    
+    loading.classList.add('hidden');
+    
+    if (wallpapers.length === 0) {
+        noWallpapers.classList.remove('hidden');
+        noWallpapers.innerHTML = `
+            <div class="text-center py-12 text-gray-500">
+                <i class="fas fa-image text-5xl mb-4 text-gray-300"></i>
+                <p class="text-xl font-semibold mb-2">No wallpapers available</p>
+                <p class="text-gray-600">Contact superadmin to upload wallpapers</p>
+            </div>
+        `;
+        return;
+    }
+    
+    grid.innerHTML = '';
+    grid.classList.remove('hidden');
+    
+    const currentWallpaperUrl = currentStore ? currentStore.wallpaperUrl : '';
+    
+    wallpapers.forEach(wallpaper => {
+        const isSelected = currentWallpaperUrl === wallpaper.imageUrl;
+        
+        const card = document.createElement('div');
+        card.className = `wallpaper-card bg-white rounded-xl shadow-lg border-2 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer ${
+            isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'
+        }`;
+        card.dataset.wallpaperId = wallpaper._id;
+        card.dataset.wallpaperUrl = wallpaper.imageUrl;
+        card.dataset.wallpaperName = wallpaper.name;
+        
+        card.innerHTML = `
+            <div class="relative group">
+                <img src="${wallpaper.imageUrl}" alt="${wallpaper.name}" 
+                     class="wallpaper-image w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                ${isSelected ? `
+                    <div class="absolute top-3 right-3 bg-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold shadow-lg">
+                        <i class="fas fa-check mr-1"></i>Selected
+                    </div>
+                ` : ''}
+                <div class="absolute bottom-3 left-3 right-3">
+                    <span class="bg-gradient-to-r from-black to-transparent text-white text-sm font-medium px-3 py-1 rounded-full backdrop-blur-sm">
+                        ${wallpaper.name}
+                    </span>
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-user mr-1"></i>
+                        ${wallpaper.uploadedBy?.name || 'Superadmin'}
+                    </p>
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        HD Wallpaper
+                    </span>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="preview-wallpaper-btn flex-1 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-eye mr-2"></i>Preview
+                    </button>
+                    <button class="select-wallpaper-btn flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition duration-200 flex items-center justify-center ${isSelected ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${isSelected ? 'disabled' : ''}>
+                        <i class="fas fa-check mr-2"></i>${isSelected ? 'Selected' : 'Select'}
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+    
+    // Add event listeners using event delegation
+    setupWallpaperEventListeners();
+}
+
+function setupWallpaperEventListeners() {
+    const grid = wallpaperSelection.grid;
+    if (!grid) return;
+    
+    // Remove any existing event listeners
+    grid.removeEventListener('click', handleWallpaperGridClick);
+    
+    // Add new event listener
+    grid.addEventListener('click', handleWallpaperGridClick);
+}
+
+function handleWallpaperGridClick(event) {
+    const target = event.target;
+    
+    // Handle preview button clicks
+    if (target.classList.contains('preview-wallpaper-btn') || target.closest('.preview-wallpaper-btn')) {
+        const card = target.closest('.wallpaper-card');
+        if (card) {
+            const imageUrl = card.dataset.wallpaperUrl;
+            const name = card.dataset.wallpaperName;
+            previewWallpaperInModal(imageUrl, name);
+        }
+        return;
+    }
+    
+    // Handle select button clicks
+    if (target.classList.contains('select-wallpaper-btn') || target.closest('.select-wallpaper-btn')) {
+        const card = target.closest('.wallpaper-card');
+        if (card) {
+            const wallpaperId = card.dataset.wallpaperId;
+            const wallpaperUrl = card.dataset.wallpaperUrl;
+            const wallpaperName = card.dataset.wallpaperName;
+            
+            // Check if already selected
+            const isSelected = card.querySelector('.select-wallpaper-btn').disabled;
+            if (!isSelected) {
+                selectWallpaper(wallpaperId, wallpaperUrl, wallpaperName);
+            }
+        }
+        return;
+    }
+    
+    // Handle image clicks for preview
+    if (target.classList.contains('wallpaper-image')) {
+        const card = target.closest('.wallpaper-card');
+        if (card) {
+            const imageUrl = card.dataset.wallpaperUrl;
+            const name = card.dataset.wallpaperName;
+            previewWallpaperInModal(imageUrl, name);
+        }
+        return;
+    }
+}
+
+function previewWallpaperInModal(imageUrl, name) {
+    // Remove any existing modal first
+    const existingModal = document.querySelector('.wallpaper-preview-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'wallpaper-preview-modal fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-6xl max-h-[90vh] w-full overflow-hidden shadow-2xl">
+            <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                <h3 class="text-2xl font-bold">${name}</h3>
+                <button onclick="closeWallpaperPreviewModal()" 
+                        class="text-white hover:text-gray-200 text-2xl transition duration-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-8 flex justify-center items-center bg-gray-100">
+                <img src="${imageUrl}" alt="${name}" 
+                     class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg">
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Click outside to close
+                </div>
+                <button onclick="closeWallpaperPreviewModal()" 
+                        class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-8 rounded-xl transition duration-200 flex items-center">
+                    <i class="fas fa-times mr-2"></i>Close Preview
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeWallpaperPreviewModal();
+        }
+    });
+    
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+function closeWallpaperPreviewModal() {
+    const modal = document.querySelector('.wallpaper-preview-modal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+async function selectWallpaper(wallpaperId, wallpaperUrl, wallpaperName) {
+    try {
+        if (!currentStore || !currentStore._id) {
+            showMessageModal('Error', 'Store information not loaded. Please refresh the page.', true);
+            return;
+        }
+        
+        console.log(`🎨 Selecting wallpaper: ${wallpaperName}`);
+        
+        const response = await apiRequest(`/stores/${currentStore._id}/wallpaper`, 'PATCH', {
+            wallpaperUrl: wallpaperUrl
+        }, true);
+        
+        showMessageModal('Success', `Wallpaper "${wallpaperName}" selected successfully! It will appear on your menu page.`, false);
+        
+        // Update current store data
+        if (currentStore) {
+            currentStore.wallpaperUrl = wallpaperUrl;
+        }
+        
+        // Update display
+        updateCurrentWallpaperDisplay();
+        await loadAvailableWallpapers(); // Refresh to update selection states
+        
+    } catch (error) {
+        console.error('❌ Error selecting wallpaper:', error);
+        showMessageModal('Error', `Failed to select wallpaper: ${error.message}`, true);
+    }
+}
+
+async function removeCurrentWallpaper() {
+    try {
+        if (!currentStore || !currentStore._id) {
+            showMessageModal('Error', 'Store information not loaded. Please refresh the page.', true);
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to remove the current wallpaper? The menu page will use the default background.')) {
+            return;
+        }
+        
+        console.log('🗑️ Removing current wallpaper');
+        
+        const response = await apiRequest(`/stores/${currentStore._id}/wallpaper`, 'PATCH', {
+            wallpaperUrl: ''
+        }, true);
+        
+        showMessageModal('Success', 'Wallpaper removed successfully! The menu page will now use the default background.', false);
+        
+        // Update current store data
+        if (currentStore) {
+            currentStore.wallpaperUrl = '';
+        }
+        
+        // Update display
+        updateCurrentWallpaperDisplay();
+        await loadAvailableWallpapers(); // Refresh to update selection states
+        
+    } catch (error) {
+        console.error('❌ Error removing wallpaper:', error);
+        showMessageModal('Error', `Failed to remove wallpaper: ${error.message}`, true);
+    }
+}
+
+// ==================== STORE MANAGEMENT ====================
+
 async function fetchStoreDetails() {
     const copyMessage = document.getElementById('copyMessage');
     clearMessage(copyMessage);
@@ -604,7 +1121,8 @@ async function fetchStoreDetails() {
     }
 }
 
-// --- Category Management Functions ---
+// ==================== CATEGORY MANAGEMENT ====================
+
 async function fetchCategories() {
     const categoryListTableBody = document.getElementById('categoryList');
     const productCategorySelect = document.getElementById('productCategory');
@@ -675,7 +1193,7 @@ async function fetchCategories() {
         document.querySelectorAll('.delete-category-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 const categoryIdToDelete = e.target.dataset.id;
-                                const categoryName = e.target.closest('tr').querySelector('td:first-child').textContent;
+                const categoryName = e.target.closest('tr').querySelector('td:first-child').textContent;
                 
                 showConfirmationModal(
                     'Confirm Deletion',
@@ -715,12 +1233,19 @@ async function deleteCategory(id) {
     }
 }
 
+// ==================== PRODUCT MANAGEMENT ====================
+
 async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
     const productListTableBody = document.getElementById('productListTableBody');
-    const productFilterCategorySelect = document.getElementById('productFilterCategory');
-    const productSearchInput = document.getElementById('productSearchInput');
-
+    
+    // Check if the table body exists before trying to manipulate it
+    if (!productListTableBody) {
+        console.error('❌ productListTableBody element not found');
+        return;
+    }
+    
     productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading products...</td></tr>';
+    
     try {
         console.log('📦 Fetching products...');
         let url = '/products/my-store';
@@ -742,12 +1267,11 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
         }
 
         console.log('Frontend: Fetching products with URL:', url);
+        
         const response = await apiRequest(url, 'GET', null, true);
         
         console.log('🔍 Full API Response:', response);
         
-        // 🆕 FIX: Handle the response properly - don't extract just products
-        // The response should already contain both products and pagination
         const products = response.products || [];
         const pagination = response.pagination;
         
@@ -775,16 +1299,43 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
     } catch (error) {
         console.error('❌ Error fetching products:', error);
         showMessageModal('Error', `Error fetching products: ${error.message}`, true);
-        productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Failed to load products.</td></tr>';
+        
+        // Only update the table body if it exists
+        if (productListTableBody) {
+            productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Failed to load products.</td></tr>';
+        }
         
         // 🆕 Clear pagination on error
         clearPaginationControls();
     }
 }
 
+// Add this function if it's missing
+function showSection(sectionId) {
+    const allSections = document.querySelectorAll('main section[id$="-section"]');
+    
+    // Hide all sections
+    allSections.forEach(section => {
+        section.classList.add('hidden');
+    });
+    
+    // Show the target section
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.remove('hidden');
+    }
+}
+
 // Render products table
 function renderProductsTable(products) {
     const productListTableBody = document.getElementById('productListTableBody');
+    
+    // Check if the table body exists
+    if (!productListTableBody) {
+        console.error('❌ productListTableBody element not found in renderProductsTable');
+        return;
+    }
+    
     productListTableBody.innerHTML = '';
 
     if (products.length === 0) {
@@ -817,11 +1368,24 @@ function renderProductsTable(products) {
 
     // Add event listeners for the newly created buttons
     document.querySelectorAll('.edit-product-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
+        button.addEventListener('click', async (e) => {
             const productId = e.target.dataset.id;
-            const product = allProducts.find(p => p._id === productId);
-            if (product) {
-                openEditProductModal(product);
+            console.log('🔄 Edit button clicked for product:', productId);
+            
+            try {
+                // Fetch the full product details first
+                const product = await apiRequest(`/products/${productId}`, 'GET', null, true);
+                console.log('📦 Product data fetched:', product);
+                
+                if (product) {
+                    openEditProductModal(product);
+                } else {
+                    console.error('❌ Product not found');
+                    showMessageModal('Error', 'Product not found.', true);
+                }
+            } catch (error) {
+                console.error('❌ Error fetching product details:', error);
+                showMessageModal('Error', `Error fetching product: ${error.message}`, true);
             }
         });
     });
@@ -905,7 +1469,8 @@ async function deleteProduct(id) {
     }
 }
 
-// --- Dashboard Overview Functions ---
+// ==================== DASHBOARD OVERVIEW ====================
+
 async function updateDashboardOverview() {
     try {
         console.log('🔄 Updating dashboard overview...');
@@ -1009,7 +1574,39 @@ async function updateDashboardOverview() {
     }
 }
 
-// --- Product Image Popup Functions ---
+// ==================== UTILITY FUNCTIONS ====================
+
+// 🛡️ SAFETY: Prevent bulk category updates
+function safeBulkUpdate(productsToUpdate, allProducts) {
+    if (!productsToUpdate.length || !allProducts.length) return true;
+    
+    const updatePercent = productsToUpdate.length / allProducts.length;
+    
+    if (updatePercent > MAX_PRODUCTS_UPDATE_PERCENT) {
+        alert(`❌ SAFETY: You're updating ${Math.round(updatePercent * 100)}% of products. Maximum allowed is 30%. Please edit products individually.`);
+        return false; // STOP
+    }
+    
+    return true; // CONTINUE
+}
+
+// Function to prepend CORS proxy if the URL is external and not already proxied
+function getProxiedImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('https://corsproxy.io/?')) {
+        return url;
+    }
+    const isCloudinary = url.includes('res.cloudinary.com');
+    const isPlaceholder = url.includes('placehold.co');
+    const isSameOrigin = url.startsWith(window.location.origin);
+
+    if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
+        return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    }
+    return url;
+}
+
+// Product Image Popup Functions
 function openProductImagePopup(imageUrl, title, description, price) {
     const productImagePopupModal = document.getElementById('productImagePopupModal');
     const popupProductImage = document.getElementById('popupProductImage');
@@ -1048,24 +1645,6 @@ function closeProductImagePopup() {
     popupProductPriceDetail.textContent = '';
     popupProductPriceDetail.classList.add('hidden');
     document.body.style.overflow = '';
-}
-
-// --- Utility Functions ---
-
-// Function to prepend CORS proxy if the URL is external and not already proxied
-function getProxiedImageUrl(url) {
-    if (!url) return '';
-    if (url.startsWith('https://corsproxy.io/?')) {
-        return url;
-    }
-    const isCloudinary = url.includes('res.cloudinary.com');
-    const isPlaceholder = url.includes('placehold.co');
-    const isSameOrigin = url.startsWith(window.location.origin);
-
-    if (!isCloudinary && !isPlaceholder && !isSameOrigin) {
-        return `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    }
-    return url;
 }
 
 /**
@@ -1139,6 +1718,45 @@ function clearMessage(element) {
     }
 }
 
+// Show notification
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white max-w-sm transform transition-transform duration-300 translate-x-full`;
+    
+    if (type === 'success') {
+        notification.classList.add('bg-green-500');
+    } else if (type === 'error') {
+        notification.classList.add('bg-red-500');
+    } else {
+        notification.classList.add('bg-blue-500');
+    }
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info'}-circle mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
+}
+
 // Initialize event listeners after auth is confirmed
 function initializeEventListeners() {
     console.log('🔧 Initializing event listeners...');
@@ -1146,28 +1764,9 @@ function initializeEventListeners() {
     // Check user role
     const userData = window.getStoredUserData ? window.getStoredUserData() : null;
     console.log('👤 Initializing event listeners for:', userData ? userData.role : 'unknown');
-    
-    // --- Mobile Menu Toggle ---
-    const mobileMenuButton = document.getElementById('mobileMenuButton');
-    const sidebar = document.getElementById('sidebar');
-
-    if (mobileMenuButton) {
-        mobileMenuButton.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-            if (sidebar.classList.contains('hidden')) {
-                document.body.style.overflow = '';
-            } else {
-                document.body.style.overflow = 'hidden';
-            }
-        });
-        sidebar.querySelectorAll('nav a').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 1024) {
-                    sidebar.classList.add('hidden');
-                    document.body.style.overflow = '';
-                }
-            });
-        });
+    const removeWallpaperBtn = document.getElementById('removeWallpaperBtn');
+    if (removeWallpaperBtn) {
+        removeWallpaperBtn.addEventListener('click', removeCurrentWallpaper);
     }
 
     // --- Section Visibility Management ---
@@ -1380,8 +1979,32 @@ function initializeEventListeners() {
     // --- Product Management Event Listeners ---
     const productForm = document.getElementById('productForm');
     if (productForm) {
-        productForm.addEventListener('submit', async (e) => {
+        // Remove any existing event listeners first to prevent duplicates
+        const newProductForm = productForm.cloneNode(true);
+        productForm.parentNode.replaceChild(newProductForm, productForm);
+        
+        // Get fresh reference to the form
+        const freshProductForm = document.getElementById('productForm');
+        
+        freshProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            console.log('🔄 Product form submitted');
+            
+            // Add a flag to prevent multiple submissions
+            if (freshProductForm.dataset.submitting === 'true') {
+                console.log('⏳ Form already submitting, ignoring duplicate call');
+                return;
+            }
+            
+            // Set submitting flag
+            freshProductForm.dataset.submitting = 'true';
+            
+            // Disable submit button to provide visual feedback
+            const submitButton = freshProductForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding Product...';
+            submitButton.disabled = true;
 
             const productNameInput = document.getElementById('productName');
             const productCategorySelect = document.getElementById('productCategory');
@@ -1391,21 +2014,41 @@ function initializeEventListeners() {
             const productImageInput = document.getElementById('productImage');
             const newProductImagePreview = document.getElementById('newProductImagePreview');
 
-            const formData = new FormData();
-            formData.append('title', productNameInput.value);
-            formData.append('category', productCategorySelect.value);
-            formData.append('description', productDescriptionInput.value);
-            formData.append('price', productPriceInput.value);
-            formData.append('imageUrl', productImageUrlInput.value);
+            // Validation
+            if (!productNameInput.value.trim()) {
+                showMessageModal('Input Error', 'Product name is required.', true);
+                resetFormState();
+                return;
+            }
 
-            if (productImageInput.files[0]) {
-                formData.append('image', productImageInput.files[0]);
+            if (!productCategorySelect.value) {
+                showMessageModal('Input Error', 'Please select a category.', true);
+                resetFormState();
+                return;
             }
 
             try {
+                console.log('📦 Starting product creation process...');
+                
+                const formData = new FormData();
+                formData.append('title', productNameInput.value);
+                formData.append('category', productCategorySelect.value);
+                formData.append('description', productDescriptionInput.value);
+                formData.append('price', productPriceInput.value);
+                formData.append('imageUrl', productImageUrlInput.value);
+
+                if (productImageInput.files[0]) {
+                    console.log('📸 Image file attached');
+                    formData.append('image', productImageInput.files[0]);
+                }
+
+                // Make SINGLE API call
+                console.log('🚀 Making API request to create product...');
                 await apiRequest('/products', 'POST', formData, true, true);
+                console.log('✅ Product created successfully');
+
                 showMessageModal('Success', 'Product added successfully!', false);
-                productForm.reset();
+                freshProductForm.reset();
                 productImageInput.value = '';
                 productImageUrlInput.value = '';
                 newProductImagePreview.src = '';
@@ -1414,16 +2057,41 @@ function initializeEventListeners() {
                 const productSearchInput = document.getElementById('productSearchInput');
                 await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
                 updateDashboardOverview();
+                
+                console.log('🎉 Product creation process completed');
+
             } catch (error) {
+                console.error('❌ Error adding product:', error);
                 showMessageModal('Error', `Error adding product: ${error.message}`, true);
+            } finally {
+                // Always reset form state
+                resetFormState();
+            }
+
+            function resetFormState() {
+                // Reset submitting flag
+                freshProductForm.dataset.submitting = 'false';
+                
+                // Re-enable submit button
+                submitButton.innerHTML = originalButtonText;
+                submitButton.disabled = false;
             }
         });
+
+        console.log('✅ Product form event listener attached (single instance)');
     }
 
     // Handle preview for file input (for add product form)
     const productImageInput = document.getElementById('productImage');
     if (productImageInput) {
-        productImageInput.addEventListener('change', (event) => {
+        // Clone and replace to prevent duplicate listeners
+        const newProductImageInput = productImageInput.cloneNode(true);
+        productImageInput.parentNode.replaceChild(newProductImageInput, productImageInput);
+        
+        const freshProductImageInput = document.getElementById('productImage');
+        
+        freshProductImageInput.addEventListener('change', (event) => {
+            console.log('📸 Product image file selected');
             const file = event.target.files[0];
             const newProductImagePreview = document.getElementById('newProductImagePreview');
             const productImageUrlInput = document.getElementById('productImageUrl');
@@ -1446,8 +2114,15 @@ function initializeEventListeners() {
     // Live preview for Product Image URL input (Add Product Form)
     const productImageUrlInput = document.getElementById('productImageUrl');
     if (productImageUrlInput) {
-        productImageUrlInput.addEventListener('input', () => {
-            const url = productImageUrlInput.value.trim();
+        // Clone and replace to prevent duplicate listeners
+        const newProductImageUrlInput = productImageUrlInput.cloneNode(true);
+        productImageUrlInput.parentNode.replaceChild(newProductImageUrlInput, productImageUrlInput);
+        
+        const freshProductImageUrlInput = document.getElementById('productImageUrl');
+        
+        freshProductImageUrlInput.addEventListener('input', () => {
+            console.log('🔗 Product image URL input changed');
+            const url = freshProductImageUrlInput.value.trim();
             const newProductImagePreview = document.getElementById('newProductImagePreview');
             const productImageInput = document.getElementById('productImage');
             if (url) {
@@ -1595,38 +2270,16 @@ function initializeEventListeners() {
     showSection('dashboard-overview-section'); 
 }
 
-// Start the application when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 Admin page DOM loaded');
-    
-    // Wait a bit for auth.js to load, then initialize
-    setTimeout(() => {
-        if (window.getStoredToken && window.getStoredUserData) {
-            initializeAdminDashboard();
-        } else {
-            console.error('❌ Auth functions not available, retrying...');
-            // Retry after a delay
-            setTimeout(() => {
-                if (window.getStoredToken && window.getStoredUserData) {
-                    initializeAdminDashboard();
-                } else {
-                    console.error('❌ Auth functions still not available, page may not work properly');
-                    // Show error to user
-                    showMessageModal('Error', 'Authentication system not loaded. Please refresh the page.', true);
-                }
-            }, 1000);
-        }
-    }, 300);
-});
+// ==================== GLOBAL EXPORTS ====================
 
 // Make functions globally available
 window.setActiveUserForAdminPage = setActiveUserForAdminPage;
 window.initializeAdminDashboard = initializeAdminDashboard;
 window.changePage = changePage;
 window.resetToFirstPage = resetToFirstPage;
-
-// Temporary test - add this at the bottom of admin.js
-console.log('🔧 Testing pagination functions...');
-console.log('changePage function exists:', typeof changePage);
-console.log('updatePaginationControls function exists:', typeof updatePaginationControls);
-console.log('resetToFirstPage function exists:', typeof resetToFirstPage);
+window.previewWallpaperInModal = previewWallpaperInModal;
+window.closeWallpaperPreviewModal = closeWallpaperPreviewModal;
+window.selectWallpaper = selectWallpaper;
+window.removeCurrentWallpaper = removeCurrentWallpaper;
+window.loadAvailableWallpapers = loadAvailableWallpapers;
+window.initializeMobileMenu = initializeMobileMenu;
