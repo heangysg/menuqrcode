@@ -120,7 +120,7 @@ const secureUpload = async (file, options = {}) => {
             format: 'webp', // Convert to WebP for better compression and security
             fetch_format: 'auto',
             transformation: [
-                { width: 1200, crop: 'limit' }, // Limit maximum width
+                { width: 600, crop: 'limit' }, // ✅ 600px max
                 { quality: 'auto:good' },
                 { fetch_format: 'auto' }
             ],

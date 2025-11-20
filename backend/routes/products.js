@@ -210,7 +210,7 @@ const cloudinaryUploadOptions = {
     format: 'webp',
     fetch_format: 'auto',
     transformation: [
-        { width: 800, crop: 'limit', quality: 'auto:good' },
+        { width: 600, crop: 'limit', quality: 'auto:good' },
         { dpr: 'auto' }
     ]
 };
@@ -404,34 +404,43 @@ router.put('/superadmin/:id', protect, authorizeRoles('superadmin'), upload.sing
         product.price = price !== undefined ? price : product.price;
         product.isAvailable = isAvailable !== undefined ? isAvailable : product.isAvailable;
 
-        let oldImageUrl = null;
+let oldImageUrl = null;
+let shouldDeleteOldImage = false;
 
-        if (imageUrl !== undefined) {
-            if (product.image) {
-                oldImageUrl = product.image;
-            }
-            product.imageUrl = imageUrl;
-            product.image = '';
-        } else if (req.file) {
-            if (product.image) {
-                oldImageUrl = product.image;
-            }
-            const newImageUrl = await uploadToCloudinary(req.file, superadminUploadOptions);
-            product.image = newImageUrl;
-            product.imageUrl = '';
-        } else if (req.body.removeImage === 'true') {
-            if (product.image) {
-                oldImageUrl = product.image;
-            }
-            product.image = '';
-            product.imageUrl = '';
-        }
+// ONLY set oldImageUrl when we're actually replacing the image
+if (imageUrl !== undefined && imageUrl !== product.imageUrl) {
+    if (product.image) {
+        oldImageUrl = product.image;
+        shouldDeleteOldImage = true;
+    }
+    product.imageUrl = imageUrl;
+    product.image = '';
+} else if (req.file) {
+    // We're uploading a new image file
+    if (product.image) {
+        oldImageUrl = product.image;
+        shouldDeleteOldImage = true;
+    }
+    // ✅ FIXED: Use superadminUploadOptions for superadmin
+    const newImageUrl = await uploadToCloudinary(req.file, superadminUploadOptions);
+    product.image = newImageUrl;
+    product.imageUrl = '';
+} else if (req.body.removeImage === 'true') {
+    // Explicitly removing image
+    if (product.image) {
+        oldImageUrl = product.image;
+        shouldDeleteOldImage = true;
+    }
+    product.image = '';
+    product.imageUrl = '';
+}
 
-        const updatedProduct = await product.save();
-        
-        if (oldImageUrl) {
-            await deleteFromCloudinary(oldImageUrl);
-        }
+const updatedProduct = await product.save();
+
+// ONLY delete old image if we're replacing it
+if (shouldDeleteOldImage && oldImageUrl) {
+    await deleteFromCloudinary(oldImageUrl);
+}
 
         const populatedProduct = await Product.findById(updatedProduct._id).populate('category', 'name');
         res.json(populatedProduct);
@@ -864,33 +873,41 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
         product.isAvailable = isAvailable !== undefined ? isAvailable : product.isAvailable;
 
         let oldImageUrl = null;
+let shouldDeleteOldImage = false;
 
-        if (imageUrl !== undefined) {
-            if (product.image) {
-                oldImageUrl = product.image;
-            }
-            product.imageUrl = imageUrl;
-            product.image = '';
-        } else if (req.file) {
-            if (product.image) {
-                oldImageUrl = product.image;
-            }
-            const newImageUrl = await uploadToCloudinary(req.file, storeUploadOptions);
-            product.image = newImageUrl;
-            product.imageUrl = '';
-        } else if (req.body.removeImage === 'true') {
-            if (product.image) {
-                oldImageUrl = product.image;
-            }
-            product.image = '';
-            product.imageUrl = '';
-        }
+// ONLY set oldImageUrl when we're actually replacing the image
+if (imageUrl !== undefined && imageUrl !== product.imageUrl) {
+    if (product.image) {
+        oldImageUrl = product.image;
+        shouldDeleteOldImage = true;
+    }
+    product.imageUrl = imageUrl;
+    product.image = '';
+} else if (req.file) {
+    // We're uploading a new image file
+    if (product.image) {
+        oldImageUrl = product.image;
+        shouldDeleteOldImage = true;
+    }
+    const newImageUrl = await uploadToCloudinary(req.file, storeUploadOptions);
+    product.image = newImageUrl;
+    product.imageUrl = '';
+} else if (req.body.removeImage === 'true') {
+    // Explicitly removing image
+    if (product.image) {
+        oldImageUrl = product.image;
+        shouldDeleteOldImage = true;
+    }
+    product.image = '';
+    product.imageUrl = '';
+}
 
-        const updatedProduct = await product.save();
-        
-        if (oldImageUrl) {
-            await deleteFromCloudinary(oldImageUrl);
-        }
+const updatedProduct = await product.save();
+
+// ONLY delete old image if we're replacing it
+if (shouldDeleteOldImage && oldImageUrl) {
+    await deleteFromCloudinary(oldImageUrl);
+}
 
         const populatedProduct = await Product.findById(updatedProduct._id).populate('category', 'name');
         res.json(populatedProduct);

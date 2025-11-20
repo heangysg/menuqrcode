@@ -12,6 +12,26 @@
     <link rel="stylesheet" href="/css/style.css">
     
     <style>
+/* Enhanced Banner Preview Styles */
+.banner-preview {
+    transition: all 0.3s ease;
+}
+
+.banner-preview:hover {
+    transform: translateY(-2px);
+}
+
+#currentBannersPreview {
+    min-height: 120px;
+}
+
+#newBannersPreview img {
+    border: 2px solid #3b82f6;
+}
+
+#currentBannersPreview img {
+    border: 2px solid #e5e7eb;
+}
         /* Additional styles specific to admin.html */
         .modal-overlay {
             position: fixed;
@@ -479,13 +499,31 @@
                     </div>
                 </div>
 
+                                <!-- In your admin.html, update the banner section -->
                 <div class="space-y-4">
-                    <label for="storeBanner" class="block text-gray-700 text-base font-semibold mb-2">Store Banners (Optional, Max 3, PNG, JPG):</label>
+                    <label for="storeBanner" class="block text-gray-700 text-base font-semibold mb-2">
+                        Store Banners (Max 3, PNG, JPG):
+                    </label>
+                    
+                    <!-- Add helpful instructions -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                        <p class="text-sm text-blue-800 flex items-center">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>How to add banners:</strong> You can add banners one by one or select multiple at once. 
+                            Maximum 3 banners allowed. Each new selection will be added to your current selection.
+                        </p>
+                    </div>
+                    
                     <input type="file" id="storeBanner" name="banner" accept="image/*" multiple
                         class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                    
+                    <!-- Current banners preview -->
                     <div id="currentBannersPreview" class="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         <!-- Current banners will be displayed here by JS -->
                     </div>
+                    
+                    <!-- New banners preview (will be added dynamically) -->
+                    
                     <div class="mt-2" id="removeBannerContainer" style="display: none;">
                         <input type="checkbox" id="removeStoreBanner" class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                         <label for="removeStoreBanner" class="text-base text-gray-700">Remove all current banners</label>

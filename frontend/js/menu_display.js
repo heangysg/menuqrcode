@@ -16,8 +16,7 @@ const slug = pathParts[pathParts.length - 1];
 function getOptimizedImageUrl(url) {
     if (!url) return url;
     if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        // 800px width with 80% quality for maximum clarity
-        return url.replace("/upload/", "/upload/f_auto,q_80,w_800/");
+        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/");
     }
     return url;
 }
@@ -465,45 +464,68 @@ function openTelegramWithMessage(telegramUrl, message) {
     }
 
     // Banner Slider Functions
-    function renderBanners(bannerUrls) {
-        if (!elements.storeBannerContainer || !elements.sliderDotsContainer) return;
-        
-        elements.storeBannerContainer.innerHTML = '';
-        elements.sliderDotsContainer.innerHTML = '';
+// Enhanced Banner Rendering Function
+function renderBanners(bannerUrls) {
+    if (!elements.storeBannerContainer || !elements.sliderDotsContainer) return;
+    
+    elements.storeBannerContainer.innerHTML = '';
+    elements.sliderDotsContainer.innerHTML = '';
 
-        if (!bannerUrls || !Array.isArray(bannerUrls) || bannerUrls.length === 0) {
-            elements.storeBannerContainer.classList.add('hidden');
-            return;
-        }
-
-        elements.storeBannerContainer.classList.remove('hidden');
-
-        bannerUrls.forEach((url, index) => {
-            const img = document.createElement('img');
-            img.src = getOptimizedImageUrl(getProxiedImageUrl(url));
-            img.alt = `Store Banner ${index + 1}`;
-            img.classList.add('store-banner-slide');
-            img.loading = 'lazy';
-            
-            if (index === 0) {
-                img.classList.add('active');
-            }
-            elements.storeBannerContainer.appendChild(img);
-
-            const dot = document.createElement('span');
-            dot.classList.add('dot');
-            if (index === 0) {
-                dot.classList.add('active');
-            }
-            dot.addEventListener('click', () => {
-                showBanner(index);
-                resetBannerSlider();
-            });
-            elements.sliderDotsContainer.appendChild(dot);
-        });
-
-        elements.storeBannerContainer.appendChild(elements.sliderDotsContainer);
+    if (!bannerUrls || !Array.isArray(bannerUrls) || bannerUrls.length === 0) {
+        elements.storeBannerContainer.classList.add('hidden');
+        return;
     }
+
+    elements.storeBannerContainer.classList.remove('hidden');
+    
+    // Add loading class temporarily
+    elements.storeBannerContainer.classList.add('loading');
+
+    bannerUrls.forEach((url, index) => {
+        const img = document.createElement('img');
+        const optimizedUrl = getOptimizedImageUrl(getProxiedImageUrl(url));
+        
+        img.src = optimizedUrl;
+        img.alt = `Store Banner ${index + 1}`;
+        img.classList.add('store-banner-slide');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        
+        // Handle image load
+        img.onload = () => {
+            elements.storeBannerContainer.classList.remove('loading');
+        };
+        
+        img.onerror = () => {
+            console.error(`Failed to load banner image: ${url}`);
+            elements.storeBannerContainer.classList.remove('loading');
+            // You could set a fallback image here
+        };
+        
+        if (index === 0) {
+            img.classList.add('active');
+        }
+        elements.storeBannerContainer.appendChild(img);
+
+        const dot = document.createElement('span');
+        dot.classList.add('dot');
+        if (index === 0) {
+            dot.classList.add('active');
+        }
+        dot.addEventListener('click', () => {
+            showBanner(index);
+            resetBannerSlider();
+        });
+        elements.sliderDotsContainer.appendChild(dot);
+    });
+
+    elements.storeBannerContainer.appendChild(elements.sliderDotsContainer);
+    
+    // Remove loading class after a timeout as fallback
+    setTimeout(() => {
+        elements.storeBannerContainer.classList.remove('loading');
+    }, 3000);
+}
 
     function showBanner(index) {
         const slides = elements.storeBannerContainer?.querySelectorAll('.store-banner-slide');

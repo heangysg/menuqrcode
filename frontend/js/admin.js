@@ -1,11 +1,11 @@
 // qr-digital-menu-system/frontend/js/admin.js
 const MAX_PRODUCTS_UPDATE_PERCENT = 0.3; // 30% max
 
-// Optimize Cloudinary images for delivery (auto format, auto quality, max width 600px)
+// Optimize Cloudinary images for delivery (use the SAME 600px as uploaded)
 function getOptimizedImageUrl(url) {
     if (!url) return url;
     if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        return url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
+        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/") // Change 800 to 600
     }
     return url;
 }
@@ -388,6 +388,294 @@ function getTelegramLinksData() {
     return links;
 }
 
+// ==================== BANNER PREVIEW FUNCTIONALITY ====================
+
+function initializeBannerPreview() {
+    const bannerInput = document.getElementById('storeBanner');
+    const currentBannersPreview = document.getElementById('currentBannersPreview');
+    const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+    const removeBannerContainer = document.getElementById('removeBannerContainer');
+    
+    if (!bannerInput || !removeStoreBannerCheckbox) return;
+    
+    console.log('🖼️ Initializing banner preview...');
+    
+    // Create new preview container for selected files
+    const newBannersPreview = document.createElement('div');
+    newBannersPreview.id = 'newBannersPreview';
+    newBannersPreview.className = 'mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 hidden';
+    bannerInput.parentNode.insertBefore(newBannersPreview, currentBannersPreview);
+    
+    // Remove any existing event listeners first by cloning elements
+    const newBannerInput = bannerInput.cloneNode(true);
+    bannerInput.parentNode.replaceChild(newBannerInput, bannerInput);
+    
+    const newRemoveCheckbox = removeStoreBannerCheckbox.cloneNode(true);
+    removeStoreBannerCheckbox.parentNode.replaceChild(newRemoveCheckbox, removeStoreBannerCheckbox);
+    
+    const freshBannerInput = document.getElementById('storeBanner');
+    const freshRemoveCheckbox = document.getElementById('removeStoreBanner');
+    
+    // Store currently selected files
+    let currentSelectedFiles = [];
+    
+    // Event listener for remove banner checkbox - IMMEDIATE VISUAL FEEDBACK
+    freshRemoveCheckbox.addEventListener('change', function() {
+        console.log('🗑️ Remove banners checkbox changed:', this.checked);
+        
+        if (this.checked) {
+            // When checked, hide current banners and show removal message
+            if (currentBannersPreview) {
+                currentBannersPreview.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 border-2 border-dashed border-red-300 rounded-lg bg-red-50 col-span-3">
+                        <i class="fas fa-trash text-3xl mb-2 text-red-300"></i>
+                        <p class="text-sm font-medium text-red-600">All banners will be removed</p>
+                        <p class="text-xs text-red-500 mt-1">Save changes to confirm banner removal</p>
+                    </div>
+                `;
+            }
+            
+            // Also hide any new banner previews since we're removing everything
+            const newBannersPreview = document.getElementById('newBannersPreview');
+            if (newBannersPreview) {
+                newBannersPreview.classList.add('hidden');
+            }
+            
+            // Clear any selected files since we're removing all banners
+            currentSelectedFiles = [];
+            updateFileInput([], freshBannerInput);
+            
+            console.log('✅ Preview updated: banners marked for removal');
+        } else {
+            // When unchecked, restore the original banners preview
+            if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
+                updateCurrentBannersDisplay(currentStore.banner);
+            } else {
+                updateCurrentBannersDisplay([]);
+            }
+            console.log('✅ Preview restored: banners no longer marked for removal');
+        }
+    });
+    
+    // Event listener for banner file selection
+    freshBannerInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        const newBannersPreview = document.getElementById('newBannersPreview');
+        
+        console.log('📸 Banner files selected:', files.length);
+        
+        // If remove checkbox is checked, uncheck it when new files are selected
+        if (freshRemoveCheckbox.checked) {
+            freshRemoveCheckbox.checked = false;
+            console.log('🔄 Auto-unchecked remove banner option because new files were selected');
+            
+            // Restore original banners preview
+            if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
+                updateCurrentBannersDisplay(currentStore.banner);
+            }
+        }
+        
+        // Clear current selection and start fresh with new files
+        currentSelectedFiles = [];
+        
+        // Add new files to current selection (up to 3 total)
+        files.forEach(file => {
+            if (currentSelectedFiles.length < 3) {
+                currentSelectedFiles.push(file);
+            }
+        });
+        
+        // Update the file input with the combined files
+        updateFileInput(currentSelectedFiles, freshBannerInput);
+        
+        if (currentSelectedFiles.length > 0) {
+            newBannersPreview.classList.remove('hidden');
+            
+            // Hide current banners preview when selecting new ones
+            if (currentBannersPreview) {
+                currentBannersPreview.classList.add('hidden');
+            }
+            
+            // Clear and rebuild preview with all current files
+            renderNewBannersPreview(currentSelectedFiles, newBannersPreview, currentBannersPreview);
+            
+            console.log(`✅ Showing preview for ${currentSelectedFiles.length} banners (${3 - currentSelectedFiles.length} slots remaining)`);
+        } else {
+            newBannersPreview.classList.add('hidden');
+            // Show current banners again if no new files
+            if (currentBannersPreview && !freshRemoveCheckbox.checked) {
+                if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
+                    currentBannersPreview.classList.remove('hidden');
+                }
+            }
+        }
+    });
+    
+    console.log('✅ Banner preview initialized');
+}
+
+function updateFileInput(files, fileInput) {
+    // Create a new DataTransfer to hold the files
+    const dataTransfer = new DataTransfer();
+    
+    // Add each file to the DataTransfer
+    files.forEach(file => {
+        dataTransfer.items.add(file);
+    });
+    
+    // Update the file input with the new FileList
+    fileInput.files = dataTransfer.files;
+    
+    console.log('📁 Updated file input with', files.length, 'files');
+}
+
+function renderNewBannersPreview(files, newBannersPreview, currentBannersPreview) {
+    // Clear previous new previews
+    newBannersPreview.innerHTML = '';
+    
+    // Show preview for each selected file
+    files.forEach((file, index) => {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'banner-preview relative group';
+                previewDiv.innerHTML = `
+                    <div class="relative overflow-hidden rounded-lg border-2 border-dashed border-blue-300 bg-gray-50 h-32">
+                        <img src="${e.target.result}" alt="New Banner ${index + 1}" 
+                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                        <div class="absolute top-2 right-2">
+                            <button type="button" class="remove-banner-preview bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center transition duration-200 opacity-0 group-hover:opacity-100"
+                                    data-file-index="${index}">
+                                ×
+                            </button>
+                        </div>
+                        <div class="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                            New ${index + 1}
+                        </div>
+                        <div class="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded max-w-[80%] truncate">
+                            ${file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}
+                        </div>
+                    </div>
+                `;
+                newBannersPreview.appendChild(previewDiv);
+                
+                // Add remove functionality
+                const removeBtn = previewDiv.querySelector('.remove-banner-preview');
+                removeBtn.addEventListener('click', function() {
+                    const fileIndex = parseInt(this.dataset.fileIndex);
+                    removeBannerFromSelection(fileIndex);
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Add banner counter
+    const counterDiv = document.createElement('div');
+    counterDiv.className = 'col-span-3 text-center text-sm text-gray-600 mt-2';
+    counterDiv.innerHTML = `
+        <p><strong>${files.length} of 3 banners selected</strong></p>
+        ${files.length < 3 ? 
+            '<p class="text-xs text-green-600 mt-1">You can add more banners</p>' : 
+            '<p class="text-xs text-red-600 mt-1">Maximum 3 banners reached</p>'
+        }
+    `;
+    newBannersPreview.appendChild(counterDiv);
+}
+
+function removeBannerFromSelection(fileIndex) {
+    const bannerInput = document.getElementById('storeBanner');
+    const newBannersPreview = document.getElementById('newBannersPreview');
+    const currentBannersPreview = document.getElementById('currentBannersPreview');
+    const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+    
+    // Get current files from input
+    const currentFiles = Array.from(bannerInput.files);
+    
+    // Remove the file at the specified index
+    if (fileIndex >= 0 && fileIndex < currentFiles.length) {
+        currentFiles.splice(fileIndex, 1);
+        
+        // Update the file input
+        updateFileInput(currentFiles, bannerInput);
+        
+        // Update the global files array
+        currentSelectedFiles = currentFiles;
+        
+        // Re-render the preview
+        if (currentFiles.length > 0) {
+            renderNewBannersPreview(currentFiles, newBannersPreview, currentBannersPreview);
+        } else {
+            newBannersPreview.classList.add('hidden');
+            // Show current banners again if no new files and remove is not checked
+            if (currentBannersPreview && !removeStoreBannerCheckbox.checked) {
+                if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
+                    currentBannersPreview.classList.remove('hidden');
+                }
+            }
+        }
+        
+        console.log(`🗑️ Removed banner at index ${fileIndex}, ${currentFiles.length} banners remaining`);
+    }
+}
+
+function updateCurrentBannersDisplay(banners) {
+    const currentBannersPreview = document.getElementById('currentBannersPreview');
+    const removeBannerContainer = document.getElementById('removeBannerContainer');
+    const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+    
+    if (!currentBannersPreview || !removeBannerContainer) return;
+    
+    currentBannersPreview.innerHTML = '';
+    
+    console.log('🖼️ Updating banner display with:', banners);
+    
+    // Make sure remove checkbox is unchecked when displaying banners
+    if (removeStoreBannerCheckbox) {
+        removeStoreBannerCheckbox.checked = false;
+    }
+    
+    if (Array.isArray(banners) && banners.length > 0) {
+        // Show banners in a grid layout
+        banners.forEach((url, index) => {
+            const bannerDiv = document.createElement('div');
+            bannerDiv.className = 'relative group banner-preview';
+            bannerDiv.innerHTML = `
+                <div class="relative overflow-hidden rounded-lg border-2 border-gray-200 bg-white h-32">
+                    <img src="${url}" alt="Current Banner ${index + 1}" 
+                         class="w-full h-full object-cover rounded-lg transition-transform duration-300 group-hover:scale-105">
+                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                    <div class="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                        Banner ${index + 1}
+                    </div>
+                </div>
+            `;
+            currentBannersPreview.appendChild(bannerDiv);
+        });
+        
+        // Show remove option ONLY when there are banners
+        removeBannerContainer.style.display = 'block';
+        
+        console.log(`✅ Displaying ${banners.length} current banners`);
+        
+    } else {
+        // No banners - show placeholder and HIDE remove option
+        currentBannersPreview.innerHTML = `
+            <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 col-span-3">
+                <i class="fas fa-image text-3xl mb-2 text-gray-300"></i>
+                <p class="text-sm font-medium">No banners uploaded</p>
+                <p class="text-xs text-gray-400 mt-1">Upload up to 3 banners to display here</p>
+            </div>
+        `;
+        // Hide the remove container when no banners
+        removeBannerContainer.style.display = 'none';
+        
+        console.log('ℹ️ No banners to display');
+    }
+}
+
 // ==================== AUTHENTICATION & INITIALIZATION ====================
 
 // SIMPLIFIED version - remove the complex multi-user logic
@@ -532,7 +820,7 @@ async function loadAdminData() {
         ]);
         
         await updateDashboardOverview();
-        await initializeWallpaperSelection(); // This line should be here
+        await initializeWallpaperSelection();
     } catch (error) {
         console.error('Error loading admin data:', error);
         throw error;
@@ -709,31 +997,6 @@ async function loadAvailableWallpapers() {
         }
     }
 }
-
-// Test the wallpaper API directly
-async function testWallpaperAPI() {
-    try {
-        const token = window.getStoredToken ? window.getStoredToken('admin') : null;
-        console.log('Token:', token);
-        
-        const response = await fetch('/api/wallpapers', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        console.log('Wallpaper API Response:', data);
-        return data;
-    } catch (error) {
-        console.error('API Test Error:', error);
-    }
-}
-
-// Run the test
-testWallpaperAPI();
 
 function renderWallpapersSelection(wallpapers) {
     const grid = wallpaperSelection.grid;
@@ -1046,22 +1309,10 @@ async function fetchStoreDetails() {
                 removeStoreLogoCheckbox.checked = false;
             }
 
-            // Handle banners
-            currentBannersPreview.innerHTML = '';
-            if (Array.isArray(currentStore.banner) && currentStore.banner.length > 0) {
-                currentStore.banner.forEach(url => {
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = 'Store Banner';
-                    img.classList.add('w-full', 'h-32', 'object-cover', 'rounded-lg', 'shadow-md', 'border', 'border-gray-200', 'p-2');
-                    currentBannersPreview.appendChild(img);
-                });
-                removeBannerContainer.style.display = 'block';
-                removeStoreBannerCheckbox.checked = false;
-            } else {
-                currentBannersPreview.innerHTML = '';
-                removeBannerContainer.style.display = 'none';
-                removeStoreBannerCheckbox.checked = false;
+            // Handle banners - FIXED VERSION
+            if (currentBannersPreview && removeBannerContainer) {
+                // Use the enhanced banner display function
+                updateCurrentBannersDisplay(currentStore.banner || []);
             }
 
             // Handle QR code and menu link
@@ -1310,7 +1561,6 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
     }
 }
 
-// Add this function if it's missing
 function showSection(sectionId) {
     const allSections = document.querySelectorAll('main section[id$="-section"]');
     
@@ -1343,70 +1593,69 @@ function renderProductsTable(products) {
         return;
     }
 
-    // In the renderProductsTable function, update the row creation part:
-products.forEach(product => {
-    const row = productListTableBody.insertRow();
-    const displayImage =
-        (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
-        (product.image && product.image.trim() !== '' ? product.image : null) ||
-        `https://placehold.co/300x300?text=No+Img`;
+    products.forEach(product => {
+        const row = productListTableBody.insertRow();
+        const displayImage =
+            (product.imageUrl && product.imageUrl.trim() !== '' ? getProxiedImageUrl(product.imageUrl) : null) ||
+            (product.image && product.image.trim() !== '' ? product.image : null) ||
+            `https://placehold.co/300x300?text=No+Img`;
 
-    row.innerHTML = `
-        <td class="py-2 px-4 border-b border-gray-200">
-            <div class="product-list-image-container cursor-pointer" 
-                 data-image="${displayImage}" 
-                 data-title="${product.title}" 
-                 data-description="${product.description || ''}" 
-                 data-price="${product.price || ''}"
-                 data-category-id="${product.category ? product.category._id : ''}"
-                 data-is-available="${product.isAvailable !== false}">
-                <img src="${displayImage}" alt="${product.title}" class="product-list-image">
-            </div>
-        </td>
-        <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
-        <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
-        <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
-        <td class="py-2 px-4 border-b border-gray-200">
-            <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
-            <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
-        </td>
-    `;
-});
-
-// Replace the edit button event listener with this:
-document.querySelectorAll('.edit-product-btn').forEach(button => {
-    button.addEventListener('click', (e) => {
-        const productId = e.target.dataset.id;
-        console.log('🔄 Edit button clicked for product:', productId);
-        
-        // Find the product in the current displayed products
-        const row = e.target.closest('tr');
-        if (row) {
-            const imageContainer = row.querySelector('.product-list-image-container');
-            
-            // Extract ALL product data from DOM attributes (super fast!)
-            const product = {
-                _id: productId,
-                title: imageContainer.dataset.title,
-                category: { 
-                    _id: imageContainer.dataset.categoryId,
-                    name: row.cells[2].textContent 
-                },
-                description: imageContainer.dataset.description,
-                price: imageContainer.dataset.price,
-                imageUrl: imageContainer.dataset.image,
-                image: imageContainer.dataset.image,
-                isAvailable: imageContainer.dataset.isAvailable === 'true'
-            };
-            
-            console.log('📦 Product data extracted from DOM:', product);
-            openEditProductModal(product);
-        } else {
-            console.error('❌ Could not find product row');
-            showMessageModal('Error', 'Could not find product data.', true);
-        }
+        row.innerHTML = `
+            <td class="py-2 px-4 border-b border-gray-200">
+                <div class="product-list-image-container cursor-pointer" 
+                     data-image="${displayImage}" 
+                     data-title="${product.title}" 
+                     data-description="${product.description || ''}" 
+                     data-price="${product.price || ''}"
+                     data-category-id="${product.category ? product.category._id : ''}"
+                     data-is-available="${product.isAvailable !== false}">
+                    <img src="${displayImage}" alt="${product.title}" class="product-list-image">
+                </div>
+            </td>
+            <td class="py-2 px-4 border-b border-gray-200">${product.title}</td>
+            <td class="py-2 px-4 border-b border-gray-200">${product.category ? product.category.name : 'Uncategorized'}</td>
+            <td class="py-2 px-4 border-b border-gray-200">${product.price !== undefined && product.price !== null && product.price !== '' ? product.price : 'N/A'}</td>
+            <td class="py-2 px-4 border-b border-gray-200">
+                <button data-id="${product._id}" class="edit-product-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-2 rounded mr-2 transition duration-300">Edit</button>
+                <button data-id="${product._id}" class="delete-product-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">Delete</button>
+            </td>
+        `;
     });
-});
+
+    // Replace the edit button event listener with this:
+    document.querySelectorAll('.edit-product-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const productId = e.target.dataset.id;
+            console.log('🔄 Edit button clicked for product:', productId);
+            
+            // Find the product in the current displayed products
+            const row = e.target.closest('tr');
+            if (row) {
+                const imageContainer = row.querySelector('.product-list-image-container');
+                
+                // Extract ALL product data from DOM attributes (super fast!)
+                const product = {
+                    _id: productId,
+                    title: imageContainer.dataset.title,
+                    category: { 
+                        _id: imageContainer.dataset.categoryId,
+                        name: row.cells[2].textContent 
+                    },
+                    description: imageContainer.dataset.description,
+                    price: imageContainer.dataset.price,
+                    imageUrl: imageContainer.dataset.image,
+                    image: imageContainer.dataset.image,
+                    isAvailable: imageContainer.dataset.isAvailable === 'true'
+                };
+                
+                console.log('📦 Product data extracted from DOM:', product);
+                openEditProductModal(product);
+            } else {
+                console.error('❌ Could not find product row');
+                showMessageModal('Error', 'Could not find product data.', true);
+            }
+        });
+    });
 
     document.querySelectorAll('.delete-product-btn').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -1454,15 +1703,18 @@ function openEditProductModal(product) {
     editProductImageUrlInput.value = product.imageUrl || '';
     editProductAvailabilityCheckbox.checked = product.isAvailable;
 
-    const displayImage = product.image || `https://placehold.co/300x300?text=No+Img`;
+    const displayImage = product.image || product.imageUrl || `https://placehold.co/300x300?text=No+Img`;
     
     if (displayImage && !displayImage.includes('placehold.co')) {
         currentProductImageImg.src = displayImage;
         currentProductImageImg.style.display = 'block';
         removeProductImageContainer.style.display = 'block';
+        
+        // Store original image for potential restoration
+        currentProductImageImg.dataset.originalImage = displayImage;
     } else {
-        currentProductImageImg.src = '';
-        currentProductImageImg.style.display = 'none';
+        currentProductImageImg.src = 'https://placehold.co/300x300?text=No+Image';
+        currentProductImageImg.style.display = 'block';
         removeProductImageContainer.style.display = 'none';
     }
     
@@ -1472,6 +1724,10 @@ function openEditProductModal(product) {
 
     editProductModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    
+    // Initialize image preview handlers
+    initializeImagePreviewHandlers();
+   
     
     console.log('✅ Edit modal opened instantly with accurate data');
 }
@@ -1892,7 +2148,15 @@ function initializeEventListeners() {
             try {
                 const updatedStore = await apiRequest('/stores/my-store', 'PUT', formData, true, true);
                 showMessageModal('Success', 'Store details updated successfully!', false);
+                
+                // Refresh store data
                 await fetchStoreDetails();
+                
+                // Specifically update the current store object and banner display
+                currentStore = updatedStore;
+                updateCurrentBannersDisplay(updatedStore.banner || []);
+                
+                console.log('✅ Store updated, banners refreshed:', updatedStore.banner);
             } catch (error) {
                 showMessageModal('Error', `Error updating store: ${error.message}`, true);
             }
@@ -2288,6 +2552,120 @@ function initializeEventListeners() {
 
     // Show only the dashboard overview section initially
     showSection('dashboard-overview-section'); 
+    initializeBannerPreview();
+    initializeImagePreviewHandlers();
+}
+
+// Add this function to admin.js
+function initializeImagePreviewHandlers() {
+    console.log('🖼️ Initializing image preview handlers...');
+    
+    // Handle "Remove current image" checkbox for edit product form
+    const removeProductImageCheckbox = document.getElementById('removeProductImage');
+    const currentProductImageImg = document.getElementById('currentProductImage');
+    
+    if (removeProductImageCheckbox && currentProductImageImg) {
+        // Remove any existing event listeners first
+        const newCheckbox = removeProductImageCheckbox.cloneNode(true);
+        removeProductImageCheckbox.parentNode.replaceChild(newCheckbox, removeProductImageCheckbox);
+        
+        const freshCheckbox = document.getElementById('removeProductImage');
+        
+        freshCheckbox.addEventListener('change', function() {
+            console.log('🔄 Remove image checkbox changed:', this.checked);
+            
+            if (this.checked) {
+                // Hide the current image preview
+                currentProductImageImg.style.display = 'none';
+                currentProductImageImg.src = '';
+                
+                // Also clear any file input or URL input to prevent conflicts
+                const editProductImageInput = document.getElementById('editProductImage');
+                const editProductImageUrlInput = document.getElementById('editProductImageUrl');
+                
+                if (editProductImageInput) editProductImageInput.value = '';
+                if (editProductImageUrlInput) editProductImageUrlInput.value = '';
+                
+                console.log('✅ Current image removed from preview');
+            } else {
+                // If unchecked, try to restore the original image
+                // This would need the original image URL stored somewhere
+                // For now, just show the placeholder
+                currentProductImageImg.style.display = 'block';
+                currentProductImageImg.src = 'https://placehold.co/300x300?text=No+Image';
+                console.log('🔄 Remove image unchecked');
+            }
+        });
+        
+        console.log('✅ Remove image checkbox handler attached');
+    }
+    
+    // Handle new image file selection for preview
+    const editProductImageInput = document.getElementById('editProductImage');
+    if (editProductImageInput) {
+        const newInput = editProductImageInput.cloneNode(true);
+        editProductImageInput.parentNode.replaceChild(newInput, editProductImageInput);
+        
+        const freshInput = document.getElementById('editProductImage');
+        
+        freshInput.addEventListener('change', function(event) {
+            console.log('📸 Edit product image file selected');
+            const file = event.target.files[0];
+            const currentProductImageImg = document.getElementById('currentProductImage');
+            const removeProductImageCheckbox = document.getElementById('removeProductImage');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // Show new image preview
+                    currentProductImageImg.src = e.target.result;
+                    currentProductImageImg.style.display = 'block';
+                    
+                    // Uncheck "Remove current image" if a new image is selected
+                    if (removeProductImageCheckbox) {
+                        removeProductImageCheckbox.checked = false;
+                    }
+                    
+                    console.log('✅ New image preview loaded');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Handle image URL input for preview in edit form
+    const editProductImageUrlInput = document.getElementById('editProductImageUrl');
+    if (editProductImageUrlInput) {
+        const newUrlInput = editProductImageUrlInput.cloneNode(true);
+        editProductImageUrlInput.parentNode.replaceChild(newUrlInput, editProductImageUrlInput);
+        
+        const freshUrlInput = document.getElementById('editProductImageUrl');
+        
+        freshUrlInput.addEventListener('input', function() {
+            console.log('🔗 Edit product image URL input changed');
+            const url = this.value.trim();
+            const currentProductImageImg = document.getElementById('currentProductImage');
+            const removeProductImageCheckbox = document.getElementById('removeProductImage');
+            
+            if (url) {
+                const proxiedUrl = getProxiedImageUrl(url);
+                currentProductImageImg.src = proxiedUrl;
+                currentProductImageImg.style.display = 'block';
+                
+                // Uncheck "Remove current image" if a new URL is entered
+                if (removeProductImageCheckbox) {
+                    removeProductImageCheckbox.checked = false;
+                }
+                
+                currentProductImageImg.onerror = () => {
+                    currentProductImageImg.src = 'https://placehold.co/300x300/e2e8f0/64748b?text=Image+Load+Error';
+                    console.error('Failed to load image from URL:', url);
+                };
+                
+                console.log('✅ URL image preview loaded');
+            }
+        });
+    }
 }
 
 // ==================== GLOBAL EXPORTS ====================
@@ -2303,3 +2681,4 @@ window.selectWallpaper = selectWallpaper;
 window.removeCurrentWallpaper = removeCurrentWallpaper;
 window.loadAvailableWallpapers = loadAvailableWallpapers;
 window.initializeMobileMenu = initializeMobileMenu;
+window.updateCurrentBannersDisplay = updateCurrentBannersDisplay;

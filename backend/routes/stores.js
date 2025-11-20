@@ -108,11 +108,18 @@ router.put('/my-store', protect, authorizeRoles('admin', 'superadmin'), upload.f
             const uploadRes = await cloudinary.uploader.upload(
                 `data:${req.files.logo[0].mimetype};base64,${req.files.logo[0].buffer.toString('base64')}`,
                 {
-                    folder: 'ysgstore/logos',
-                    resource_type: 'image',
-                    quality: 'auto',
-                    fetch_format: 'auto'
-                }
+                folder: 'ysgstore/logos',
+                resource_type: 'image',
+                quality: 'auto:good',
+                fetch_format: 'auto',
+                transformation: [
+                    {
+                        width: 600,
+                        crop: 'limit',
+                        quality: 'auto:good'
+                    }
+                ]
+            }
             );
             store.logo = uploadRes.secure_url;
             console.log('New logo uploaded:', store.logo);
@@ -152,14 +159,13 @@ router.put('/my-store', protect, authorizeRoles('admin', 'superadmin'), upload.f
                             folder: 'ysgstore/banners',
                             resource_type: 'image',
                             transformation: [
-                                {
-                                    width: 800,
-                                    height: 800,
-                                    crop: 'limit',
-                                    quality: 'auto:good',
-                                    fetch_format: 'auto'
-                                }
-                            ]
+                            {
+                                width: 600,   // ✅ 600px width
+                                crop: 'limit', // ✅ Maintain aspect ratio
+                                quality: 'auto:good',
+                                fetch_format: 'auto'
+                            }
+                        ]
                         }
                     );
                     newBannerUrls.push(uploadRes.secure_url);
