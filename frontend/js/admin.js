@@ -1700,7 +1700,7 @@ function openEditProductModal(product) {
     
     editProductDescriptionInput.value = product.description || '';
     editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
-    editProductImageUrlInput.value = product.imageUrl || '';
+    editProductImageUrlInput.value = ''; // Leave it empty
     editProductAvailabilityCheckbox.checked = product.isAvailable;
 
     const displayImage = product.image || product.imageUrl || `https://placehold.co/300x300?text=No+Img`;
@@ -2458,12 +2458,32 @@ function initializeEventListeners() {
             formData.append('price', editProductPriceInput.value);
             formData.append('isAvailable', editProductAvailabilityCheckbox.checked);
 
+            // 🛠️ FIXED: Only send image data if we're actually changing the image
+            let imageChanged = false;
+
             if (editProductImageUrlInput.value.trim() !== '') {
                 formData.append('imageUrl', editProductImageUrlInput.value.trim());
+                imageChanged = true;
             } else if (editProductImageInput.files[0]) {
                 formData.append('image', editProductImageInput.files[0]);
+                imageChanged = true;
             } else if (removeProductImageCheckbox.checked) {
                 formData.append('removeImage', 'true');
+                imageChanged = true;
+            }
+
+            // 🆕 DEBUG: Log what's happening with the image
+            console.log('🖼️ Image update debug:', {
+                hasImageUrl: editProductImageUrlInput.value.trim() !== '',
+                hasImageFile: !!editProductImageInput.files[0],
+                removeImageChecked: removeProductImageCheckbox.checked,
+                imageChanged: imageChanged
+            });
+
+            // 🆕 If no image changes, explicitly preserve the current image
+            if (!imageChanged) {
+                console.log('🛡️ No image changes detected - preserving current image');
+                // Don't send any image-related data - backend will keep the current image
             }
 
             try {

@@ -902,12 +902,12 @@ function createProductGridCard(product) {
         cardContent.appendChild(description);
     }
 
-    if (product.price !== undefined && product.price !== null && product.price !== '') {
-        const price = document.createElement('p');
-        price.classList.add('text-orange-600', 'font-bold', 'text-sm');
-        price.textContent = product.price;
-        cardContent.appendChild(price);
-    }
+   if (product.price && product.price !== '0' && product.price !== '0.00' && product.price.trim() !== '') {
+    const price = document.createElement('p');
+    price.classList.add('text-orange-600', 'font-bold', 'text-sm');
+    price.textContent = product.price;
+    cardContent.appendChild(price);
+}
 
     card.appendChild(cardContent);
 
@@ -951,12 +951,12 @@ function createProductGridCard(product) {
         }
         listItem.appendChild(listContent);
 
-        if (product.price !== undefined && product.price !== null && product.price !== '') {
-            const price = document.createElement('p');
-            price.classList.add('list-price');
-            price.textContent = product.price;
-            listItem.appendChild(price);
-        }
+        if (product.price && product.price !== '0' && product.price !== '0.00' && product.price.trim() !== '') {
+    const price = document.createElement('p');
+    price.classList.add('list-price');
+    price.textContent = product.price;
+    listItem.appendChild(price);
+}
 
         listItem.addEventListener('click', () => {
             openImagePopup(displayImage, product.title, product.description, product.price);
@@ -978,13 +978,13 @@ function createProductGridCard(product) {
     elements.popupProductName.textContent = productName;
     elements.popupProductDescription.textContent = productDescription || '';
 
-    if (productPrice !== undefined && productPrice !== null && productPrice !== '') {
-        elements.popupProductPrice.textContent = productPrice;
-        elements.popupProductPrice.classList.remove('hidden');
-    } else {
-        elements.popupProductPrice.textContent = '';
-        elements.popupProductPrice.classList.add('hidden');
-    }
+    if (productPrice && productPrice !== '0' && productPrice !== '0.00' && productPrice.trim() !== '') {
+    elements.popupProductPrice.textContent = productPrice;
+    elements.popupProductPrice.classList.remove('hidden');
+} else {
+    elements.popupProductPrice.textContent = '';
+    elements.popupProductPrice.classList.add('hidden');
+}
 
     // Setup social media links when opening popup
     setupSocialMediaLinks();

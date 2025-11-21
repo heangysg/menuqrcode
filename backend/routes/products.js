@@ -404,8 +404,18 @@ router.put('/superadmin/:id', protect, authorizeRoles('superadmin'), upload.sing
         product.price = price !== undefined ? price : product.price;
         product.isAvailable = isAvailable !== undefined ? isAvailable : product.isAvailable;
 
-let oldImageUrl = null;
-let shouldDeleteOldImage = false;
+                    // Add this RIGHT BEFORE your image handling logic
+        console.log('🚨 EMERGENCY DEBUG - Image Handling:');
+        console.log('📥 imageUrl from request:', imageUrl, '(type:', typeof imageUrl, ')');
+        console.log('💾 product.imageUrl current:', product.imageUrl);
+        console.log('🔍 Condition check - imageUrl !== undefined:', imageUrl !== undefined);
+        console.log('🔍 Condition check - imageUrl !== product.imageUrl:', imageUrl !== product.imageUrl);
+        console.log('🎯 FINAL Condition:', imageUrl !== undefined && imageUrl !== product.imageUrl);
+        console.log('🔄 shouldDeleteOldImage will be:', (imageUrl !== undefined && imageUrl !== product.imageUrl) ? 'TRUE' : 'FALSE');
+
+        // Then continue with your existing image handling code...
+        let oldImageUrl = null;
+        let shouldDeleteOldImage = false;
 
 // ONLY set oldImageUrl when we're actually replacing the image
 if (imageUrl !== undefined && imageUrl !== product.imageUrl) {
@@ -473,23 +483,6 @@ router.delete('/superadmin/:id', protect, authorizeRoles('superadmin'), async (r
         console.log('🔄 DEBUG: Superadmin product deletion started');
         console.log('📸 Product image URL:', product.image);
         console.log('📸 Product imageUrl:', product.imageUrl);
-
-        // Delete image from Cloudinary if it exists
-        if (product.image) {
-            console.log('🗑️ Attempting to delete Cloudinary image...');
-            
-            // Test the public_id extraction
-            const publicId = getCloudinaryPublicId(product.image);
-            console.log('🔑 Extracted Public ID:', publicId);
-            
-            // Test if it's a valid Cloudinary URL
-            console.log('🌐 Is Cloudinary URL:', product.image.includes('cloudinary.com'));
-            
-            await deleteFromCloudinary(product.image);
-            console.log('✅ Cloudinary deletion attempted');
-        } else {
-            console.log('ℹ️ No product.image to delete from Cloudinary');
-        }
 
         await Product.deleteOne({ _id: req.params.id });
         res.json({ message: 'Superadmin product removed' });
@@ -854,6 +847,12 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
             return res.status(404).json({ message: 'Product not found or you do not own this product.' });
         }
 
+        // ✅ CORRECT PLACEMENT: Debug logs AFTER product is defined
+        console.log('🚨 ADMIN DEBUG - Image Handling:');
+        console.log('📥 imageUrl from request:', imageUrl, '(type:', typeof imageUrl, ')');
+        console.log('💾 product.imageUrl current:', product.imageUrl);
+        console.log('💾 product.image current:', product.image);
+
         // Verify category if it's being updated
         if (category) {
             const existingCategory = await Category.findOne({ 
@@ -872,44 +871,50 @@ router.put('/:id', protect, authorizeRoles('admin'), getAdminStoreId, upload.sin
         product.price = price !== undefined ? price : product.price;
         product.isAvailable = isAvailable !== undefined ? isAvailable : product.isAvailable;
 
-        let oldImageUrl = null;
-let shouldDeleteOldImage = false;
+        // 🛡️ FIXED: SAFE IMAGE HANDLING - NO AUTO-DELETION
+        console.log('🛡️ SAFE IMAGE HANDLING ACTIVATED');
+        
+        // ONLY handle images if explicitly changing them
+        if (req.file) {
+            console.log('📸 New image file uploaded');
+            // Upload new image - keep old image in Cloudinary (no deletion)
+            const newImageUrl = await uploadToCloudinary(req.file, storeUploadOptions);
+            product.image = newImageUrl;
+            product.imageUrl = '';
+            console.log('✅ New Cloudinary image uploaded, old image preserved');
+        } 
+        else if (req.body.removeImage === 'true') {
+            console.log('🗑️ Explicit image removal requested');
+            // Only delete when explicitly requested
+            if (product.image) {
+                console.log('🔑 Deleting from Cloudinary:', product.image);
+                await deleteFromCloudinary(product.image);
+            }
+            product.image = '';
+            product.imageUrl = '';
+            console.log('✅ Image removed as requested');
+        } 
+        else if (imageUrl !== undefined && imageUrl !== '' && imageUrl !== product.imageUrl) {
+            console.log('🔗 New image URL provided');
+            product.imageUrl = imageUrl;
+            product.image = ''; // Clear Cloudinary image when using external URL
+            console.log('✅ Image URL updated, Cloudinary image cleared');
+        }
+        else {
+            console.log('🛡️ No image changes - preserving current image');
+            // No image changes - preserve current image (do nothing)
+        }
 
-// ONLY set oldImageUrl when we're actually replacing the image
-if (imageUrl !== undefined && imageUrl !== product.imageUrl) {
-    if (product.image) {
-        oldImageUrl = product.image;
-        shouldDeleteOldImage = true;
-    }
-    product.imageUrl = imageUrl;
-    product.image = '';
-} else if (req.file) {
-    // We're uploading a new image file
-    if (product.image) {
-        oldImageUrl = product.image;
-        shouldDeleteOldImage = true;
-    }
-    const newImageUrl = await uploadToCloudinary(req.file, storeUploadOptions);
-    product.image = newImageUrl;
-    product.imageUrl = '';
-} else if (req.body.removeImage === 'true') {
-    // Explicitly removing image
-    if (product.image) {
-        oldImageUrl = product.image;
-        shouldDeleteOldImage = true;
-    }
-    product.image = '';
-    product.imageUrl = '';
-}
-
-const updatedProduct = await product.save();
-
-// ONLY delete old image if we're replacing it
-if (shouldDeleteOldImage && oldImageUrl) {
-    await deleteFromCloudinary(oldImageUrl);
-}
+        const updatedProduct = await product.save();
+        console.log('💾 Product saved successfully');
 
         const populatedProduct = await Product.findById(updatedProduct._id).populate('category', 'name');
+        
+        // 🎯 FINAL DEBUG
+        console.log('🎯 FINAL PRODUCT STATE:');
+        console.log('📸 Final image:', populatedProduct.image);
+        console.log('🔗 Final imageUrl:', populatedProduct.imageUrl);
+        
         res.json(populatedProduct);
     } catch (error) {
         console.error('Error updating product:', error);
@@ -937,23 +942,6 @@ router.delete('/:id', protect, authorizeRoles('admin'), getAdminStoreId, async (
         console.log('🔄 DEBUG: Product deletion started');
         console.log('📸 Product image URL:', product.image);
         console.log('📸 Product imageUrl:', product.imageUrl);
-
-        // Delete image from Cloudinary if it exists
-        if (product.image) {
-            console.log('🗑️ Attempting to delete Cloudinary image...');
-            
-            // Test the public_id extraction
-            const publicId = getCloudinaryPublicId(product.image);
-            console.log('🔑 Extracted Public ID:', publicId);
-            
-            // Test if it's a valid Cloudinary URL
-            console.log('🌐 Is Cloudinary URL:', product.image.includes('cloudinary.com'));
-            
-            await deleteFromCloudinary(product.image);
-            console.log('✅ Cloudinary deletion attempted');
-        } else {
-            console.log('ℹ️ No product.image to delete from Cloudinary');
-        }
 
         await Product.deleteOne({ _id: req.params.id });
 
