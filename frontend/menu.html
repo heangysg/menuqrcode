@@ -133,26 +133,135 @@ section.mb-8 {
     text-align: center;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
-/* Load More Button Styles */
+/* Enhanced Load More Button Styles - Bigger with Orange Theme */
 #loadMoreBtn {
-    background: #ea580c;
-    border: 1px solid #c2410c;
+    background: #ea580c; /* Your main orange color */
+    border: none;
     color: white;
     font-weight: 600;
-    padding: 12px 24px;
-    border-radius: 8px;
+    padding: 16px 32px;
+    border-radius: 10px;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.2);
+    margin: 24px auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    width: auto;
+    min-width: 200px;
+    font-family: 'Inter', 'Kantumruy Pro', sans-serif;
+    font-size: 16px;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
 }
 
 #loadMoreBtn:hover {
     background: #c2410c;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+    box-shadow: 0 6px 16px rgba(234, 88, 12, 0.4);
 }
 
 #loadMoreBtn:active {
     transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+}
+
+/* Main text */
+.load-more-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* Count text - BOLDER */
+.load-more-count {
+    font-size: 14px;
+    opacity: 0.95;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.98);
+}
+
+/* Loading state - MORE COMPACT */
+#loadMoreBtn.loading {
+    opacity: 0.8;
+    pointer-events: none;
+    padding: 14px 32px; /* Reduced padding to make it less tall */
+    flex-direction: row; /* Change to single line during loading */
+    gap: 8px;
+}
+
+#loadMoreBtn.loading .load-more-main,
+#loadMoreBtn.loading .load-more-count {
+    display: none; /* Hide both lines during loading */
+}
+
+#loadMoreBtn.loading::after {
+    content: 'Loading...';
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Icon animation */
+#loadMoreBtn .load-more-main i {
+    transition: transform 0.3s ease;
+    font-size: 14px;
+}
+
+#loadMoreBtn:hover .load-more-main i {
+    transform: translateY(2px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #loadMoreBtn {
+        padding: 14px 28px;
+        margin: 20px auto;
+        min-width: 180px;
+        font-size: 15px;
+    }
+    
+    .load-more-main {
+        font-size: 15px;
+        gap: 6px;
+    }
+    
+    .load-more-count {
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    /* Loading state for mobile */
+    #loadMoreBtn.loading {
+        padding: 12px 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    #loadMoreBtn {
+        padding: 12px 24px;
+        margin: 16px auto;
+        min-width: 160px;
+        font-size: 14px;
+    }
+    
+    .load-more-main {
+        font-size: 14px;
+        gap: 6px;
+    }
+    
+    .load-more-count {
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    /* Loading state for small mobile */
+    #loadMoreBtn.loading {
+        padding: 10px 24px;
+    }
 }
 
 /* Loading state for button */

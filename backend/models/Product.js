@@ -52,6 +52,9 @@ const productSchema = mongoose.Schema(
         timestamps: true,
     }
 );
-
+// Add indexes for better performance
+productSchema.index({ store: 1, isAvailable: 1 });
+productSchema.index({ store: 1, category: 1, isAvailable: 1 });
+productSchema.index({ store: 1, title: 'text', description: 'text' });
 const Product = mongoose.model('Product', productSchema);
 module.exports = Product;

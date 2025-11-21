@@ -15,12 +15,15 @@ const REQUEST_TIMEOUT = 8000;
 // Security: Cache for rate limiting awareness
 const requestCache = new Map();
 
-/**
- * Enhanced response handler to handle different API response formats
- */
 function handleApiResponse(data, endpoint) {
     console.log('🔍 handleApiResponse - Raw data:', data);
     console.log('🔍 handleApiResponse - Endpoint:', endpoint);
+    
+    // FOR PAGINATED PRODUCT ENDPOINTS - RETURN THE FULL RESPONSE
+    if (endpoint.includes('/products/public-store/slug/')) {
+        console.log('🔍 Preserving full paginated response for public store products');
+        return data; // Return the complete paginated response object
+    }
     
     // For paginated product endpoints, return the FULL response (including pagination)
     if (endpoint.includes('/products/my-store') || endpoint.includes('/products/superadmin')) {
@@ -62,9 +65,6 @@ function handleApiResponse(data, endpoint) {
     return data;
 }
 
-/**
- * Secure API request function with enhanced security features
- */
 async function apiRequest(endpoint, method = 'GET', body = null, requiresAuth = true, isFormData = false, queryParams = null) {
     // DEBUG: Log the request
     console.log('🔍 API Request:', method, endpoint, 'Auth:', requiresAuth);
@@ -92,52 +92,52 @@ async function apiRequest(endpoint, method = 'GET', body = null, requiresAuth = 
     headers.append('X-Frame-Options', 'DENY');
     headers.append('X-XSS-Protection', '1; mode=block');
 
-// Enhanced token selection based on endpoint
-if (requiresAuth) {
-    let token = null;
-    
-    // Determine which user's token to use based on the endpoint
-    if (endpoint.includes('/superadmin')) {
-        // For superadmin endpoints, try to get superadmin token
-        token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
-        if (!token) token = localStorage.getItem('superadminToken');
-    } else if (endpoint.includes('/users') && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
-        // For user management, use superadmin token
-        token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
-        if (!token) token = localStorage.getItem('superadminToken');
-    } else if (endpoint.includes('/wallpapers')) {
-        // For wallpaper endpoints, try both tokens
-        token = window.getStoredToken ? window.getStoredToken('admin') : null;
-        if (!token) token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
-        if (!token) token = localStorage.getItem('adminToken');
-        if (!token) token = localStorage.getItem('superadminToken');
-        if (!token) token = localStorage.getItem('token');
-    } else {
-        // For other endpoints, use any available token
-        token = window.getStoredToken ? window.getStoredToken() : null;
-        if (!token) token = localStorage.getItem('adminToken');
-        if (!token) token = localStorage.getItem('superadminToken');
-        if (!token) token = localStorage.getItem('token');
-    }
-    
-    console.log('🔐 Token selection for', endpoint, ':', {
-        hasToken: !!token,
-        tokenSource: token ? 'Found' : 'Not found',
-        endpoint: endpoint
-    });
-    
-    if (!token) {
-        console.error('❌ No valid token found for endpoint:', endpoint);
-        if (window.redirectToLogin) {
-            window.redirectToLogin();
+    // Enhanced token selection based on endpoint
+    if (requiresAuth) {
+        let token = null;
+        
+        // Determine which user's token to use based on the endpoint
+        if (endpoint.includes('/superadmin')) {
+            // For superadmin endpoints, try to get superadmin token
+            token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
+            if (!token) token = localStorage.getItem('superadminToken');
+        } else if (endpoint.includes('/users') && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+            // For user management, use superadmin token
+            token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
+            if (!token) token = localStorage.getItem('superadminToken');
+        } else if (endpoint.includes('/wallpapers')) {
+            // For wallpaper endpoints, try both tokens
+            token = window.getStoredToken ? window.getStoredToken('admin') : null;
+            if (!token) token = window.getStoredToken ? window.getStoredToken('superadmin') : null;
+            if (!token) token = localStorage.getItem('adminToken');
+            if (!token) token = localStorage.getItem('superadminToken');
+            if (!token) token = localStorage.getItem('token');
         } else {
-            window.location.href = '/login';
+            // For other endpoints, use any available token
+            token = window.getStoredToken ? window.getStoredToken() : null;
+            if (!token) token = localStorage.getItem('adminToken');
+            if (!token) token = localStorage.getItem('superadminToken');
+            if (!token) token = localStorage.getItem('token');
         }
-        throw new Error('Authentication required');
+        
+        console.log('🔐 Token selection for', endpoint, ':', {
+            hasToken: !!token,
+            tokenSource: token ? 'Found' : 'Not found',
+            endpoint: endpoint
+        });
+        
+        if (!token) {
+            console.error('❌ No valid token found for endpoint:', endpoint);
+            if (window.redirectToLogin) {
+                window.redirectToLogin();
+            } else {
+                window.location.href = '/login';
+            }
+            throw new Error('Authentication required');
+        }
+        
+        headers.append('Authorization', `Bearer ${token}`);
     }
-    
-    headers.append('Authorization', `Bearer ${token}`);
-}
 
     if (body) {
         if (isFormData) {
@@ -152,10 +152,16 @@ if (requiresAuth) {
     config.headers = headers;
 
     let url = `${API_BASE_URL}${endpoint}`;
+    
+    // ✅ Add query parameters if provided (SINGLE LOCATION - NO DUPLICATES)
     if (queryParams) {
-        const sanitizedParams = sanitizeQueryParams(queryParams);
-        const params = new URLSearchParams(sanitizedParams);
-        url += `?${params.toString()}`;
+        const params = new URLSearchParams();
+        Object.keys(queryParams).forEach(key => {
+            if (queryParams[key] !== null && queryParams[key] !== undefined) {
+                params.append(key, queryParams[key]);
+            }
+        });
+        url += '?' + params.toString();
     }
 
     try {

@@ -190,6 +190,99 @@ const upload = multer({
     }
 });
 
+// Apply rate limiting to all product routes
+// router.use(productLimiter);
+
+// ==================== PUBLIC ROUTES ====================
+
+// @desc    Get all SUPERADMIN products for website (PUBLIC) - ONLY superadmin products
+// @route   GET /api/products/website
+// @access  Public
+router.get('/website', async (req, res) => {
+    try {
+        console.log('Fetching SUPERADMIN products for website...');
+        
+        // Only get products that don't have a store field (superadmin products)
+        const products = await Product.find({ 
+            isAvailable: true,
+            store: { $exists: false } // Only products without store field (superadmin products)
+        })
+        .populate('category', 'name')
+        .sort({ createdAt: -1 });
+        
+        console.log(`Found ${products.length} SUPERADMIN products`);
+        res.json(products);
+    } catch (error) {
+        console.error('Error fetching website products:', error);
+        res.status(500).json({ message: 'Server error while fetching products' });
+    }
+});
+
+// @desc    Get all products for a public store (by slug) - WITH PAGINATION
+// @route   GET /api/products/public-store/slug/:slug
+// @access  Public
+router.get('/public-store/slug/:slug', async (req, res) => {
+    try {
+        const store = await Store.findOne({ slug: req.params.slug });
+        if (!store) {
+            return res.status(404).json({ message: 'Store not found.' });
+        }
+
+        const { category, search, page = 1, limit = 20 } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        let filter = { 
+            store: store._id,
+            isAvailable: true
+        };
+
+        if (category && category !== 'all-items' && category !== 'all') {
+            if (mongoose.Types.ObjectId.isValid(category)) {
+                filter.category = new mongoose.Types.ObjectId(category);
+            } else {
+                console.warn(`Invalid category ID received: ${category}`);
+                return res.json({ 
+                    products: [], 
+                    total: 0,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    totalPages: 0
+                });
+            }
+        }
+
+        if (search) {
+            const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            filter.$or = [
+                { title: searchRegex },
+                { description: searchRegex }
+            ];
+        }
+
+        // ADD PAGINATION TO QUERY
+        const products = await Product.find(filter)
+            .populate('category', 'name')
+            .sort('title')
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        const total = await Product.countDocuments(filter);
+
+        res.json({
+            products,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / parseInt(limit))
+        });
+    } catch (error) {
+        console.error('Error fetching public store products by slug:', error);
+        res.status(500).json({ message: 'Server error while fetching products' });
+    }
+});
+
+// ==================== SUPERADMIN ROUTES (ONLY GLOBAL PRODUCTS) ====================
+
 // Error handler for multer
 const handleMulterError = (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
@@ -242,32 +335,10 @@ const uploadToCloudinary = async (file, options) => {
 };
 
 // Apply rate limiting to all product routes
-router.use(productLimiter);
+// router.use(productLimiter);
 
 // ==================== PUBLIC ROUTES ====================
 
-// @desc    Get all SUPERADMIN products for website (PUBLIC) - ONLY superadmin products
-// @route   GET /api/products/website
-// @access  Public
-router.get('/website', async (req, res) => {
-    try {
-        console.log('Fetching SUPERADMIN products for website...');
-        
-        // Only get products that don't have a store field (superadmin products)
-        const products = await Product.find({ 
-            isAvailable: true,
-            store: { $exists: false } // Only products without store field (superadmin products)
-        })
-        .populate('category', 'name')
-        .sort({ createdAt: -1 });
-        
-        console.log(`Found ${products.length} SUPERADMIN products`);
-        res.json(products);
-    } catch (error) {
-        console.error('Error fetching website products:', error);
-        res.status(500).json({ message: 'Server error while fetching products' });
-    }
-});
 
 // ==================== SUPERADMIN ROUTES (ONLY GLOBAL PRODUCTS) ====================
 
@@ -785,49 +856,6 @@ router.get('/debug-invalid-categories', protect, authorizeRoles('admin'), getAdm
     }
 });
 
-// @desc    Get all products for a public store (by slug)
-// @route   GET /api/products/public-store/slug/:slug
-// @access  Public
-router.get('/public-store/slug/:slug', async (req, res) => {
-    try {
-        const store = await Store.findOne({ slug: req.params.slug });
-        if (!store) {
-            return res.status(404).json({ message: 'Store not found.' });
-        }
-
-        const { category, search } = req.query;
-        let filter = { 
-            store: store._id,
-            isAvailable: true // Only show available products to public
-        };
-
-        if (category && category !== 'all-items' && category !== 'all') {
-            if (mongoose.Types.ObjectId.isValid(category)) {
-                filter.category = new mongoose.Types.ObjectId(category);
-            } else {
-                console.warn(`Invalid category ID received: ${category}`);
-                return res.json([]);
-            }
-        }
-
-        if (search) {
-            const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            filter.$or = [
-                { title: searchRegex },
-                { description: searchRegex }
-            ];
-        }
-
-        const products = await Product.find(filter)
-            .populate('category', 'name')
-            .sort('title');
-            
-        res.json(products);
-    } catch (error) {
-        console.error('Error fetching public store products by slug:', error);
-        res.status(500).json({ message: 'Server error while fetching products' });
-    }
-});
 
 // @desc    Update a product (Admin)
 // @route   PUT /api/products/:id
