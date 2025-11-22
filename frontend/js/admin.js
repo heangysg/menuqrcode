@@ -1758,20 +1758,23 @@ async function updateDashboardOverview() {
         const totalCategoriesCount = document.getElementById('totalCategoriesCount');
         const categoryProductCountsList = document.getElementById('categoryProductCountsList');
 
-        // Fetch and display actual data
-        const productsResponse = await apiRequest('/products/my-store', 'GET', null, true);
+        // Fetch and display actual data - FIXED VERSION
+        const productsResponse = await apiRequest('/products/my-store?limit=1000', 'GET', null, true);
         const categoriesResponse = await apiRequest('/categories/my-store', 'GET', null, true);
         
-        // Extract products array - handle different response formats
+        // FIX: Extract products array from paginated response
         let products = [];
-        if (Array.isArray(productsResponse)) {
-            products = productsResponse;
-        } else if (productsResponse && Array.isArray(productsResponse.products)) {
+        if (productsResponse && productsResponse.products) {
+            // This is the paginated response format
             products = productsResponse.products;
-        } else if (productsResponse && productsResponse.data) {
+        } else if (Array.isArray(productsResponse)) {
+            // Fallback: direct array
+            products = productsResponse;
+        } else if (productsResponse && Array.isArray(productsResponse.data)) {
+            // Another possible format
             products = productsResponse.data;
         } else {
-            products = productsResponse || [];
+            products = [];
         }
 
         // Extract categories array - handle different response formats
@@ -1789,6 +1792,7 @@ async function updateDashboardOverview() {
         console.log('🔍 DEBUG - Final Products Count:', products.length);
         console.log('🔍 DEBUG - Final Categories Count:', categories.length);
 
+        // Update the dashboard counts
         if (totalProductsCount) {
             totalProductsCount.textContent = products.length;
         }
