@@ -1,45 +1,63 @@
 // qr-digital-menu-system/frontend/js/admin.js
-const MAX_PRODUCTS_UPDATE_PERCENT = 0.3;
+const MAX_PRODUCTS_UPDATE_PERCENT = 0.3; // 30% max
 
+// Optimize Cloudinary images for delivery (use the SAME 600px as uploaded)
 function getOptimizedImageUrl(url) {
     if (!url) return url;
     if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/")
+        return url.replace("/upload/", "/upload/f_auto,q_auto,w_600/") // Change 800 to 600
     }
     return url;
 }
 
+// ==================== MOBILE MENU SETUP ====================
 function initializeMobileMenu() {
+    console.log('📱 Initializing mobile menu...');
+    
     const mobileMenuButton = document.getElementById('mobileMenuButton');
     const sidebar = document.getElementById('sidebar');
     
+    console.log('Mobile menu elements:', {
+        mobileMenuButton: !!mobileMenuButton,
+        sidebar: !!sidebar
+    });
+    
     if (mobileMenuButton && sidebar) {
+        console.log('✅ Setting up mobile menu event listeners');
+        
+        // Remove any existing event listeners first
         const newButton = mobileMenuButton.cloneNode(true);
         mobileMenuButton.parentNode.replaceChild(newButton, mobileMenuButton);
         
         const freshButton = document.getElementById('mobileMenuButton');
         
         freshButton.addEventListener('click', function(e) {
-            e.stopPropagation();
+            console.log('🎯 Hamburger clicked!');
+            e.stopPropagation(); // Prevent event bubbling
             sidebar.classList.toggle('mobile-open');
             
             if (sidebar.classList.contains('mobile-open')) {
                 document.body.style.overflow = 'hidden';
+                console.log('📱 Menu opened');
             } else {
                 document.body.style.overflow = '';
+                console.log('📱 Menu closed');
             }
         });
         
+        // Close menu when clicking on links
         const sidebarLinks = sidebar.querySelectorAll('nav a, #logoutBtn');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', function() {
                 if (window.innerWidth < 1024) {
                     sidebar.classList.remove('mobile-open');
                     document.body.style.overflow = '';
+                    console.log('📱 Menu closed via link click');
                 }
             });
         });
         
+        // Close menu when clicking outside
         document.addEventListener('click', function(e) {
             if (window.innerWidth < 1024 && 
                 sidebar.classList.contains('mobile-open') &&
@@ -48,45 +66,62 @@ function initializeMobileMenu() {
                 !freshButton.contains(e.target)) {
                 sidebar.classList.remove('mobile-open');
                 document.body.style.overflow = '';
+                console.log('📱 Menu closed via outside click');
             }
         });
         
+        // Close menu on window resize to desktop
         window.addEventListener('resize', function() {
             if (window.innerWidth >= 1024 && sidebar.classList.contains('mobile-open')) {
                 sidebar.classList.remove('mobile-open');
                 document.body.style.overflow = '';
+                console.log('📱 Menu closed via resize to desktop');
             }
         });
         
+        console.log('✅ Mobile menu setup complete');
         return true;
     } else {
+        console.error('❌ Mobile menu elements not found');
         return false;
     }
 }
 
+// Global variables
 let currentStore = null;
-let allProducts = [];
-let currentPage = 1;
-let productsPerPage = 8;
+let allProducts = []; // Store all products for filtering
+let currentPage = 1; // 🆕 Pagination current page
+let productsPerPage = 8; // 🆕 8 products per page
 let currentStoreData = null;
 let currentStoreWallpaper = '';
 let wallpaperSelection = {};
 
+// ==================== PAGINATION FUNCTIONS ====================
+
 function updatePaginationControls(pagination) {
+    console.log('🔄 updatePaginationControls called with:', pagination);
+    
     const paginationContainer = document.getElementById('paginationContainer');
     
     if (!paginationContainer) {
+        console.log('❌ Pagination container not found, creating it...');
         createPaginationContainer();
         return;
     }
 
     const { page, pages, total } = pagination || {};
     
+    console.log(`📄 Page: ${page}, Pages: ${pages}, Total: ${total}`);
+    
     if (!page || !pages || pages <= 1) {
+        console.log('📄 No pagination needed (only one page)');
         paginationContainer.innerHTML = '';
         return;
     }
+
+    console.log('📄 Generating pagination UI...');
     
+    // Generate page numbers HTML
     const pageNumbersHTML = generatePageNumbers(page, pages);
     
     paginationContainer.innerHTML = `
@@ -108,13 +143,17 @@ function updatePaginationControls(pagination) {
         </div>
     `;
     
+    // Add event listeners to pagination buttons
     setupPaginationEventListeners();
+    
+    console.log('✅ Pagination controls updated');
 }
 
 function setupPaginationEventListeners() {
     const paginationContainer = document.getElementById('paginationContainer');
     if (!paginationContainer) return;
     
+    // Use event delegation for pagination buttons
     paginationContainer.addEventListener('click', function(e) {
         if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
             const newPage = parseInt(e.target.dataset.page);
@@ -123,6 +162,7 @@ function setupPaginationEventListeners() {
             }
         }
         
+        // Also handle page number buttons
         if (e.target.classList.contains('page-btn') && !e.target.disabled) {
             const newPage = parseInt(e.target.dataset.page);
             if (!isNaN(newPage) && newPage !== currentPage) {
@@ -135,19 +175,25 @@ function setupPaginationEventListeners() {
 function generatePageNumbers(currentPage, totalPages) {
     let pages = [];
     
+    // Always show first page
     pages.push(1);
     
+    // Calculate range around current page
     let start = Math.max(2, currentPage - 1);
     let end = Math.min(totalPages - 1, currentPage + 1);
     
+    // Add ellipsis if needed
     if (start > 2) pages.push('...');
     
+    // Add pages in range
     for (let i = start; i <= end; i++) {
         pages.push(i);
     }
     
+    // Add ellipsis if needed
     if (end < totalPages - 1) pages.push('...');
     
+    // Always show last page if there's more than one page
     if (totalPages > 1) pages.push(totalPages);
     
     return pages.map(page => {
@@ -165,17 +211,20 @@ function generatePageNumbers(currentPage, totalPages) {
 function changePage(newPage) {
     if (newPage === currentPage) return;
     
+    console.log(`🔄 Changing page from ${currentPage} to ${newPage}`);
+    
     currentPage = newPage;
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
     const productSearchInput = document.getElementById('productSearchInput');
     
     fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim())
         .then(() => {
+            // 🆕 Scroll to TOP of products section (search/filter area)
             const productsSection = document.getElementById('your-products-section');
             if (productsSection) {
                 productsSection.scrollIntoView({ 
                     behavior: 'smooth', 
-                    block: 'start'
+                    block: 'start' // This scrolls to the TOP of the section
                 });
             }
         });
@@ -185,17 +234,21 @@ function createPaginationContainer() {
     const productsSection = document.getElementById('your-products-section');
     if (!productsSection) return;
     
+    // Check if pagination container already exists
     let paginationContainer = document.getElementById('paginationContainer');
     
     if (!paginationContainer) {
+        // Create pagination container if it doesn't exist
         paginationContainer = document.createElement('div');
         paginationContainer.id = 'paginationContainer';
         paginationContainer.className = 'mt-6';
         
+        // Add it after the products table
         const table = productsSection.querySelector('table');
         if (table) {
             table.parentNode.insertBefore(paginationContainer, table.nextSibling);
         } else {
+            // Fallback: add to the end of the section
             productsSection.appendChild(paginationContainer);
         }
     }
@@ -210,28 +263,38 @@ function clearPaginationControls() {
     }
 }
 
+// 🆕 Reset to page 1 when filtering or searching
 function resetToFirstPage() {
     currentPage = 1;
-    clearPaginationControls();
+    clearPaginationControls(); // Also clear the display when resetting
 }
+
+// ==================== TELEGRAM LINKS MANAGEMENT ====================
 
 function initializeTelegramLinks() {
     const container = document.getElementById('telegramLinksContainer');
     const addBtn = document.getElementById('addTelegramLinkBtn');
     
     if (!container || !addBtn) {
+        console.log('❌ Telegram links container or add button not found');
         return;
     }
     
+    // Clear existing content
     container.innerHTML = '';
     
+    // Add event listener for add button
     addBtn.addEventListener('click', addTelegramLinkField);
     
+    // Load existing Telegram links from currentStore
     if (currentStore && currentStore.telegramLinks && currentStore.telegramLinks.length > 0) {
+        console.log('📱 Loading existing Telegram links:', currentStore.telegramLinks);
         currentStore.telegramLinks.forEach(link => {
             addTelegramLinkField(link.name, link.url);
         });
     } else {
+        console.log('📱 No existing Telegram links found');
+        // Add one empty field by default
         addTelegramLinkField();
     }
 }
@@ -240,13 +303,14 @@ function addTelegramLinkField(name = '', url = '') {
     const container = document.getElementById('telegramLinksContainer');
     if (!container) return;
     
+    // Check if we've reached the maximum (5 links)
     const existingLinks = container.querySelectorAll('.telegram-link-item');
     if (existingLinks.length >= 5) {
         showMessageModal('Limit Reached', 'You can only add up to 5 Telegram links.', true);
         return;
     }
     
-    const linkId = Date.now();
+    const linkId = Date.now(); // Simple unique ID
     const linkItem = document.createElement('div');
     linkItem.className = 'telegram-link-item';
     linkItem.innerHTML = `
@@ -271,6 +335,7 @@ function addTelegramLinkField(name = '', url = '') {
     
     container.appendChild(linkItem);
     
+    // Add event listener for remove button
     const removeBtn = linkItem.querySelector('.remove-telegram-link');
     removeBtn.addEventListener('click', function() {
         linkItem.remove();
@@ -308,28 +373,40 @@ function getTelegramLinksData() {
         const name = nameInput ? nameInput.value.trim() : '';
         const url = urlInput ? urlInput.value.trim() : '';
         
+        // Only include links that have both name and URL
         if (name && url) {
+            // Validate URL format
             if (url.startsWith('https://t.me/') || url.startsWith('https://telegram.me/')) {
                 links.push({ name, url });
+            } else {
+                console.warn('Invalid Telegram URL format:', url);
             }
         }
     });
     
+    console.log('📱 Collected Telegram links:', links);
     return links;
 }
+
+// ==================== BANNER PREVIEW FUNCTIONALITY ====================
 
 function initializeBannerPreview() {
     const bannerInput = document.getElementById('storeBanner');
     const currentBannersPreview = document.getElementById('currentBannersPreview');
     const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
+    const removeBannerContainer = document.getElementById('removeBannerContainer');
     
     if (!bannerInput || !removeStoreBannerCheckbox) return;
     
+    console.log('🖼️ Initializing banner preview...');
+    
+    // Create new preview container for selected files
     const newBannersPreview = document.createElement('div');
     newBannersPreview.id = 'newBannersPreview';
     newBannersPreview.className = 'mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 hidden';
     bannerInput.parentNode.insertBefore(newBannersPreview, currentBannersPreview);
     
+    // Remove any existing event listeners first by cloning elements
     const newBannerInput = bannerInput.cloneNode(true);
     bannerInput.parentNode.replaceChild(newBannerInput, bannerInput);
     
@@ -339,10 +416,15 @@ function initializeBannerPreview() {
     const freshBannerInput = document.getElementById('storeBanner');
     const freshRemoveCheckbox = document.getElementById('removeStoreBanner');
     
+    // Store currently selected files
     let currentSelectedFiles = [];
     
+    // Event listener for remove banner checkbox - IMMEDIATE VISUAL FEEDBACK
     freshRemoveCheckbox.addEventListener('change', function() {
+        console.log('🗑️ Remove banners checkbox changed:', this.checked);
+        
         if (this.checked) {
+            // When checked, hide current banners and show removal message
             if (currentBannersPreview) {
                 currentBannersPreview.innerHTML = `
                     <div class="text-center py-8 text-gray-500 border-2 border-dashed border-red-300 rounded-lg bg-red-50 col-span-3">
@@ -353,54 +435,74 @@ function initializeBannerPreview() {
                 `;
             }
             
+            // Also hide any new banner previews since we're removing everything
             const newBannersPreview = document.getElementById('newBannersPreview');
             if (newBannersPreview) {
                 newBannersPreview.classList.add('hidden');
             }
             
+            // Clear any selected files since we're removing all banners
             currentSelectedFiles = [];
             updateFileInput([], freshBannerInput);
+            
+            console.log('✅ Preview updated: banners marked for removal');
         } else {
+            // When unchecked, restore the original banners preview
             if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
                 updateCurrentBannersDisplay(currentStore.banner);
             } else {
                 updateCurrentBannersDisplay([]);
             }
+            console.log('✅ Preview restored: banners no longer marked for removal');
         }
     });
     
+    // Event listener for banner file selection
     freshBannerInput.addEventListener('change', function(e) {
         const files = Array.from(e.target.files);
         const newBannersPreview = document.getElementById('newBannersPreview');
         
+        console.log('📸 Banner files selected:', files.length);
+        
+        // If remove checkbox is checked, uncheck it when new files are selected
         if (freshRemoveCheckbox.checked) {
             freshRemoveCheckbox.checked = false;
+            console.log('🔄 Auto-unchecked remove banner option because new files were selected');
             
+            // Restore original banners preview
             if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
                 updateCurrentBannersDisplay(currentStore.banner);
             }
         }
         
+        // Clear current selection and start fresh with new files
         currentSelectedFiles = [];
         
+        // Add new files to current selection (up to 3 total)
         files.forEach(file => {
             if (currentSelectedFiles.length < 3) {
                 currentSelectedFiles.push(file);
             }
         });
         
+        // Update the file input with the combined files
         updateFileInput(currentSelectedFiles, freshBannerInput);
         
         if (currentSelectedFiles.length > 0) {
             newBannersPreview.classList.remove('hidden');
             
+            // Hide current banners preview when selecting new ones
             if (currentBannersPreview) {
                 currentBannersPreview.classList.add('hidden');
             }
             
+            // Clear and rebuild preview with all current files
             renderNewBannersPreview(currentSelectedFiles, newBannersPreview, currentBannersPreview);
+            
+            console.log(`✅ Showing preview for ${currentSelectedFiles.length} banners (${3 - currentSelectedFiles.length} slots remaining)`);
         } else {
             newBannersPreview.classList.add('hidden');
+            // Show current banners again if no new files
             if (currentBannersPreview && !freshRemoveCheckbox.checked) {
                 if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
                     currentBannersPreview.classList.remove('hidden');
@@ -408,21 +510,30 @@ function initializeBannerPreview() {
             }
         }
     });
+    
+    console.log('✅ Banner preview initialized');
 }
 
 function updateFileInput(files, fileInput) {
+    // Create a new DataTransfer to hold the files
     const dataTransfer = new DataTransfer();
     
+    // Add each file to the DataTransfer
     files.forEach(file => {
         dataTransfer.items.add(file);
     });
     
+    // Update the file input with the new FileList
     fileInput.files = dataTransfer.files;
+    
+    console.log('📁 Updated file input with', files.length, 'files');
 }
 
 function renderNewBannersPreview(files, newBannersPreview, currentBannersPreview) {
+    // Clear previous new previews
     newBannersPreview.innerHTML = '';
     
+    // Show preview for each selected file
     files.forEach((file, index) => {
         if (file.type.startsWith('image/')) {
             const reader = new FileReader();
@@ -450,6 +561,7 @@ function renderNewBannersPreview(files, newBannersPreview, currentBannersPreview
                 `;
                 newBannersPreview.appendChild(previewDiv);
                 
+                // Add remove functionality
                 const removeBtn = previewDiv.querySelector('.remove-banner-preview');
                 removeBtn.addEventListener('click', function() {
                     const fileIndex = parseInt(this.dataset.fileIndex);
@@ -460,6 +572,7 @@ function renderNewBannersPreview(files, newBannersPreview, currentBannersPreview
         }
     });
     
+    // Add banner counter
     const counterDiv = document.createElement('div');
     counterDiv.className = 'col-span-3 text-center text-sm text-gray-600 mt-2';
     counterDiv.innerHTML = `
@@ -478,25 +591,33 @@ function removeBannerFromSelection(fileIndex) {
     const currentBannersPreview = document.getElementById('currentBannersPreview');
     const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
     
+    // Get current files from input
     const currentFiles = Array.from(bannerInput.files);
     
+    // Remove the file at the specified index
     if (fileIndex >= 0 && fileIndex < currentFiles.length) {
         currentFiles.splice(fileIndex, 1);
         
+        // Update the file input
         updateFileInput(currentFiles, bannerInput);
         
+        // Update the global files array
         currentSelectedFiles = currentFiles;
         
+        // Re-render the preview
         if (currentFiles.length > 0) {
             renderNewBannersPreview(currentFiles, newBannersPreview, currentBannersPreview);
         } else {
             newBannersPreview.classList.add('hidden');
+            // Show current banners again if no new files and remove is not checked
             if (currentBannersPreview && !removeStoreBannerCheckbox.checked) {
                 if (currentStore && currentStore.banner && currentStore.banner.length > 0) {
                     currentBannersPreview.classList.remove('hidden');
                 }
             }
         }
+        
+        console.log(`🗑️ Removed banner at index ${fileIndex}, ${currentFiles.length} banners remaining`);
     }
 }
 
@@ -509,11 +630,15 @@ function updateCurrentBannersDisplay(banners) {
     
     currentBannersPreview.innerHTML = '';
     
+    console.log('🖼️ Updating banner display with:', banners);
+    
+    // Make sure remove checkbox is unchecked when displaying banners
     if (removeStoreBannerCheckbox) {
         removeStoreBannerCheckbox.checked = false;
     }
     
     if (Array.isArray(banners) && banners.length > 0) {
+        // Show banners in a grid layout
         banners.forEach((url, index) => {
             const bannerDiv = document.createElement('div');
             bannerDiv.className = 'relative group banner-preview';
@@ -530,9 +655,13 @@ function updateCurrentBannersDisplay(banners) {
             currentBannersPreview.appendChild(bannerDiv);
         });
         
+        // Show remove option ONLY when there are banners
         removeBannerContainer.style.display = 'block';
         
+        console.log(`✅ Displaying ${banners.length} current banners`);
+        
     } else {
+        // No banners - show placeholder and HIDE remove option
         currentBannersPreview.innerHTML = `
             <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 col-span-3">
                 <i class="fas fa-image text-3xl mb-2 text-gray-300"></i>
@@ -540,18 +669,31 @@ function updateCurrentBannersDisplay(banners) {
                 <p class="text-xs text-gray-400 mt-1">Upload up to 3 banners to display here</p>
             </div>
         `;
+        // Hide the remove container when no banners
         removeBannerContainer.style.display = 'none';
+        
+        console.log('ℹ️ No banners to display');
     }
 }
 
+// ==================== AUTHENTICATION & INITIALIZATION ====================
+
+// SIMPLIFIED version - remove the complex multi-user logic
 function setActiveUserForAdminPage() {
     try {
+        console.log('🔄 Setting active user for admin page...');
+        
+        // Use the simple auth system - just get the current user
         const userData = window.getStoredUserData ? window.getStoredUserData() : null;
         
         if (!userData) {
+            console.log('❌ No user data found');
             return null;
         }
         
+        console.log('✅ Active user found:', userData.email, 'Role:', userData.role);
+        
+        // Update UI with current user info
         const adminNameElement = document.getElementById('adminName');
         if (adminNameElement && userData) {
             if (userData.role === 'superadmin') {
@@ -563,30 +705,41 @@ function setActiveUserForAdminPage() {
         
         return userData;
     } catch (error) {
+        console.error('Error setting active user:', error);
         return null;
     }
 }
 
+// Wait for authentication to complete
 function waitForAuth() {
     return new Promise((resolve) => {
         let attempts = 0;
-        const maxAttempts = 50;
+        const maxAttempts = 50; // 5 seconds max wait
         
         function checkAuth() {
             attempts++;
             const token = window.getStoredToken ? window.getStoredToken('admin') : null;
             const userData = window.getStoredUserData ? window.getStoredUserData() : null;
             
+            console.log(`🔐 Auth check attempt ${attempts}:`, { 
+                hasToken: !!token, 
+                hasUserData: !!userData,
+                userRole: userData ? userData.role : 'none'
+            });
+            
             if (token && userData) {
+                console.log('✅ Auth confirmed, proceeding...');
                 resolve(true);
                 return;
             }
             
             if (attempts >= maxAttempts) {
+                console.error('❌ Auth timeout after', attempts, 'attempts');
                 resolve(false);
                 return;
             }
             
+            // Check again in 100ms
             setTimeout(checkAuth, 100);
         }
         
@@ -594,40 +747,66 @@ function waitForAuth() {
     });
 }
 
+// Initialize admin dashboard
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🏪 Admin dashboard loading...');
+    
     try {
+        // Initialize mobile menu FIRST
+        console.log('📱 Initializing mobile menu...');
         initializeMobileMenu();
         
+        // Wait for authentication
         await waitForAuth();
         
+        // Initialize dashboard
         await initializeAdminDashboard();
         
     } catch (error) {
+        console.error('Error initializing admin dashboard:', error);
         showNotification('Error loading dashboard: ' + error.message, 'error');
     }
 });
 
 async function initializeAdminDashboard() {
+    console.log('🚀 Starting admin dashboard initialization...');
+    
     try {
+        // SIMPLIFIED: Just wait for auth, don't try to set active user first
+        console.log('🔐 Waiting for authentication...');
         const isAuthenticated = await waitForAuth();
         
         if (!isAuthenticated) {
+            console.error('❌ Authentication failed, stopping initialization');
             return;
         }
         
-        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        console.log('✅ Authentication confirmed, loading data...');
         
+        // Check current user
+        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        console.log('👤 Current user:', userData ? `${userData.email} (${userData.role})` : 'none');
+        
+        // Update admin name in header
         updateAdminHeader();
         
+        // Load data based on user role
         if (userData && userData.role === 'superadmin') {
+            console.log('👑 Superadmin detected - loading admin dashboard with full access');
             await loadSuperadminData();
         } else {
+            // Regular admin - load everything
+            console.log('👤 Regular admin - loading store data');
             await loadAdminData();
         }
         
+        // Initialize event listeners
         initializeEventListeners();
         
+        console.log('✅ Admin dashboard initialized successfully');
+        
     } catch (error) {
+        console.error('❌ Initialization failed:', error);
         showMessageModal('Error', `Initialization failed: ${error.message}`, true);
     }
 }
@@ -643,12 +822,14 @@ async function loadAdminData() {
         await updateDashboardOverview();
         await initializeWallpaperSelection();
     } catch (error) {
+        console.error('Error loading admin data:', error);
         throw error;
     }
 }
 
 async function loadSuperadminData() {
     try {
+        // Superadmin can access all admin functions
         await Promise.all([
             fetchStoreDetails(),
             fetchCategories(),
@@ -657,6 +838,7 @@ async function loadSuperadminData() {
         
         await updateDashboardOverview();
         
+        // Show superadmin badge
         const dashboardHeader = document.querySelector('h1');
         if (dashboardHeader) {
             const badge = document.createElement('span');
@@ -666,6 +848,7 @@ async function loadSuperadminData() {
         }
         
     } catch (error) {
+        console.error('Error loading superadmin data:', error);
         throw error;
     }
 }
@@ -683,8 +866,12 @@ function updateAdminHeader() {
     }
 }
 
+// ==================== WALLPAPER MANAGEMENT ====================
+
 async function initializeWallpaperSelection() {
     try {
+        console.log('🎨 Initializing wallpaper selection...');
+        
         wallpaperSelection = {
             currentContainer: document.getElementById('currentWallpaperContainer'),
             currentPreview: document.getElementById('currentWallpaperPreview'),
@@ -695,15 +882,18 @@ async function initializeWallpaperSelection() {
             removeWallpaperBtn: document.getElementById('removeWallpaperBtn')
         };
 
+        // Check if all required elements exist
         if (!wallpaperSelection.currentContainer) {
+            console.error('❌ Wallpaper container elements not found');
             return;
         }
 
         await loadAvailableWallpapers();
         updateCurrentWallpaperDisplay();
         
+        console.log('✅ Wallpaper selection initialized successfully');
     } catch (error) {
-        showMessageModal('Error', `Error initializing wallpaper selection: ${error.message}`, true);
+        console.error('❌ Error initializing wallpaper selection:', error);
     }
 }
 
@@ -712,6 +902,8 @@ function updateCurrentWallpaperDisplay() {
     
     const currentWallpaper = currentStore.wallpaperUrl;
     const removeBtn = wallpaperSelection.removeWallpaperBtn;
+    
+    console.log('🖼️ Current wallpaper URL:', currentWallpaper);
     
     if (currentWallpaper && currentWallpaper.trim() !== '') {
         if (wallpaperSelection.currentPreview) {
@@ -745,16 +937,29 @@ async function loadAvailableWallpapers() {
     if (wallpaperSelection.noWallpapersMessage) wallpaperSelection.noWallpapersMessage.classList.add('hidden');
     
     try {
+        console.log('📥 Loading available wallpapers...');
+        
+        // Debug: Check all possible token sources
         const token = window.getStoredToken ? window.getStoredToken('admin') : null;
         const directToken = localStorage.getItem('adminToken');
         const anyToken = localStorage.getItem('token');
         
+        console.log('🔐 Token debug:', {
+            getStoredToken: token ? 'EXISTS' : 'NULL',
+            localStorageAdmin: directToken ? 'EXISTS' : 'NULL', 
+            localStorageAny: anyToken ? 'EXISTS' : 'NULL'
+        });
+        
+        // Use the first available token
         const finalToken = token || directToken || anyToken;
         
         if (!finalToken) {
             throw new Error('No authentication token found. Please log in again.');
         }
 
+        console.log('🔐 Using token for wallpapers:', finalToken.substring(0, 20) + '...');
+        
+        // Use direct fetch to bypass the api.js token selection issue
         const response = await fetch('/api/wallpapers', {
             method: 'GET',
             headers: {
@@ -770,9 +975,12 @@ async function loadAvailableWallpapers() {
         const data = await response.json();
         const wallpapers = data.wallpapers || data || [];
         
+        console.log(`✅ Loaded ${wallpapers.length} wallpapers:`, wallpapers);
         renderWallpapersSelection(wallpapers);
         
     } catch (error) {
+        console.error('❌ Error loading available wallpapers:', error);
+        
         if (wallpaperSelection.loading) wallpaperSelection.loading.classList.add('hidden');
         if (wallpaperSelection.noWallpapersMessage) {
             wallpaperSelection.noWallpapersMessage.classList.remove('hidden');
@@ -867,6 +1075,7 @@ function renderWallpapersSelection(wallpapers) {
         grid.appendChild(card);
     });
     
+    // Add event listeners using event delegation
     setupWallpaperEventListeners();
 }
 
@@ -874,14 +1083,17 @@ function setupWallpaperEventListeners() {
     const grid = wallpaperSelection.grid;
     if (!grid) return;
     
+    // Remove any existing event listeners
     grid.removeEventListener('click', handleWallpaperGridClick);
     
+    // Add new event listener
     grid.addEventListener('click', handleWallpaperGridClick);
 }
 
 function handleWallpaperGridClick(event) {
     const target = event.target;
     
+    // Handle preview button clicks
     if (target.classList.contains('preview-wallpaper-btn') || target.closest('.preview-wallpaper-btn')) {
         const card = target.closest('.wallpaper-card');
         if (card) {
@@ -892,6 +1104,7 @@ function handleWallpaperGridClick(event) {
         return;
     }
     
+    // Handle select button clicks
     if (target.classList.contains('select-wallpaper-btn') || target.closest('.select-wallpaper-btn')) {
         const card = target.closest('.wallpaper-card');
         if (card) {
@@ -899,6 +1112,7 @@ function handleWallpaperGridClick(event) {
             const wallpaperUrl = card.dataset.wallpaperUrl;
             const wallpaperName = card.dataset.wallpaperName;
             
+            // Check if already selected
             const isSelected = card.querySelector('.select-wallpaper-btn').disabled;
             if (!isSelected) {
                 selectWallpaper(wallpaperId, wallpaperUrl, wallpaperName);
@@ -907,6 +1121,7 @@ function handleWallpaperGridClick(event) {
         return;
     }
     
+    // Handle image clicks for preview
     if (target.classList.contains('wallpaper-image')) {
         const card = target.closest('.wallpaper-card');
         if (card) {
@@ -919,6 +1134,7 @@ function handleWallpaperGridClick(event) {
 }
 
 function previewWallpaperInModal(imageUrl, name) {
+    // Remove any existing modal first
     const existingModal = document.querySelector('.wallpaper-preview-modal');
     if (existingModal) {
         existingModal.remove();
@@ -952,6 +1168,7 @@ function previewWallpaperInModal(imageUrl, name) {
         </div>
     `;
     
+    // Close modal when clicking outside
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             closeWallpaperPreviewModal();
@@ -977,20 +1194,25 @@ async function selectWallpaper(wallpaperId, wallpaperUrl, wallpaperName) {
             return;
         }
         
+        console.log(`🎨 Selecting wallpaper: ${wallpaperName}`);
+        
         const response = await apiRequest(`/stores/${currentStore._id}/wallpaper`, 'PATCH', {
             wallpaperUrl: wallpaperUrl
         }, true);
         
         showMessageModal('Success', `Wallpaper "${wallpaperName}" selected successfully! It will appear on your menu page.`, false);
         
+        // Update current store data
         if (currentStore) {
             currentStore.wallpaperUrl = wallpaperUrl;
         }
         
+        // Update display
         updateCurrentWallpaperDisplay();
-        await loadAvailableWallpapers();
+        await loadAvailableWallpapers(); // Refresh to update selection states
         
     } catch (error) {
+        console.error('❌ Error selecting wallpaper:', error);
         showMessageModal('Error', `Failed to select wallpaper: ${error.message}`, true);
     }
 }
@@ -1006,28 +1228,41 @@ async function removeCurrentWallpaper() {
             return;
         }
         
+        console.log('🗑️ Removing current wallpaper');
+        
         const response = await apiRequest(`/stores/${currentStore._id}/wallpaper`, 'PATCH', {
             wallpaperUrl: ''
         }, true);
         
         showMessageModal('Success', 'Wallpaper removed successfully! The menu page will now use the default background.', false);
         
+        // Update current store data
         if (currentStore) {
             currentStore.wallpaperUrl = '';
         }
         
+        // Update display
         updateCurrentWallpaperDisplay();
-        await loadAvailableWallpapers();
+        await loadAvailableWallpapers(); // Refresh to update selection states
         
     } catch (error) {
+        console.error('❌ Error removing wallpaper:', error);
         showMessageModal('Error', `Failed to remove wallpaper: ${error.message}`, true);
     }
 }
+
+// ==================== STORE MANAGEMENT ====================
 
 async function fetchStoreDetails() {
     const copyMessage = document.getElementById('copyMessage');
     clearMessage(copyMessage);
     try {
+        console.log('🏪 Fetching store details...');
+        
+        // Check current user
+        const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+        console.log('👤 Fetching store as:', userData ? userData.role : 'unknown');
+        
         currentStore = await apiRequest('/stores/my-store', 'GET', null, true);
         
         if (currentStore && currentStore._id) {
@@ -1049,6 +1284,7 @@ async function fetchStoreDetails() {
             const publicMenuLinkInput = document.getElementById('publicMenuLink');
             const copyMenuLinkBtn = document.getElementById('copyMenuLinkBtn');
 
+            // Populate store form
             storeNameInput.value = currentStore.name;
             storeAddressInput.value = currentStore.address || '';
             storePhoneInput.value = currentStore.phone || '';
@@ -1057,8 +1293,10 @@ async function fetchStoreDetails() {
             storeTikTokInput.value = currentStore.tiktokUrl || '';
             storeWebsiteInput.value = currentStore.websiteUrl || '';
 
+            // ADD: Initialize Telegram links
             initializeTelegramLinks();
 
+            // Handle logo
             if (currentStore.logo) {
                 currentLogoImg.src = currentStore.logo;
                 currentLogoImg.style.display = 'block';
@@ -1071,10 +1309,13 @@ async function fetchStoreDetails() {
                 removeStoreLogoCheckbox.checked = false;
             }
 
+            // Handle banners - FIXED VERSION
             if (currentBannersPreview && removeBannerContainer) {
+                // Use the enhanced banner display function
                 updateCurrentBannersDisplay(currentStore.banner || []);
             }
 
+            // Handle QR code and menu link
             if (currentStore.slug) {
                 const publicMenuUrl = `${window.location.origin}/menu/${currentStore.slug}`;
                 const qrCanvas = window.generateQRCode(publicMenuUrl, qrCodeContainer, 256);
@@ -1094,12 +1335,17 @@ async function fetchStoreDetails() {
                 publicMenuLinkInput.value = 'Link will appear here after saving store info.';
                 copyMenuLinkBtn.style.display = 'none';
             }
+            console.log('✅ Store details loaded:', currentStore.name);
             return currentStore;
         } else {
             throw new Error('Invalid store data received');
         }
     } catch (error) {
+        console.error('❌ Error fetching store details:', error);
+        
+        // If it's an auth error, don't throw - let the auth system handle it
         if (error.message.includes('Authentication') || error.message.includes('401')) {
+            console.log('🔐 Auth error in store fetch, waiting for redirect...');
             return null;
         }
         
@@ -1126,6 +1372,8 @@ async function fetchStoreDetails() {
     }
 }
 
+// ==================== CATEGORY MANAGEMENT ====================
+
 async function fetchCategories() {
     const categoryListTableBody = document.getElementById('categoryList');
     const productCategorySelect = document.getElementById('productCategory');
@@ -1134,14 +1382,17 @@ async function fetchCategories() {
 
     categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Loading categories...</td></tr>';
     try {
+        console.log('📂 Fetching categories...');
         const categories = await apiRequest('/categories/my-store', 'GET', null, true);
 
         categoryListTableBody.innerHTML = '';
 
+        // Clear all existing options before repopulating
         productCategorySelect.innerHTML = '<option value="">Select a Category</option>';
         editProductCategorySelect.innerHTML = '';
         productFilterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
 
+        // Enable dropdowns
         productCategorySelect.disabled = false;
         editProductCategorySelect.disabled = false;
         productFilterCategorySelect.disabled = false;
@@ -1161,22 +1412,26 @@ async function fetchCategories() {
                 </td>
             `;
 
+            // Populating the 'Add Product' category select
             const optionAdd = document.createElement('option');
             optionAdd.value = category._id;
             optionAdd.textContent = category.name;
             productCategorySelect.appendChild(optionAdd);
 
+            // Populating the 'Edit Product' category select
             const optionEdit = document.createElement('option');
             optionEdit.value = category._id;
             optionEdit.textContent = category.name;
             editProductCategorySelect.appendChild(optionEdit);
 
+            // Populating the 'Filter by Category' select
             const optionFilter = document.createElement('option');
             optionFilter.value = category._id;
             optionFilter.textContent = category.name;
             productFilterCategorySelect.appendChild(optionFilter);
         });
 
+        // Re-select the previously chosen filter category after repopulating
         const currentFilterValue = productFilterCategorySelect.dataset.currentFilter || 'all';
         productFilterCategorySelect.value = currentFilterValue;
 
@@ -1200,6 +1455,7 @@ async function fetchCategories() {
         });
 
     } catch (error) {
+        console.error('❌ Error fetching categories:', error);
         showMessageModal('Error', `Error fetching categories: ${error.message}`, true);
         categoryListTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-gray-500">Failed to load categories.</td></tr>';
     }
@@ -1217,6 +1473,7 @@ function openEditCategoryModal(id, name) {
 
 async function deleteCategory(id) {
     try {
+        // Send confirmation flag in the request body
         await apiRequest(`/categories/${id}`, 'DELETE', { confirmDelete: true }, true);
         showMessageModal('Success', 'Category deleted successfully!', false);
         await fetchCategories();
@@ -1227,16 +1484,21 @@ async function deleteCategory(id) {
     }
 }
 
+// ==================== PRODUCT MANAGEMENT ====================
+
 async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
     const productListTableBody = document.getElementById('productListTableBody');
     
+    // Check if the table body exists before trying to manipulate it
     if (!productListTableBody) {
+        console.error('❌ productListTableBody element not found');
         return;
     }
     
     productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Loading products...</td></tr>';
     
     try {
+        console.log('📦 Fetching products...');
         let url = '/products/my-store';
         const queryParams = new URLSearchParams();
 
@@ -1247,23 +1509,35 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
             queryParams.append('search', searchTerm);
         }
 
+        // 🆕 Add pagination parameters
         queryParams.append('page', currentPage);
         queryParams.append('limit', productsPerPage);
 
         if (queryParams.toString()) {
             url += `?${queryParams.toString()}`;
         }
+
+        console.log('Frontend: Fetching products with URL:', url);
         
         const response = await apiRequest(url, 'GET', null, true);
         
+        console.log('🔍 Full API Response:', response);
+        
         const products = response.products || [];
         const pagination = response.pagination;
+        
+        console.log('Frontend: Products received:', products.length);
+        console.log('Frontend: Pagination data:', pagination);
 
         renderProductsTable(products);
         
+        // 🆕 Update pagination controls with the actual pagination data
         if (pagination) {
+            console.log('✅ Updating pagination controls with:', pagination);
             updatePaginationControls(pagination);
         } else {
+            console.log('❌ No pagination data received');
+            // Fallback: create basic pagination info
             const total = products.length;
             updatePaginationControls({
                 page: currentPage,
@@ -1274,12 +1548,15 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
         }
 
     } catch (error) {
+        console.error('❌ Error fetching products:', error);
         showMessageModal('Error', `Error fetching products: ${error.message}`, true);
         
+        // Only update the table body if it exists
         if (productListTableBody) {
             productListTableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Failed to load products.</td></tr>';
         }
         
+        // 🆕 Clear pagination on error
         clearPaginationControls();
     }
 }
@@ -1287,20 +1564,25 @@ async function fetchProductsForDisplay(categoryId = 'all', searchTerm = '') {
 function showSection(sectionId) {
     const allSections = document.querySelectorAll('main section[id$="-section"]');
     
+    // Hide all sections
     allSections.forEach(section => {
         section.classList.add('hidden');
     });
     
+    // Show the target section
     const targetSection = document.getElementById(sectionId);
     if (targetSection) {
         targetSection.classList.remove('hidden');
     }
 }
 
+// Render products table
 function renderProductsTable(products) {
     const productListTableBody = document.getElementById('productListTableBody');
     
+    // Check if the table body exists
     if (!productListTableBody) {
+        console.error('❌ productListTableBody element not found in renderProductsTable');
         return;
     }
     
@@ -1340,14 +1622,18 @@ function renderProductsTable(products) {
         `;
     });
 
+    // Replace the edit button event listener with this:
     document.querySelectorAll('.edit-product-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const productId = e.target.dataset.id;
+            console.log('🔄 Edit button clicked for product:', productId);
             
+            // Find the product in the current displayed products
             const row = e.target.closest('tr');
             if (row) {
                 const imageContainer = row.querySelector('.product-list-image-container');
                 
+                // Extract ALL product data from DOM attributes (super fast!)
                 const product = {
                     _id: productId,
                     title: imageContainer.dataset.title,
@@ -1362,8 +1648,10 @@ function renderProductsTable(products) {
                     isAvailable: imageContainer.dataset.isAvailable === 'true'
                 };
                 
+                console.log('📦 Product data extracted from DOM:', product);
                 openEditProductModal(product);
             } else {
+                console.error('❌ Could not find product row');
                 showMessageModal('Error', 'Could not find product data.', true);
             }
         });
@@ -1407,11 +1695,12 @@ function openEditProductModal(product) {
     editProductIdInput.value = product._id;
     editProductNameInput.value = product.title;
     
+    // Now we have the exact category ID from data attributes!
     editProductCategorySelect.value = product.category._id || '';
     
     editProductDescriptionInput.value = product.description || '';
     editProductPriceInput.value = product.price !== undefined && product.price !== null ? product.price : '';
-    editProductImageUrlInput.value = '';
+    editProductImageUrlInput.value = ''; // Leave it empty
     editProductAvailabilityCheckbox.checked = product.isAvailable;
 
     const displayImage = product.image || product.imageUrl || `https://placehold.co/300x300?text=No+Img`;
@@ -1421,6 +1710,7 @@ function openEditProductModal(product) {
         currentProductImageImg.style.display = 'block';
         removeProductImageContainer.style.display = 'block';
         
+        // Store original image for potential restoration
         currentProductImageImg.dataset.originalImage = displayImage;
     } else {
         currentProductImageImg.src = 'https://placehold.co/300x300?text=No+Image';
@@ -1435,7 +1725,11 @@ function openEditProductModal(product) {
     editProductModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     
+    // Initialize image preview handlers
     initializeImagePreviewHandlers();
+   
+    
+    console.log('✅ Edit modal opened instantly with accurate data');
 }
 
 async function deleteProduct(id) {
@@ -1451,28 +1745,39 @@ async function deleteProduct(id) {
     }
 }
 
+// ==================== DASHBOARD OVERVIEW ====================
+
 async function updateDashboardOverview() {
     try {
+        console.log('🔄 Updating dashboard overview...');
+        
         const userData = window.getStoredUserData ? window.getStoredUserData() : null;
         
+        // Update the UI elements
         const totalProductsCount = document.getElementById('totalProductsCount');
         const totalCategoriesCount = document.getElementById('totalCategoriesCount');
         const categoryProductCountsList = document.getElementById('categoryProductCountsList');
 
+        // Fetch and display actual data - FIXED VERSION
         const productsResponse = await apiRequest('/products/my-store?limit=1000', 'GET', null, true);
         const categoriesResponse = await apiRequest('/categories/my-store', 'GET', null, true);
         
+        // FIX: Extract products array from paginated response
         let products = [];
         if (productsResponse && productsResponse.products) {
+            // This is the paginated response format
             products = productsResponse.products;
         } else if (Array.isArray(productsResponse)) {
+            // Fallback: direct array
             products = productsResponse;
         } else if (productsResponse && Array.isArray(productsResponse.data)) {
+            // Another possible format
             products = productsResponse.data;
         } else {
             products = [];
         }
 
+        // Extract categories array - handle different response formats
         let categories = [];
         if (Array.isArray(categoriesResponse)) {
             categories = categoriesResponse;
@@ -1484,6 +1789,10 @@ async function updateDashboardOverview() {
             categories = categoriesResponse || [];
         }
 
+        console.log('🔍 DEBUG - Final Products Count:', products.length);
+        console.log('🔍 DEBUG - Final Categories Count:', categories.length);
+
+        // Update the dashboard counts
         if (totalProductsCount) {
             totalProductsCount.textContent = products.length;
         }
@@ -1492,6 +1801,7 @@ async function updateDashboardOverview() {
             totalCategoriesCount.textContent = categories.length;
         }
 
+        // Calculate and display products per category
         const categoryCounts = {};
         categories.forEach(cat => {
             if (cat && cat._id && cat.name) {
@@ -1528,7 +1838,10 @@ async function updateDashboardOverview() {
             }
         }
 
+        console.log('✅ Dashboard overview updated successfully');
+
     } catch (error) {
+        console.error('❌ Error fetching dashboard overview:', error.message);
         const totalProductsCount = document.getElementById('totalProductsCount');
         const totalCategoriesCount = document.getElementById('totalCategoriesCount');
         const categoryProductCountsList = document.getElementById('categoryProductCountsList');
@@ -1541,6 +1854,9 @@ async function updateDashboardOverview() {
     }
 }
 
+// ==================== UTILITY FUNCTIONS ====================
+
+// 🛡️ SAFETY: Prevent bulk category updates
 function safeBulkUpdate(productsToUpdate, allProducts) {
     if (!productsToUpdate.length || !allProducts.length) return true;
     
@@ -1548,12 +1864,13 @@ function safeBulkUpdate(productsToUpdate, allProducts) {
     
     if (updatePercent > MAX_PRODUCTS_UPDATE_PERCENT) {
         alert(`❌ SAFETY: You're updating ${Math.round(updatePercent * 100)}% of products. Maximum allowed is 30%. Please edit products individually.`);
-        return false;
+        return false; // STOP
     }
     
-    return true;
+    return true; // CONTINUE
 }
 
+// Function to prepend CORS proxy if the URL is external and not already proxied
 function getProxiedImageUrl(url) {
     if (!url) return '';
     if (url.startsWith('https://corsproxy.io/?')) {
@@ -1569,6 +1886,7 @@ function getProxiedImageUrl(url) {
     return url;
 }
 
+// Product Image Popup Functions
 function openProductImagePopup(imageUrl, title, description, price) {
     const productImagePopupModal = document.getElementById('productImagePopupModal');
     const popupProductImage = document.getElementById('popupProductImage');
@@ -1609,6 +1927,9 @@ function closeProductImagePopup() {
     document.body.style.overflow = '';
 }
 
+/**
+ * Displays a custom message modal.
+ */
 function showMessageModal(title, message, isError = false, okButtonText = 'OK') {
     const customMessageModal = document.getElementById('customMessageModal');
     const customMessageTitle = document.getElementById('customMessageTitle');
@@ -1632,6 +1953,9 @@ function showMessageModal(title, message, isError = false, okButtonText = 'OK') 
     document.body.style.overflow = 'hidden';
 }
 
+/**
+ * Displays a custom confirmation modal.
+ */
 function showConfirmationModal(title, message, onConfirm, onCancel = () => {}, confirmButtonText = 'Yes', cancelButtonText = 'No') {
     const customMessageModal = document.getElementById('customMessageModal');
     const customMessageTitle = document.getElementById('customMessageTitle');
@@ -1666,6 +1990,7 @@ function showConfirmationModal(title, message, onConfirm, onCancel = () => {}, c
     document.body.style.overflow = 'hidden';
 }
 
+// A simple utility function for clearing messages that are NOT handled by the new modal
 function clearMessage(element) {
     if (element) {
         element.textContent = '';
@@ -1673,7 +1998,9 @@ function clearMessage(element) {
     }
 }
 
+// Show notification
 function showNotification(message, type = 'info') {
+    // Create notification element
     const notification = document.createElement('div');
     notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg text-white max-w-sm transform transition-transform duration-300 translate-x-full`;
     
@@ -1694,10 +2021,12 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
+    // Animate in
     setTimeout(() => {
         notification.classList.remove('translate-x-full');
     }, 100);
     
+    // Auto remove after 5 seconds
     setTimeout(() => {
         notification.classList.add('translate-x-full');
         setTimeout(() => {
@@ -1708,12 +2037,19 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// Initialize event listeners after auth is confirmed
 function initializeEventListeners() {
+    console.log('🔧 Initializing event listeners...');
+    
+    // Check user role
+    const userData = window.getStoredUserData ? window.getStoredUserData() : null;
+    console.log('👤 Initializing event listeners for:', userData ? userData.role : 'unknown');
     const removeWallpaperBtn = document.getElementById('removeWallpaperBtn');
     if (removeWallpaperBtn) {
         removeWallpaperBtn.addEventListener('click', removeCurrentWallpaper);
     }
 
+    // --- Section Visibility Management ---
     const allSections = document.querySelectorAll('main section[id$="-section"]');
 
     function hideAllSections() {
@@ -1727,19 +2063,23 @@ function initializeEventListeners() {
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.remove('hidden');
+            // Scroll to top of the section
             setTimeout(() => {
                 targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 50);
         }
     }
 
+    // Event listeners for sidebar links
     document.querySelectorAll('.sidebar-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const targetSectionId = e.currentTarget.dataset.target;
             
+            // Both superadmin and admin can access all sections
             showSection(targetSectionId);
 
+            // Update active state for sidebar links
             document.querySelectorAll('.sidebar-link').forEach(innerLink => {
                 innerLink.classList.remove('bg-gray-700', 'text-blue-300', 'active:bg-gray-700');
                 innerLink.classList.add('hover:bg-gray-700', 'hover:text-blue-300');
@@ -1749,6 +2089,7 @@ function initializeEventListeners() {
         });
     });
 
+    // --- Store Management Event Listeners ---
     const storeForm = document.getElementById('storeForm');
     if (storeForm) {
         storeForm.addEventListener('submit', async (e) => {
@@ -1766,13 +2107,16 @@ function initializeEventListeners() {
             const storeBannerInput = document.getElementById('storeBanner');
             const removeStoreBannerCheckbox = document.getElementById('removeStoreBanner');
 
+            // Add phone validation check
             const phone = storePhoneInput.value.trim();
             
+            // Check length
             if (phone && phone.length > 50) {
                 showMessageModal('Validation Error', 'Phone number cannot exceed 50 characters.', true);
                 return;
             }
 
+            // More permissive phone format validation
             if (phone && !/^[\+]?[0-9\s\-\(\)\.\/]{6,}$/.test(phone)) {
                 showMessageModal('Validation Error', 'Please enter a valid phone number (minimum 6 digits). You can use formats like: +85512345678, 012345678, 097 67 67 854, or 123-456-7890', true);
                 return;
@@ -1781,12 +2125,13 @@ function initializeEventListeners() {
             const formData = new FormData();
             formData.append('name', storeNameInput.value);
             formData.append('address', storeAddressInput.value);
-            formData.append('phone', phone);
+            formData.append('phone', phone); // Use the validated phone
             formData.append('description', storeDescriptionInput.value);
             formData.append('facebookUrl', storeFacebookInput.value);
             formData.append('tiktokUrl', storeTikTokInput.value);
             formData.append('websiteUrl', storeWebsiteInput.value);
             
+            // ADD: Telegram links
             const telegramLinks = getTelegramLinksData();
             formData.append('telegramLinks', JSON.stringify(telegramLinks));
 
@@ -1808,17 +2153,21 @@ function initializeEventListeners() {
                 const updatedStore = await apiRequest('/stores/my-store', 'PUT', formData, true, true);
                 showMessageModal('Success', 'Store details updated successfully!', false);
                 
+                // Refresh store data
                 await fetchStoreDetails();
                 
+                // Specifically update the current store object and banner display
                 currentStore = updatedStore;
                 updateCurrentBannersDisplay(updatedStore.banner || []);
                 
+                console.log('✅ Store updated, banners refreshed:', updatedStore.banner);
             } catch (error) {
                 showMessageModal('Error', `Error updating store: ${error.message}`, true);
             }
         });
     }
 
+    // Copy Menu Link functionality
     const copyMenuLinkBtn = document.getElementById('copyMenuLinkBtn');
     if (copyMenuLinkBtn) {
         copyMenuLinkBtn.addEventListener('click', async () => {
@@ -1839,6 +2188,7 @@ function initializeEventListeners() {
                 }
             }
             catch (err) {
+                console.error('Failed to copy text: ', err);
                 const tempMessageSpan = document.getElementById('copyMessage');
                 if (tempMessageSpan) {
                     tempMessageSpan.textContent = 'Failed to copy link. Please copy manually.';
@@ -1854,6 +2204,7 @@ function initializeEventListeners() {
         });
     }
 
+    // --- Category Management Event Listeners ---
     const categoryForm = document.getElementById('categoryForm');
     if (categoryForm) {
         categoryForm.addEventListener('submit', async (e) => {
@@ -1913,22 +2264,31 @@ function initializeEventListeners() {
         });
     }
 
+    // --- Product Management Event Listeners ---
     const productForm = document.getElementById('productForm');
     if (productForm) {
+        // Remove any existing event listeners first to prevent duplicates
         const newProductForm = productForm.cloneNode(true);
         productForm.parentNode.replaceChild(newProductForm, productForm);
         
+        // Get fresh reference to the form
         const freshProductForm = document.getElementById('productForm');
         
         freshProductForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            console.log('🔄 Product form submitted');
+            
+            // Add a flag to prevent multiple submissions
             if (freshProductForm.dataset.submitting === 'true') {
+                console.log('⏳ Form already submitting, ignoring duplicate call');
                 return;
             }
             
+            // Set submitting flag
             freshProductForm.dataset.submitting = 'true';
             
+            // Disable submit button to provide visual feedback
             const submitButton = freshProductForm.querySelector('button[type="submit"]');
             const originalButtonText = submitButton.innerHTML;
             submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding Product...';
@@ -1942,6 +2302,7 @@ function initializeEventListeners() {
             const productImageInput = document.getElementById('productImage');
             const newProductImagePreview = document.getElementById('newProductImagePreview');
 
+            // Validation
             if (!productNameInput.value.trim()) {
                 showMessageModal('Input Error', 'Product name is required.', true);
                 resetFormState();
@@ -1955,6 +2316,8 @@ function initializeEventListeners() {
             }
 
             try {
+                console.log('📦 Starting product creation process...');
+                
                 const formData = new FormData();
                 formData.append('title', productNameInput.value);
                 formData.append('category', productCategorySelect.value);
@@ -1963,10 +2326,14 @@ function initializeEventListeners() {
                 formData.append('imageUrl', productImageUrlInput.value);
 
                 if (productImageInput.files[0]) {
+                    console.log('📸 Image file attached');
                     formData.append('image', productImageInput.files[0]);
                 }
 
+                // Make SINGLE API call
+                console.log('🚀 Making API request to create product...');
                 await apiRequest('/products', 'POST', formData, true, true);
+                console.log('✅ Product created successfully');
 
                 showMessageModal('Success', 'Product added successfully!', false);
                 freshProductForm.reset();
@@ -1978,30 +2345,41 @@ function initializeEventListeners() {
                 const productSearchInput = document.getElementById('productSearchInput');
                 await fetchProductsForDisplay(productFilterCategorySelect.value, productSearchInput.value.trim());
                 updateDashboardOverview();
+                
+                console.log('🎉 Product creation process completed');
 
             } catch (error) {
+                console.error('❌ Error adding product:', error);
                 showMessageModal('Error', `Error adding product: ${error.message}`, true);
             } finally {
+                // Always reset form state
                 resetFormState();
             }
 
             function resetFormState() {
+                // Reset submitting flag
                 freshProductForm.dataset.submitting = 'false';
                 
+                // Re-enable submit button
                 submitButton.innerHTML = originalButtonText;
                 submitButton.disabled = false;
             }
         });
+
+        console.log('✅ Product form event listener attached (single instance)');
     }
 
+    // Handle preview for file input (for add product form)
     const productImageInput = document.getElementById('productImage');
     if (productImageInput) {
+        // Clone and replace to prevent duplicate listeners
         const newProductImageInput = productImageInput.cloneNode(true);
         productImageInput.parentNode.replaceChild(newProductImageInput, productImageInput);
         
         const freshProductImageInput = document.getElementById('productImage');
         
         freshProductImageInput.addEventListener('change', (event) => {
+            console.log('📸 Product image file selected');
             const file = event.target.files[0];
             const newProductImagePreview = document.getElementById('newProductImagePreview');
             const productImageUrlInput = document.getElementById('productImageUrl');
@@ -2021,14 +2399,17 @@ function initializeEventListeners() {
         });
     }
 
+    // Live preview for Product Image URL input (Add Product Form)
     const productImageUrlInput = document.getElementById('productImageUrl');
     if (productImageUrlInput) {
+        // Clone and replace to prevent duplicate listeners
         const newProductImageUrlInput = productImageUrlInput.cloneNode(true);
         productImageUrlInput.parentNode.replaceChild(newProductImageUrlInput, productImageUrlInput);
         
         const freshProductImageUrlInput = document.getElementById('productImageUrl');
         
         freshProductImageUrlInput.addEventListener('input', () => {
+            console.log('🔗 Product image URL input changed');
             const url = freshProductImageUrlInput.value.trim();
             const newProductImagePreview = document.getElementById('newProductImagePreview');
             const productImageInput = document.getElementById('productImage');
@@ -2039,6 +2420,7 @@ function initializeEventListeners() {
                 productImageInput.value = '';
                 newProductImagePreview.onerror = () => {
                     newProductImagePreview.src = 'https://placehold.co/150x150/e2e8f0/64748b?text=Image+Load+Error';
+                    console.error('Failed to load image from URL:', url);
                 };
             } else {
                 newProductImagePreview.src = '';
@@ -2048,6 +2430,7 @@ function initializeEventListeners() {
         });
     }
 
+    // Edit Product Modal Event Listeners
     const cancelEditProductBtn = document.getElementById('cancelEditProductBtn');
     if (cancelEditProductBtn) {
         cancelEditProductBtn.addEventListener('click', () => {
@@ -2079,6 +2462,7 @@ function initializeEventListeners() {
             formData.append('price', editProductPriceInput.value);
             formData.append('isAvailable', editProductAvailabilityCheckbox.checked);
 
+            // 🛠️ FIXED: Only send image data if we're actually changing the image
             let imageChanged = false;
 
             if (editProductImageUrlInput.value.trim() !== '') {
@@ -2092,7 +2476,18 @@ function initializeEventListeners() {
                 imageChanged = true;
             }
 
+            // 🆕 DEBUG: Log what's happening with the image
+            console.log('🖼️ Image update debug:', {
+                hasImageUrl: editProductImageUrlInput.value.trim() !== '',
+                hasImageFile: !!editProductImageInput.files[0],
+                removeImageChecked: removeProductImageCheckbox.checked,
+                imageChanged: imageChanged
+            });
+
+            // 🆕 If no image changes, explicitly preserve the current image
             if (!imageChanged) {
+                console.log('🛡️ No image changes detected - preserving current image');
+                // Don't send any image-related data - backend will keep the current image
             }
 
             try {
@@ -2111,6 +2506,7 @@ function initializeEventListeners() {
         });
     }
 
+    // Event listener for product category filter
     const productFilterCategorySelect = document.getElementById('productFilterCategory');
     if (productFilterCategorySelect) {
         productFilterCategorySelect.addEventListener('change', () => {
@@ -2118,24 +2514,30 @@ function initializeEventListeners() {
             const productSearchInput = document.getElementById('productSearchInput');
             const currentSearchTerm = productSearchInput.value.trim();
             productFilterCategorySelect.dataset.currentFilter = selectedCategoryId;
+            console.log('Frontend: Category filter changed to:', selectedCategoryId);
             
+            // 🆕 Reset to first page when filtering
             resetToFirstPage();
             fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
         });
     }
 
+    // Event listener for product search input
     const productSearchInput = document.getElementById('productSearchInput');
     if (productSearchInput) {
         productSearchInput.addEventListener('input', () => {
             const currentSearchTerm = productSearchInput.value.trim();
             const productFilterCategorySelect = document.getElementById('productFilterCategory');
             const selectedCategoryId = productFilterCategorySelect.value;
+            console.log('Frontend: Search term changed to:', currentSearchTerm);
             
+            // 🆕 Reset to first page when searching
             resetToFirstPage();
             fetchProductsForDisplay(selectedCategoryId, currentSearchTerm);
         });
     }
 
+    // Product Image Popup Event Listeners
     const closeProductImagePopupBtn = document.getElementById('closeProductImagePopupBtn');
     if (closeProductImagePopupBtn) {
         closeProductImagePopupBtn.addEventListener('click', closeProductImagePopup);
@@ -2149,12 +2551,15 @@ function initializeEventListeners() {
         });
     }
 
+    // Logout functionality
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
+                console.log('🚪 Logging out from admin...');
                 await apiRequest('/auth/logout', 'POST', {}, true);
             } catch (error) {
+                console.warn('Logout API call failed:', error.message);
             } finally {
                 window.clearStoredAuth();
                 window.location.href = '/login';
@@ -2162,44 +2567,64 @@ function initializeEventListeners() {
         });
     }
 
+    // Set initial active state for Dashboard Overview
     const initialLink = document.querySelector('.sidebar-link[data-target="dashboard-overview-section"]');
     if (initialLink) {
         initialLink.classList.add('bg-gray-700', 'text-blue-300');
         initialLink.classList.remove('hover:bg-gray-700', 'hover:text-blue-300');
     }
 
+    // Show only the dashboard overview section initially
     showSection('dashboard-overview-section'); 
     initializeBannerPreview();
     initializeImagePreviewHandlers();
 }
 
+// Add this function to admin.js
 function initializeImagePreviewHandlers() {
+    console.log('🖼️ Initializing image preview handlers...');
+    
+    // Handle "Remove current image" checkbox for edit product form
     const removeProductImageCheckbox = document.getElementById('removeProductImage');
     const currentProductImageImg = document.getElementById('currentProductImage');
     
     if (removeProductImageCheckbox && currentProductImageImg) {
+        // Remove any existing event listeners first
         const newCheckbox = removeProductImageCheckbox.cloneNode(true);
         removeProductImageCheckbox.parentNode.replaceChild(newCheckbox, removeProductImageCheckbox);
         
         const freshCheckbox = document.getElementById('removeProductImage');
         
         freshCheckbox.addEventListener('change', function() {
+            console.log('🔄 Remove image checkbox changed:', this.checked);
+            
             if (this.checked) {
+                // Hide the current image preview
                 currentProductImageImg.style.display = 'none';
                 currentProductImageImg.src = '';
                 
+                // Also clear any file input or URL input to prevent conflicts
                 const editProductImageInput = document.getElementById('editProductImage');
                 const editProductImageUrlInput = document.getElementById('editProductImageUrl');
                 
                 if (editProductImageInput) editProductImageInput.value = '';
                 if (editProductImageUrlInput) editProductImageUrlInput.value = '';
+                
+                console.log('✅ Current image removed from preview');
             } else {
+                // If unchecked, try to restore the original image
+                // This would need the original image URL stored somewhere
+                // For now, just show the placeholder
                 currentProductImageImg.style.display = 'block';
                 currentProductImageImg.src = 'https://placehold.co/300x300?text=No+Image';
+                console.log('🔄 Remove image unchecked');
             }
         });
+        
+        console.log('✅ Remove image checkbox handler attached');
     }
     
+    // Handle new image file selection for preview
     const editProductImageInput = document.getElementById('editProductImage');
     if (editProductImageInput) {
         const newInput = editProductImageInput.cloneNode(true);
@@ -2208,6 +2633,7 @@ function initializeImagePreviewHandlers() {
         const freshInput = document.getElementById('editProductImage');
         
         freshInput.addEventListener('change', function(event) {
+            console.log('📸 Edit product image file selected');
             const file = event.target.files[0];
             const currentProductImageImg = document.getElementById('currentProductImage');
             const removeProductImageCheckbox = document.getElementById('removeProductImage');
@@ -2215,18 +2641,23 @@ function initializeImagePreviewHandlers() {
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
+                    // Show new image preview
                     currentProductImageImg.src = e.target.result;
                     currentProductImageImg.style.display = 'block';
                     
+                    // Uncheck "Remove current image" if a new image is selected
                     if (removeProductImageCheckbox) {
                         removeProductImageCheckbox.checked = false;
                     }
+                    
+                    console.log('✅ New image preview loaded');
                 };
                 reader.readAsDataURL(file);
             }
         });
     }
     
+    // Handle image URL input for preview in edit form
     const editProductImageUrlInput = document.getElementById('editProductImageUrl');
     if (editProductImageUrlInput) {
         const newUrlInput = editProductImageUrlInput.cloneNode(true);
@@ -2235,6 +2666,7 @@ function initializeImagePreviewHandlers() {
         const freshUrlInput = document.getElementById('editProductImageUrl');
         
         freshUrlInput.addEventListener('input', function() {
+            console.log('🔗 Edit product image URL input changed');
             const url = this.value.trim();
             const currentProductImageImg = document.getElementById('currentProductImage');
             const removeProductImageCheckbox = document.getElementById('removeProductImage');
@@ -2244,18 +2676,25 @@ function initializeImagePreviewHandlers() {
                 currentProductImageImg.src = proxiedUrl;
                 currentProductImageImg.style.display = 'block';
                 
+                // Uncheck "Remove current image" if a new URL is entered
                 if (removeProductImageCheckbox) {
                     removeProductImageCheckbox.checked = false;
                 }
                 
                 currentProductImageImg.onerror = () => {
                     currentProductImageImg.src = 'https://placehold.co/300x300/e2e8f0/64748b?text=Image+Load+Error';
+                    console.error('Failed to load image from URL:', url);
                 };
+                
+                console.log('✅ URL image preview loaded');
             }
         });
     }
 }
 
+// ==================== GLOBAL EXPORTS ====================
+
+// Make functions globally available
 window.setActiveUserForAdminPage = setActiveUserForAdminPage;
 window.initializeAdminDashboard = initializeAdminDashboard;
 window.changePage = changePage;

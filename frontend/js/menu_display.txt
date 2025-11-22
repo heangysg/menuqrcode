@@ -17,10 +17,12 @@ function getOptimizedImageUrl(url) {
 function getProxiedImageUrl(url) {
     if (!url) return '';
     
+    // Check if the URL is already using the proxy
     if (url.startsWith('https://corsproxy.io/?')) {
         return url;
     }
     
+    // Check if the URL is from allowed domains
     const isCloudinary = url.includes('res.cloudinary.com');
     const isPlaceholder = url.includes('placehold.co');
     const isSameOrigin = url.startsWith(window.location.origin);
@@ -45,10 +47,15 @@ function debounce(func, wait) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Extract slug from path (/menu/ysg)
     const pathParts = window.location.pathname.split("/");
     const slug = pathParts[pathParts.length - 1];
 
+    console.log('🔍 Extracted slug:', slug);
+
+    // Check if slug exists
     if (!slug || slug === 'menu') {
+        console.error("No valid slug found in URL for menu display.");
         showErrorMessage('Menu Not Found', 'Error: No Store ID provided.', 'Please scan a valid QR code.');
         return;
     }
@@ -108,6 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentBannerIndex: 0,
         bannerInterval: null,
         isLoading: false,
+        // Pagination state
         productsPerPage: 20,
         currentPage: 1,
         displayedProducts: [],
@@ -132,48 +140,77 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (storeLogoImg) storeLogoImg.style.display = 'none';
         if (storeBannerContainer) storeBannerContainer.classList.add('hidden');
         
+        // Stop banner slider if it exists
         if (window.bannerInterval) {
             clearInterval(window.bannerInterval);
         }
     }
 
+    // IMPROVED: Social Media Functions with click-based Telegram dropdown
     function setupSocialMediaLinks() {
         if (!state.currentStoreData) return;
         
+        console.log('🔗 Setting up social media links with store data:', {
+            facebook: state.currentStoreData.facebookUrl,
+            tiktok: state.currentStoreData.tiktokUrl,
+            telegramLinks: state.currentStoreData.telegramLinks,
+            website: state.currentStoreData.websiteUrl
+        });
+        
+        // IMPORTANT: Get elements from the MODAL (not the main page)
         const modal = document.getElementById('imagePopupModal');
         if (!modal) {
+            console.error('❌ Image popup modal not found!');
             return;
         }
         
+        // Get social media icons from the MODAL
         const socialIcons = {
             facebook: modal.querySelector('.social-icon-modal.facebook'),
             tiktok: modal.querySelector('.social-icon-modal.tiktok'),
             telegram: modal.querySelector('.social-icon-modal.telegram')
         };
         
+        console.log('🔍 Found social media elements:', socialIcons);
+        
+        // Set Facebook link - WITH NULL CHECK
         if (socialIcons.facebook && state.currentStoreData.facebookUrl && state.currentStoreData.facebookUrl.trim() !== '') {
             socialIcons.facebook.href = state.currentStoreData.facebookUrl;
             socialIcons.facebook.style.display = 'flex';
             socialIcons.facebook.target = '_blank';
+            console.log('✅ Facebook link set:', state.currentStoreData.facebookUrl);
         } else if (socialIcons.facebook) {
             socialIcons.facebook.style.display = 'none';
+            console.log('❌ Facebook link not available or element not found');
         }
         
+        // Set TikTok link - WITH NULL CHECK
         if (socialIcons.tiktok && state.currentStoreData.tiktokUrl && state.currentStoreData.tiktokUrl.trim() !== '') {
             socialIcons.tiktok.href = state.currentStoreData.tiktokUrl;
             socialIcons.tiktok.style.display = 'flex';
             socialIcons.tiktok.target = '_blank';
+            console.log('✅ TikTok link set:', state.currentStoreData.tiktokUrl);
         } else if (socialIcons.tiktok) {
             socialIcons.tiktok.style.display = 'none';
+            console.log('❌ TikTok link not available or element not found');
         }
         
+        // SETUP TELEGRAM DROPDOWN - WITH NULL CHECKS
         const telegramDropdown = modal.querySelector('.telegram-dropdown');
         const telegramDropdownMenu = modal.querySelector('.telegram-dropdown-menu');
         const telegramDropdownItems = modal.querySelector('.telegram-dropdown-items');
         
+        console.log('🔍 Telegram dropdown elements:', {
+            dropdown: telegramDropdown,
+            menu: telegramDropdownMenu,
+            items: telegramDropdownItems,
+            icon: socialIcons.telegram
+        });
+        
         if (telegramDropdown && socialIcons.telegram && 
             state.currentStoreData.telegramLinks && state.currentStoreData.telegramLinks.length > 0) {
             
+            // Clear existing dropdown items
             telegramDropdownItems.innerHTML = '';
             
             state.currentStoreData.telegramLinks.forEach((link, index) => {
@@ -190,14 +227,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     e.preventDefault();
                     e.stopPropagation();
                     
+                    // Show loading state
                     dropdownItem.classList.add('loading');
                     
                     try {
+                        // Get current product info from the popup
                         const productName = document.getElementById('popupProductName').textContent;
                         const productDescription = document.getElementById('popupProductDescription').textContent;
                         const productPrice = document.getElementById('popupProductPrice').textContent;
                         const productImage = document.getElementById('popupImage').src;
                         
+                        // Create nicely formatted message
                         let message = `🔧 *ព័ត៌មានផលិតផល*\n\n`;
                         message += `🛠️ *ឈ្មោះផលិតផល:* ${productName}\n`;
                         
@@ -209,6 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             message += `💰 *តម្លៃ:* ${productPrice}\n`;
                         }
                         
+                        // Add image URL if available
                         const shareableImage = getShareableImageUrl(productImage);
                         if (shareableImage) {
                             message += `\n🖼️ *រូបភាព:* \n${shareableImage}\n`;
@@ -216,12 +257,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         
                         message += `\n💬 *Message:* ខ្ញុំចាប់អារម្មណ៍នឹងផលិតផលនេះ! សូមផ្តល់ព័ត៌មានបន្ថែម។`;
                         
+                        // Open Telegram with message
                         openTelegramWithMessage(link.url, message);
                         
+                        console.log('📤 Sharing product with:', link.name);
+                        
                     } catch (error) {
+                        console.error('Error sharing product:', error);
+                        // Simple fallback message
                         const fallbackMessage = `🔧 Hello! I'm interested in one of your products.`;
                         openTelegramWithMessage(link.url, fallbackMessage);
                     } finally {
+                        // Reset states
                         setTimeout(() => {
                             dropdownItem.classList.remove('loading');
                             telegramDropdown.classList.remove('active');
@@ -232,72 +279,92 @@ document.addEventListener('DOMContentLoaded', async () => {
                 telegramDropdownItems.appendChild(dropdownItem);
             });
 
+            // Show the Telegram icon and dropdown container
             socialIcons.telegram.style.display = 'flex';
             telegramDropdown.style.display = 'block';
             
+            // Remove any existing click event listeners to prevent duplicates
             const newTelegramIcon = socialIcons.telegram.cloneNode(true);
             socialIcons.telegram.parentNode.replaceChild(newTelegramIcon, socialIcons.telegram);
             
+            // CLICK EVENT: Toggle dropdown when Telegram icon is clicked
             newTelegramIcon.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 
+                console.log('🟡 Telegram icon clicked!');
                 const isActive = telegramDropdown.classList.contains('active');
                 
+                // Close all other dropdowns first
                 document.querySelectorAll('.telegram-dropdown.active').forEach(dropdown => {
                     if (dropdown !== telegramDropdown) {
                         dropdown.classList.remove('active');
                     }
                 });
                 
+                // Toggle this dropdown
                 if (isActive) {
                     telegramDropdown.classList.remove('active');
+                    console.log('🔴 Telegram dropdown closed');
                 } else {
                     telegramDropdown.classList.add('active');
+                    console.log('🟢 Telegram dropdown opened');
                 }
             });
             
+            // Close dropdown when clicking outside (only add this once)
             if (!window.telegramDropdownClickHandler) {
                 window.telegramDropdownClickHandler = function(e) {
                     if (telegramDropdown.classList.contains('active') && !telegramDropdown.contains(e.target)) {
                         telegramDropdown.classList.remove('active');
+                        console.log('🔴 Telegram dropdown closed (click outside)');
                     }
                 };
                 document.addEventListener('click', window.telegramDropdownClickHandler);
             }
             
+            // Close dropdown when pressing Escape key (only add this once)
             if (!window.telegramDropdownKeyHandler) {
                 window.telegramDropdownKeyHandler = function(e) {
                     if (e.key === 'Escape' && telegramDropdown.classList.contains('active')) {
                         telegramDropdown.classList.remove('active');
+                        console.log('🔴 Telegram dropdown closed (Escape key)');
                     }
                 };
                 document.addEventListener('keydown', window.telegramDropdownKeyHandler);
             }
             
+            console.log('✅ Telegram dropdown set with', state.currentStoreData.telegramLinks.length, 'links');
         } else {
+            // Hide Telegram if no links or elements not found
             if (socialIcons.telegram) {
                 socialIcons.telegram.style.display = 'none';
             }
             if (telegramDropdown) {
                 telegramDropdown.style.display = 'none';
             }
+            console.log('❌ Telegram links not available or elements not found');
         }
     }
 
+    // Function to get optimized image URL for sharing
     function getShareableImageUrl(imageUrl) {
         if (!imageUrl) return '';
         
+        // If it's a placeholder image, don't include it
         if (imageUrl.includes('placehold.co')) {
             return '';
         }
         
+        // Return the original image URL for sharing context
         return imageUrl;
     }
 
+    // Helper function to open Telegram with message
     function openTelegramWithMessage(telegramUrl, message) {
         const encodedMessage = encodeURIComponent(message);
         
+        // Extract username from Telegram URL
         let username = '';
         if (telegramUrl.includes('t.me/')) {
             username = telegramUrl.split('t.me/')[1].replace('/', '');
@@ -305,11 +372,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             username = telegramUrl.split('telegram.me/')[1].replace('/', '');
         }
         
+        // Remove any query parameters
         username = username.split('?')[0];
         
         if (username) {
+            // Open Telegram with pre-filled message
             window.open(`https://t.me/${username}?text=${encodedMessage}`, '_blank');
         } else {
+            // Fallback - just open the Telegram URL
             window.open(telegramUrl, '_blank');
         }
     }
@@ -320,11 +390,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (url && url.trim() !== '') {
             element.href = url;
             element.classList.remove('hidden');
+            console.log(`✅ Social link set: ${element.id} -> ${url}`);
         } else {
             element.classList.add('hidden');
+            console.log(`❌ Social link hidden: ${element.id}`);
         }
     }
 
+    // Banner Slider Functions
     function renderBanners(bannerUrls) {
         if (!elements.storeBannerContainer || !elements.sliderDotsContainer) return;
         
@@ -337,6 +410,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         elements.storeBannerContainer.classList.remove('hidden');
+        
+        // Add loading class temporarily
         elements.storeBannerContainer.classList.add('loading');
 
         bannerUrls.forEach((url, index) => {
@@ -349,11 +424,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             img.loading = 'lazy';
             img.decoding = 'async';
             
+            // Handle image load
             img.onload = () => {
                 elements.storeBannerContainer.classList.remove('loading');
             };
             
             img.onerror = () => {
+                console.error(`Failed to load banner image: ${url}`);
                 elements.storeBannerContainer.classList.remove('loading');
             };
             
@@ -376,6 +453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         elements.storeBannerContainer.appendChild(elements.sliderDotsContainer);
         
+        // Remove loading class after a timeout as fallback
         setTimeout(() => {
             elements.storeBannerContainer.classList.remove('loading');
         }, 3000);
@@ -433,6 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         startBannerSlider();
     }
 
+    // Search Functionality
     function setupSearchFunctionality() {
         if (!elements.searchMenuInput || !elements.clearSearchBtn) return;
 
@@ -445,6 +524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         elements.searchMenuInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
 
+            // Show/hide clear button
             if (searchTerm.length > 0) {
                 elements.clearSearchBtn.classList.remove('hidden');
             } else {
@@ -487,42 +567,65 @@ async function fetchAndRenderProducts(categoryId = null, searchTerm = null, load
             queryParams.search = searchTerm;
         }
 
+        console.log('🔍 Fetching products with params:', queryParams);
         const response = await apiRequest(`/products/public-store/slug/${slug}`, 'GET', null, false, false, queryParams);
         
+        console.log('📦 Full API response:', response);
+        console.log('📦 Response type:', typeof response);
+        console.log('📦 Is array?', Array.isArray(response));
+        console.log('📦 Has products?', response.products && Array.isArray(response.products));
+        console.log('📦 Has total?', response.total);
+        
+        // FIX: Handle paginated response correctly
         let products = [];
         let totalProducts = 0;
         
         if (response && typeof response === 'object') {
+            // Handle paginated response format {products: [], total: X, ...}
             if (response.products && Array.isArray(response.products)) {
                 products = response.products;
-                totalProducts = response.total;
-            } else if (Array.isArray(response)) {
+                totalProducts = response.total; // Use the total from API
+                console.log(`📊 Paginated Response: ${products.length} products, total: ${totalProducts}`);
+            } 
+            // Handle array response directly (fallback)
+            else if (Array.isArray(response)) {
                 products = response;
                 totalProducts = response.length;
+                console.log(`📊 Array Response: ${products.length} products`);
             }
         }
 
+        console.log(`✅ Processed ${products.length} products, total: ${totalProducts}`);
+
         if (loadMore) {
+            // Append to existing products
             state.currentFilteredProducts = [...state.currentFilteredProducts, ...products];
             state.displayedProducts = [...state.displayedProducts, ...products];
         } else {
+            // Replace products
             state.currentFilteredProducts = products;
             state.displayedProducts = products;
         }
 
+        // Store total for pagination
         state.totalProducts = totalProducts;
 
         hideLoadingState();
 
         if (state.displayedProducts.length === 0 && !loadMore) {
+            console.log('❌ No products to display');
             showNoResultsMessage(searchTerm);
             return;
         }
 
+        // FIX: Calculate hasMore correctly
         const hasMore = state.displayedProducts.length < state.totalProducts;
+        console.log(`🔄 Has More Calculation: ${state.displayedProducts.length} < ${state.totalProducts} = ${hasMore}`);
+        
         renderMenuContent(state.displayedProducts, hasMore);
 
     } catch (error) {
+        console.error('❌ Error fetching products:', error.message);
         hideLoadingState();
         if (!loadMore) {
             showErrorMessage('Menu Error', 'Error loading menu', `Failed to load menu items: ${error.message}`);
@@ -556,14 +659,17 @@ async function fetchAndRenderProducts(categoryId = null, searchTerm = null, load
         }
     }
 
+    // Category Management
     function renderCategoryTabs(categories, activeTabId = 'all-items') {
         if (!elements.categoryTabs) return;
         
         elements.categoryTabs.innerHTML = '';
 
+        // Add "All" tab
         const allLi = createCategoryTab('all-items', 'All', activeTabId === 'all-items');
         elements.categoryTabs.appendChild(allLi);
 
+        // Add category tabs
         categories.forEach((category) => {
             const li = createCategoryTab(`cat-${category._id}`, category.name, activeTabId === `cat-${category._id}`);
             elements.categoryTabs.appendChild(li);
@@ -591,10 +697,13 @@ async function fetchAndRenderProducts(categoryId = null, searchTerm = null, load
             if (elements.clearSearchBtn) elements.clearSearchBtn.classList.add('hidden');
             await fetchAndRenderProducts(categoryId);
             
+            // Scroll to top of the category section
             setTimeout(() => {
                 if (categoryId === 'all-items') {
+                    // Scroll to top of page for "All Items"
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
+                    // Scroll to the specific category section
                     const categoryElement = document.getElementById(`cat-${categoryId}`);
                     if (categoryElement) {
                         const headerHeight = 200;
@@ -638,28 +747,44 @@ async function fetchAndRenderProducts(categoryId = null, searchTerm = null, load
 function renderMenuContent(productsToRender, showLoadMore = false) {
     if (!elements.menuContent) return;
     
+    console.log(`🎨 Rendering ${productsToRender.length} products to menu, showLoadMore: ${showLoadMore}`);
+    console.log(`📊 Total products: ${state.totalProducts}, Displayed: ${state.displayedProducts.length}`);
+    
     elements.menuContent.innerHTML = '';
     hideAllMessages();
 
     if (productsToRender.length === 0) {
+        console.log('❌ No products to render');
         showNoResultsMessage(elements.searchMenuInput?.value.trim());
         return;
     }
 
+    console.log(`📝 Products available: ${productsToRender.length}`);
+
     if (!shouldGroupByCategory()) {
+        console.log('📝 Rendering as single list');
         renderAsSingleList(productsToRender);
     } else {
+        console.log('📂 Rendering by category');
         renderByCategory(productsToRender);
     }
 
+    // FIX: ALWAYS show Load More button if we have less than total
     const shouldShowLoadMore = state.totalProducts > state.displayedProducts.length;
+    console.log(`🔍 Load More Check: total=${state.totalProducts}, displayed=${state.displayedProducts.length}, shouldShow=${shouldShowLoadMore}`);
     
     if (shouldShowLoadMore) {
+        console.log('➕ Adding Load More button');
         renderLoadMoreButton();
+    } else {
+        console.log('❌ No Load More button needed - all products loaded or total unknown');
     }
+    
+    console.log('✅ Menu content rendered successfully');
 }
 
 function renderLoadMoreButton() {
+    // Remove existing load more button if any
     const existingBtn = document.getElementById('loadMoreBtn');
     if (existingBtn) {
         existingBtn.remove();
@@ -683,6 +808,7 @@ function renderLoadMoreButton() {
     loadMoreBtn.addEventListener('click', loadMoreProducts);
     
     elements.menuContent.appendChild(loadMoreBtn);
+    console.log('✅ Big orange Load More button added with count');
 }
     function renderAsSingleList(products) {
         const section = document.createElement('section');
@@ -855,6 +981,7 @@ function renderLoadMoreButton() {
         if (elements.noSearchResultsMessage) elements.noSearchResultsMessage.classList.add('hidden');
     }
 
+    // Modal Functions
     function openImagePopup(imageUrl, productName, productDescription, productPrice) {
         if (!elements.imagePopupModal || !elements.popupImage) return;
         
@@ -870,6 +997,7 @@ function renderLoadMoreButton() {
             elements.popupProductPrice.classList.add('hidden');
         }
 
+        // Setup social media links when opening popup
         setupSocialMediaLinks();
         
         elements.imagePopupModal.classList.remove('hidden');
@@ -878,11 +1006,6 @@ function renderLoadMoreButton() {
 
     function closeImagePopup() {
         if (!elements.imagePopupModal) return;
-        
-        const openDropdowns = document.querySelectorAll('.telegram-dropdown.active');
-        openDropdowns.forEach(dropdown => {
-            dropdown.classList.remove('active');
-        });
         
         elements.imagePopupModal.classList.add('hidden');
         elements.popupImage.src = '';
@@ -908,6 +1031,13 @@ function renderLoadMoreButton() {
         if (elements.modalStorePhone) elements.modalStorePhone.textContent = state.currentStoreData.phone || 'N/A';
         if (elements.modalStoreAddress) elements.modalStoreAddress.textContent = state.currentStoreData.address || 'N/A';
 
+        console.log('🔗 Setting store info modal social links:', {
+            facebook: state.currentStoreData.facebookUrl,
+            telegramLinks: state.currentStoreData.telegramLinks,
+            tiktok: state.currentStoreData.tiktokUrl,
+            website: state.currentStoreData.websiteUrl
+        });
+        
         toggleSocialLink(elements.socialFacebook, state.currentStoreData.facebookUrl);
         toggleSocialLink(elements.socialTikTok, state.currentStoreData.tiktokUrl);
         toggleSocialLink(elements.socialWebsite, state.currentStoreData.websiteUrl);
@@ -938,9 +1068,11 @@ function renderLoadMoreButton() {
         
         elements.categoryListContainer.innerHTML = '';
 
+        // Add "All" option
         const allCategoryItem = createCategoryModalItem('All Items', 'all-items');
         elements.categoryListContainer.appendChild(allCategoryItem);
 
+        // Add categories
         state.allCategories.forEach(category => {
             const categoryItem = createCategoryModalItem(category.name, category._id);
             elements.categoryListContainer.appendChild(categoryItem);
@@ -975,6 +1107,7 @@ function renderLoadMoreButton() {
         document.body.style.overflow = '';
     }
 
+    // View Toggle
     function setupViewToggle() {
         if (!elements.gridViewBtn || !elements.listViewBtn) return;
 
@@ -1003,7 +1136,9 @@ function renderLoadMoreButton() {
         }
     }
 
+    // Navigation Setup
     function setupNavigation() {
+        // Bottom navigation
         if (elements.bottomNavHome) {
             elements.bottomNavHome.addEventListener('click', () => {
                 setActiveBottomNav(elements.bottomNavHome);
@@ -1025,6 +1160,7 @@ function renderLoadMoreButton() {
             });
         }
 
+        // Scroll to top FAB
         window.addEventListener('scroll', () => {
             const scrolled = window.scrollY || document.documentElement.scrollTop;
             if (elements.fabScrollTop) {
@@ -1042,6 +1178,7 @@ function renderLoadMoreButton() {
             });
         }
 
+        // Nav toggle for desktop
         if (elements.navToggleBtn) {
             elements.navToggleBtn.addEventListener('click', function() {
                 const bottomNav = document.querySelector('.bottom-nav');
@@ -1061,7 +1198,9 @@ function renderLoadMoreButton() {
         if (activeButton) activeButton.classList.add('active');
     }
 
+    // Event Listeners Setup
     function setupEventListeners() {
+        // Popup close events
         if (elements.closeImagePopupBtn) {
             elements.closeImagePopupBtn.addEventListener('click', closeImagePopup);
         }
@@ -1072,6 +1211,7 @@ function renderLoadMoreButton() {
             elements.closeCategorySelectionBtn.addEventListener('click', closeCategorySelectionModal);
         }
 
+        // Overlay click events
         if (elements.imagePopupModal) {
             elements.imagePopupModal.addEventListener('click', (e) => {
                 if (e.target === elements.imagePopupModal) closeImagePopup();
@@ -1088,11 +1228,13 @@ function renderLoadMoreButton() {
             });
         }
 
+        // Store header click
         if (elements.storeHeaderInfo) {
             elements.storeHeaderInfo.addEventListener('click', openStoreInfoPopup);
         }
     }
 
+    // Setup Telegram dropdown for Store Info Modal
     function setupStoreInfoTelegram() {
         if (!state.currentStoreData) return;
         
@@ -1104,11 +1246,20 @@ function renderLoadMoreButton() {
         const telegramDropdownMenuStore = storeModal.querySelector('.telegram-dropdown-menu-store');
         const telegramDropdownItemsStore = storeModal.querySelector('.telegram-dropdown-items-store');
         
+        console.log('🔗 Setting up store info Telegram dropdown:', {
+            dropdown: telegramDropdownStore,
+            icon: telegramIconStore,
+            menu: telegramDropdownMenuStore,
+            items: telegramDropdownItemsStore
+        });
+        
         if (telegramDropdownStore && telegramIconStore && 
             state.currentStoreData.telegramLinks && state.currentStoreData.telegramLinks.length > 0) {
             
+            // Clear existing dropdown items
             telegramDropdownItemsStore.innerHTML = '';
             
+            // Add each Telegram link to dropdown
             state.currentStoreData.telegramLinks.forEach((link, index) => {
                 const dropdownItem = document.createElement('a');
                 dropdownItem.href = link.url;
@@ -1124,56 +1275,79 @@ function renderLoadMoreButton() {
                 telegramDropdownItemsStore.appendChild(dropdownItem);
             });
             
+            // Show the Telegram icon
             telegramIconStore.classList.remove('hidden');
             
+            // CLICK EVENT: Toggle dropdown when Telegram icon is clicked
             telegramIconStore.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 
+                console.log('🟡 Store Telegram icon clicked!');
                 const isActive = telegramDropdownStore.classList.contains('active');
                 
+                // Close all other dropdowns first
                 document.querySelectorAll('.telegram-dropdown-store.active').forEach(dropdown => {
                     if (dropdown !== telegramDropdownStore) {
                         dropdown.classList.remove('active');
                     }
                 });
                 
+                // Toggle this dropdown
                 if (isActive) {
                     telegramDropdownStore.classList.remove('active');
+                    console.log('🔴 Store Telegram dropdown closed');
                 } else {
                     telegramDropdownStore.classList.add('active');
+                    console.log('🟢 Store Telegram dropdown opened');
                 }
             });
             
+            // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
                 if (telegramDropdownStore.classList.contains('active') && !telegramDropdownStore.contains(e.target)) {
                     telegramDropdownStore.classList.remove('active');
+                    console.log('🔴 Store Telegram dropdown closed (click outside)');
                 }
             });
             
+            console.log('✅ Store info Telegram dropdown set with', state.currentStoreData.telegramLinks.length, 'links');
         } else {
+            // Hide Telegram if no links or elements not found
             if (telegramIconStore) {
                 telegramIconStore.classList.add('hidden');
             }
+            console.log('❌ Store Telegram links not available or elements not found');
         }
     }
 
+    // ==================== WALLPAPER BACKGROUND FUNCTIONS ====================
+
     function applyWallpaperBackground(storeData) {
+        console.log('🎨 Applying wallpaper background for store:', storeData);
+        console.log('🔍 Store data wallpaper field:', storeData.wallpaper);
+        
+        // Remove any existing wallpaper styles
         document.body.classList.remove('wallpaper-background');
         const existingOverlay = document.querySelector('.wallpaper-overlay');
         if (existingOverlay) {
             existingOverlay.remove();
         }
 
+        // Check if wallpaper exists in store data
         const wallpaperUrl = storeData.wallpaper || storeData.wallpaperUrl;
+        console.log('🖼️ Wallpaper URL found:', wallpaperUrl);
 
+        // If no wallpaper, use default background
         if (!wallpaperUrl || wallpaperUrl.trim() === '') {
+            console.log('🎨 No wallpaper set, using default background');
             document.body.style.backgroundImage = '';
             document.body.style.backgroundColor = '#f9fafb';
             document.body.classList.remove('wallpaper-background');
             return;
         }
 
+        // Create overlay for better readability
         const overlay = document.createElement('div');
         overlay.className = 'wallpaper-overlay';
         overlay.style.cssText = `
@@ -1188,9 +1362,11 @@ function renderLoadMoreButton() {
         `;
         document.body.appendChild(overlay);
 
+        // Apply wallpaper background
         document.body.classList.add('wallpaper-background');
         const optimizedUrl = getOptimizedImageUrl(wallpaperUrl);
         
+        // Apply background styles with !important to override any conflicts
         document.body.style.cssText += `
             background-image: url('${optimizedUrl}') !important;
             background-size: cover !important;
@@ -1199,23 +1375,36 @@ function renderLoadMoreButton() {
             background-attachment: fixed !important;
             background-color: #f9fafb !important;
         `;
+
+        console.log('✅ Wallpaper applied successfully:', optimizedUrl);
         
+        // Preload the wallpaper for better performance
         preloadWallpaper(optimizedUrl);
     }
 
+    /**
+     * Preload wallpaper image to ensure it's cached
+     */
     function preloadWallpaper(wallpaperUrl) {
         if (!wallpaperUrl || wallpaperUrl.trim() === '') return;
+        
+        console.log('🖼️ Preloading wallpaper:', wallpaperUrl);
         
         const img = new Image();
         img.src = wallpaperUrl;
         img.onload = function() {
+            console.log('✅ Wallpaper preloaded successfully');
         };
         img.onerror = function() {
+            console.error('❌ Failed to load wallpaper:', wallpaperUrl);
+            // Fallback to default background if wallpaper fails to load
             document.body.classList.remove('wallpaper-background');
             document.body.style.backgroundImage = '';
             document.body.style.backgroundColor = '#f9fafb';
         };
     }
+
+    // ==================== PAGINATION FUNCTIONS ====================
 
     function loadMoreProducts() {
         if (state.isLoading) return;
@@ -1240,9 +1429,38 @@ function renderLoadMoreButton() {
         state.displayedProducts = [];
         state.totalProducts = 0;
     }
+// ==================== TEMPORARY DEBUG FUNCTIONS ====================
+
+// Temporary function to test Load More - add this before initializeMenu
+function addTestLoadMoreButton() {
+    setTimeout(() => {
+        console.log('🧪 TEST: Adding manual Load More button');
+        const testBtn = document.createElement('button');
+        testBtn.id = 'testLoadMoreBtn';
+        testBtn.textContent = 'TEST: Load More Products';
+        testBtn.style.cssText = `
+            position: fixed;
+            top: 100px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 10px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        testBtn.addEventListener('click', () => {
+            console.log('🧪 Manual Load More Test Clicked');
+            loadMoreProducts();
+        });
+        document.body.appendChild(testBtn);
+        console.log('🧪 TEST: Manual Load More button added');
+    }, 2000);
+}
+    // ==================== INITIALIZATION ====================
 
     async function initializeMenu() {
         try {
+            // Check if required elements exist
             const requiredElements = [
                 'menuTitle', 'storeName', 'loadingMessage', 
                 'categoryTabs', 'menuContent'
@@ -1250,48 +1468,95 @@ function renderLoadMoreButton() {
             
             for (const elementId of requiredElements) {
                 if (!document.getElementById(elementId)) {
+                    console.error(`Required element not found: ${elementId}`);
                     showErrorMessage('Page Error', 'Page Loading Error', 'Some page elements failed to load. Please refresh the page.');
                     return;
                 }
             }
+
+            console.log('🚀 Starting menu initialization with slug:', slug);
             
+            // Fetch store data with debug logging
+            console.log('🔍 Fetching store data from:', `/stores/public/slug/${slug}`);
             state.currentStoreData = await apiRequest(`/stores/public/slug/${slug}`, 'GET', null, false);
+            console.log('✅ Store data received:', state.currentStoreData);
             
             if (!state.currentStoreData) {
                 throw new Error('Store not found');
             }
 
+            // Apply wallpaper background
+            console.log('🎨 Applying wallpaper background...');
             applyWallpaperBackground(state.currentStoreData);
 
+            // Update page title and store info
+            console.log('📝 Updating page with store:', state.currentStoreData.name);
             elements.menuTitle.textContent = `${state.currentStoreData.name}'s Menu`;
             elements.storeNameElem.textContent = state.currentStoreData.name;
 
+            // Set store logo
             if (state.currentStoreData.logo) {
+                console.log('🖼️ Setting store logo');
                 elements.storeLogoImg.src = getOptimizedImageUrl(getProxiedImageUrl(state.currentStoreData.logo));
                 elements.storeLogoImg.style.display = 'block';
             }
 
+            // Setup banners
             if (Array.isArray(state.currentStoreData.banner) && state.currentStoreData.banner.length > 0) {
+                console.log('🎨 Setting up banners:', state.currentStoreData.banner.length, 'banners found');
                 renderBanners(state.currentStoreData.banner);
                 startBannerSlider();
             }
 
+            // Fetch categories
+            console.log('🔍 Fetching categories from:', `/categories/store/slug/${slug}`);
             state.allCategories = await apiRequest(`/categories/store/slug/${slug}`, 'GET', null, false);
+            console.log('✅ Categories received:', state.allCategories);
 
             elements.loadingMessage.classList.add('hidden');
 
+            console.log('🛠️ Initializing all functionality');
+            // Initialize all functionality
             setupSearchFunctionality();
             setupViewToggle();
             setupNavigation();
             setupEventListeners();
 
+            // Render initial content with pagination
+            console.log('🎨 Rendering initial content with pagination');
             renderCategoryTabs(state.allCategories, 'all-items');
             await fetchAndRenderProducts('all-items');
 
+            console.log('✅ Menu initialization completed successfully');
+
         } catch (error) {
+            console.error('❌ Error initializing menu:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack
+            });
             showErrorMessage('Menu Load Error', 'Error loading menu details', `Failed to load menu: ${error.message}`);
         }
     }
 
+    // Add this to your existing closeImagePopup function
+    function closeImagePopup() {
+        if (!elements.imagePopupModal) return;
+        
+        // Close any open Telegram dropdowns
+        const openDropdowns = document.querySelectorAll('.telegram-dropdown.active');
+        openDropdowns.forEach(dropdown => {
+            dropdown.classList.remove('active');
+        });
+        
+        elements.imagePopupModal.classList.add('hidden');
+        elements.popupImage.src = '';
+        elements.popupProductName.textContent = '';
+        elements.popupProductDescription.textContent = '';
+        elements.popupProductPrice.textContent = '';
+        document.body.style.overflow = '';
+    }
+
+    // Start the application
     await initializeMenu();
 });
