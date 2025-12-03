@@ -17,7 +17,7 @@ const userRoutes = require('./routes/users');
 const storeRoutes = require('./routes/stores');
 const categoryRoutes = require('./routes/categories');
 const productRoutes = require('./routes/products');
-const wallpaperRoutes = require('./routes/wallpapers'); // ADD THIS LINE
+const wallpaperRoutes = require('./routes/wallpapers'); 
 // Connect to database
 connectDB();
 
@@ -32,7 +32,7 @@ connectDB();
         if (process.env.NODE_ENV === 'production') {
             console.warn('⚠️  Continuing without Cloudinary in production');
         } else {
-            process.exit(1); // Exit in development
+            process.exit(1); 
         }
     }
 })();
@@ -141,7 +141,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/wallpapers', wallpaperRoutes); // ADD THIS LINE
+app.use('/api/wallpapers', wallpaperRoutes);
 
 // ---- PAGE ROUTES ----
 
