@@ -12,7 +12,10 @@ function getOptimizedImageUrl(url) {
     }
     return url;
 }
-
+// Simple Khmer text check
+function isKhmerText(text) {
+    return /[\u1780-\u17FF]/.test(text);
+}
 // Function to prepend CORS proxy if the URL is external
 function getProxiedImageUrl(url) {
     if (!url) return '';
@@ -904,6 +907,12 @@ function renderLoadMoreButton() {
         }
 
         elements.modalStoreName.textContent = state.currentStoreData.name || 'N/A';
+        // Auto apply correct font to modal too
+        if (isKhmerText(state.currentStoreData.name || '')) {
+            elements.modalStoreName.className = 'store-name-khmer text-2xl font-bold text-gray-800';
+        } else {
+            elements.modalStoreName.className = 'store-name-english text-2xl font-bold text-gray-800';
+        }
         elements.modalStoreDescription.textContent = state.currentStoreData.description || 'មិនមានការពិពណ៌នាទេ។';
         if (elements.modalStorePhone) elements.modalStorePhone.textContent = state.currentStoreData.phone || 'N/A';
         if (elements.modalStoreAddress) elements.modalStoreAddress.textContent = state.currentStoreData.address || 'N/A';
@@ -1265,6 +1274,12 @@ function renderLoadMoreButton() {
 
             elements.menuTitle.textContent = `${state.currentStoreData.name}'s Menu`;
             elements.storeNameElem.textContent = state.currentStoreData.name;
+            // Auto apply correct font
+            if (isKhmerText(state.currentStoreData.name)) {
+                elements.storeNameElem.className = 'store-name-khmer text-xl sm:text-2xl font-bold text-orange-600';
+            } else {
+                elements.storeNameElem.className = 'store-name-english text-xl sm:text-2xl font-bold text-orange-600';
+            }
 
             if (state.currentStoreData.logo) {
                 elements.storeLogoImg.src = getOptimizedImageUrl(getProxiedImageUrl(state.currentStoreData.logo));
